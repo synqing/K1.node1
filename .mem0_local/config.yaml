@@ -1,0 +1,49 @@
+# Mem0 Self-Hosted Configuration
+# Task #1.5: Local Qdrant + Ollama Setup
+
+version: v1.0
+
+# Vector Store: Qdrant (local container)
+vector_store:
+  provider: qdrant
+  config:
+    host: localhost
+    port: 6333
+    collection_name: mem0_k1_memories
+    embedding_model_dims: 768  # nomic-embed-text dimensions
+
+# Embedder: Ollama (local service)
+embedder:
+  provider: ollama
+  config:
+    model: nomic-embed-text:latest
+    base_url: http://localhost:11434
+    embedding_dims: 768
+
+# LLM: Ollama (local service) - for memory extraction/synthesis
+llm:
+  provider: ollama
+  config:
+    model: llama3.2:latest  # Fast 2GB model for memory operations
+    base_url: http://localhost:11434
+    temperature: 0.1
+    max_tokens: 1000
+
+# Memory Configuration
+memory:
+  # User-level memories (institutional knowledge)
+  user_id: k1_reinvented_project
+
+  # Session tracking
+  session_tracking: true
+
+  # Memory retention policy
+  retention:
+    max_memories: 1000
+    ttl_days: 365
+
+# Performance Tuning
+performance:
+  batch_size: 10
+  search_limit: 5
+  similarity_threshold: 0.7

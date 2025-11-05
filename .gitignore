@@ -1,6 +1,6 @@
-# Ignore everything by default, only keep firmware and webapp sources tracked
+# Ignore everything by default, only keep core sources and mem0 integration tracked
 /*
-# Keep these root files tracked
+# Keep root tracked files
 !.gitignore
 
 # Unignore firmware and webapp directories, then their contents
@@ -9,9 +9,27 @@
 !webapp/
 !webapp/**
 
+# Track Mem0 local integration code, ignore local state
+!.mem0_local/
+!.mem0_local/README.md
+!.mem0_local/config.yaml
+!.mem0_local/ingest_docs.py
+!.mem0_local/requirements.txt
+.mem0_local/qdrant_storage/
+.mem0_local/.venv/
+.mem0_local/venv/
+.mem0_local/.DS_Store
+
 # Typical build/caches to ignore inside tracked trees
 firmware/.pio/
 firmware/.pio_home/
 webapp/node_modules/
 webapp/dist/
 webapp/.vite/
+
+.config/
+!.mem0_local/bulk_ingest.sh
+!README.md
+!memory-proxy/
+!memory-proxy/**
+!.mem0_local/bulk_ingest.sh
