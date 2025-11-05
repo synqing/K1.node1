@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>K1.reinvented</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">K1.reinvented</div>
+            <div class="tagline">Light as a Statement</div>
+        </header>
+
+        <div class="patterns-section">
+            <span class="section-title">Patterns</span>
+            <div class="pattern-grid" id="patterns"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div>
+            <span class="section-title">Controls</span>
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Brightness</span>
+                        <span class="control-value" id="brightness-val">1.00</span>
+                    </label>
+                    <input type="range" class="slider" id="brightness" min="0" max="1" step="0.01" value="1.0" oninput="updateDisplay('brightness')" onchange="updateDisplay('brightness')">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Softness</span>
+                        <span class="control-value" id="softness-val">0.25</span>
+                    </label>
+                    <input type="range" class="slider" id="softness" min="0" max="1" step="0.01" value="0.25" oninput="updateDisplay('softness')">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Color</span>
+                        <span class="control-value" id="color-val">0.33</span>
+                    </label>
+                    <input type="range" class="slider" id="color" min="0" max="1" step="0.01" value="0.33" oninput="updateDisplay('color')">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Color Range</span>
+                        <span class="control-value" id="color_range-val">0.00</span>
+                    </label>
+                    <input type="range" class="slider" id="color_range" min="0" max="1" step="0.01" value="0.0" oninput="updateDisplay('color_range')">
+                <div id="color-mode" class="mode-indicator" role="status" aria-live="polite" title="Color Range ≤ 0.5: HSV mode. Color Range > 0.5: Palette mode." data-mode="hsv">HSV Mode</div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Saturation</span>
+                        <span class="control-value" id="saturation-val">0.75</span>
+                    </label>
+                    <input type="range" class="slider" id="saturation" min="0" max="1" step="0.01" value="0.75" oninput="updateDisplay('saturation')">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Warmth</span>
+                        <span class="control-value" id="warmth-val">0.00</span>
+                    </label>
+                    <input type="range" class="slider" id="warmth" min="0" max="1" step="0.01" value="0.0" oninput="updateDisplay('warmth')">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Background</span>
+                        <span class="control-value" id="background-val">0.25</span>
+                    </label>
+                    <input type="range" class="slider" id="background" min="0" max="1" step="0.01" value="0.25" oninput="updateDisplay('background')">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Speed</span>
+                        <span class="control-value" id="speed-val">0.50</span>
+                    </label>
+                    <input type="range" class="slider" id="speed" min="0" max="1" step="0.01" value="0.5" oninput="updateDisplay('speed')">
+                </div>
+
+                <hr style="margin: 16px 0; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
+
+                <div class="control-label" style="font-weight: 600; margin-bottom: 12px; opacity: 0.7; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Audio Settings
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Microphone Gain</span>
+                        <span class="control-value" id="microphone-gain-val">1.00x</span>
+                    </label>
+                    <input type="range" class="slider" id="microphone-gain" min="0.5" max="2" step="0.05" value="1.0" oninput="updateMicrophoneGain()">
+                    <div style="font-size: 10px; color: #999; margin-top: 4px; text-align: center;">-6dB &nbsp; 0dB &nbsp; +6dB</div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Palette</span>
+                        <span class="loading-indicator" id="palette-loading" style="display: none; font-size: 10px; color: #999;">Loading...</span>
+                    </label>
+                    <select id="palette-select" onchange="updatePalette()" disabled>
+                        <option value="">Loading palettes...</option>
+                    </select>
+                    <div id="palette-name">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div>
+            <span class="section-title">WiFi Link Options</span>
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Force 802.11b/g (disable 11n)</span>
+                        <span class="control-value" id="bg-only-val">—</span>
+                    </label>
+                    <div class="toggle-group">
+                        <input type="checkbox" id="bg-only" onchange="updateWifiLinkOptions()" />
+                        <span class="toggle-label">BG-Only</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label">
+                        <span>Force HT20 bandwidth (20 MHz)</span>
+                        <span class="control-value" id="ht20-val">—</span>
+                    </label>
+                    <div class="toggle-group">
+                        <input type="checkbox" id="ht20" onchange="updateWifiLinkOptions()" />
+                        <span class="toggle-label">HT20</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

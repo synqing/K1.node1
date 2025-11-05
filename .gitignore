@@ -1,0 +1,17 @@
+# Ignore everything by default, only keep firmware and webapp sources tracked
+/*
+# Keep these root files tracked
+!.gitignore
+
+# Unignore firmware and webapp directories, then their contents
+!firmware/
+!firmware/**
+!webapp/
+!webapp/**
+
+# Typical build/caches to ignore inside tracked trees
+firmware/.pio/
+firmware/.pio_home/
+webapp/node_modules/
+webapp/dist/
+webapp/.vite/

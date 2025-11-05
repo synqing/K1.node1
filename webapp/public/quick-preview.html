@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>K1 Quick Preview</title>
+    <style>
+      :root {
+        --bg: #0b0f14;
+        --panel: #121822;
+        --border: #1f2a38;
+        --text: #e6edf3;
+        --muted: #9fb1c5;
+        --accent: #4fb3ff;
+        --danger: #ff6b6b;
+        --success: #3ddc97;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; padding: 24px; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+        background: var(--bg); color: var(--text);
+      }
+      .container { max-width: 980px; margin: 0 auto; }
+      h1 { font-size: 20px; margin: 0 0 16px; }
+      .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+      label { font-size: 12px; color: var(--muted); }
+      input[type="text"], select, input[type="number"] {
+        background: #0e141c; border: 1px solid var(--border); color: var(--text);
+        padding: 8px 10px; border-radius: 8px; outline: none; min-width: 220px;
+      }
+      button {
+        appearance: none; border: 1px solid var(--border); background: #0e141c; color: var(--text);
+        padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 600;
+      }
+      button.primary { background: #111a26; border-color: #2a3a52; color: var(--accent); }
+      button.danger { border-color: #523a3a; color: var(--danger); }
+      button:disabled { opacity: 0.6; cursor: not-allowed; }
+      .status { font-size: 12px; color: var(--muted); }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .grid .item { display: flex; flex-direction: column; gap: 6px; }
+      pre { background: #0e141c; border: 1px solid var(--border); padding: 12px; border-radius: 8px; overflow: auto; max-height: 240px; }
+      .footer { margin-top: 16px; font-size: 12px; color: var(--muted); }
+      a { color: var(--accent); text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>K1 Quick Preview</h1>
+      <div class="card">
+        <div class="row" style="margin-bottom:8px;">
+          <div style="flex:1; min-width: 280px;">
+            <label for="device">Device Host/IP</label><br />
+            <input id="device" type="text" placeholder="k1-reinvented.local or 192.168.1.103" />
+          </div>
+          <div>
+            <label>&nbsp;</label><br />
+            <button id="btnTest" class="primary">Test Connection</button>
+          </div>
+          <div style="flex:1; min-width: 220px;">
+            <span id="status" class="status">Idle</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="margin-bottom:8px; align-items:flex-end;">
+          <div style="flex:1; min-width: 300px;">
+            <label for="patternSelect">Pattern</label><br />
+            <select id="patternSelect"></select>
+          </div>
+          <div>
+            <button id="btnLoadPatterns" class="primary">Load Patterns</button>
+            <button id="btnSelectPattern">Select</button>
+          </div>
+        </div>
+        <pre id="patternsOut" aria-label="Patterns output"></pre>
+      </div>
+
+      <div class="card">
+        <div class="grid">
+          <div class="item"><label for="brightness">Brightness</label><input id="brightness" type="number" min="0" max="1" step="0.01" /></div>
+          <div class="item"><label for="softness">Softness</label><input id="softness" type="number" min="0" max="1" step="0.01" /></div>
+          <div class="item"><label for="saturation">Saturation</label><input id="saturation" type="number" min="0" max="1" step="0.01" /></div>
+          <div class="item"><label for="warmth">Warmth</label><input id="warmth" type="number" min="0" max="1" step="0.01" /></div>
+          <div class="item"><label for="speed">Speed</label><input id="speed" type="number" min="0" max="1" step="0.01" /></div>
+          <div class="item"><label for="palette_id">Palette ID</label><input id="palette_id" type="number" min="0" max="999" step="1" /></div>
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <button id="btnLoadParams" class="primary">Load Params</button>
+          <button id="btnSaveParams">Save Params</button>
+          <button id="btnReset" class="danger">Reset</button>
+        </div>
+        <pre id="paramsOut" aria-label="Params output"></pre>
+      </div>
+
+      <div class="footer">
+        Tips:
+        <ul>
+          <li>Use `k1-reinvented.local` or your device IP.</li>
+          <li>Firmware may rate-limit; wait ~700ms after POST before GET verify.</li>
+          <li>If CORS blocks JSON reads, writes still succeed via `no-cors` mode.</li>
+        </ul>
+        Docs: <a href="/docs/api/API.md" target="_blank">Firmware HTTP API</a> · Broadcast helper: <code>tools/scripts/announce.sh</code>
+      </div>
+    </div>
+
+    <script>
+      const el = {
+        device: document.getElementById('device'),
+        status: document.getElementById('status'),
+        btnTest: document.getElementById('btnTest'),
+        patternSelect: document.getElementById('patternSelect'),
+        btnLoadPatterns: document.getElementById('btnLoadPatterns'),
+        btnSelectPattern: document.getElementById('btnSelectPattern'),
+        brightness: document.getElementById('brightness'),
+        softness: document.getElementById('softness'),
+        saturation: document.getElementById('saturation'),
+        warmth: document.getElementById('warmth'),
+        speed: document.getElementById('speed'),
+        palette_id: document.getElementById('palette_id'),
+        btnLoadParams: document.getElementById('btnLoadParams'),
+        btnSaveParams: document.getElementById('btnSaveParams'),
+        btnReset: document.getElementById('btnReset'),
+        patternsOut: document.getElementById('patternsOut'),
+        paramsOut: document.getElementById('paramsOut'),
+      };
+
+      const qs = new URLSearchParams(location.search);
+      const saved = localStorage.getItem('k1.device');
+      el.device.value = qs.get('ip') || saved || 'k1-reinvented.local';
+
+      function base() {
+        const raw = (el.device.value || '').trim();
+        if (!raw) throw new Error('Device IP/host required');
+        if (raw.startsWith('http://') || raw.startsWith('https://')) return raw.replace(/\/+$/, '');
+        return `http://${raw.replace(/\/+$/, '')}`;
+      }
+
+      function setStatus(text, kind = 'info') {
+        el.status.textContent = text;
+        el.status.style.color = kind === 'ok' ? 'var(--success)' : kind === 'err' ? 'var(--danger)' : 'var(--muted)';
+      }
+
+      async function fetchJson(url, opts) {
+        const res = await fetch(url, opts);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        try { return await res.json(); } catch { return {}; }
+      }
+
+      async function testConnection() {
+        setStatus('Testing connection...', 'info');
+        try {
+          const res = await fetch(`${base()}/api/test-connection`, { method: 'GET' });
+          if (res.ok) {
+            let ok = true;
+            try {
+              const json = await res.json();
+              ok = json && json.status === 'ok';
+            } catch {}
+            if (ok) {
+              setStatus('Connected', 'ok');
+              localStorage.setItem('k1.device', el.device.value);
+            } else {
+              setStatus('Unexpected response on test-connection', 'err');
+            }
+          } else {
+            setStatus(`Device responded with HTTP ${res.status}`, 'err');
+          }
+        } catch (e) {
+          const msg = String(e && e.message ? e.message : e);
+          setStatus(`Network error: ${msg}`, 'err');
+        }
+      }
+
+      async function loadPatterns() {
+        setStatus('Loading patterns...', 'info');
+        try {
+          const data = await fetchJson(`${base()}/api/patterns`);
+          const patterns = Array.isArray(data) ? data : (data.patterns || []);
+          el.patternSelect.innerHTML = '';
+          patterns.forEach((p, idx) => {
+            const opt = document.createElement('option');
+            opt.value = String(p.index ?? idx);
+            opt.textContent = `${String(p.index ?? idx)} — ${p.name || p.id || 'Pattern'}`;
+            el.patternSelect.appendChild(opt);
+          });
+          el.patternsOut.textContent = JSON.stringify(data, null, 2);
+          setStatus(`Loaded ${patterns.length} patterns`, 'ok');
+        } catch (e) {
+          setStatus(`Failed to load patterns: ${String(e.message || e)}`, 'err');
+        }
+      }
+
+      async function selectPattern() {
+        const index = Number(el.patternSelect.value || '0');
+        setStatus(`Selecting pattern ${index}...`, 'info');
+        try {
+          const res = await fetch(`${base()}/api/select`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ index })
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          // Response may be opaque due to CORS; treat 200 OK as success
+          setStatus('Pattern selected', 'ok');
+        } catch (e) {
+          // Fallback: send opaque write without CORS headers
+          try {
+            await fetch(`${base()}/api/select`, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ index }) });
+            setStatus('Pattern selected (opaque)', 'ok');
+          } catch (e2) {
+            setStatus(`Failed to select: ${String(e2.message || e2)}`, 'err');
+          }
+        }
+      }
+
+      async function loadParams() {
+        setStatus('Loading params...', 'info');
+        try {
+          const params = await fetchJson(`${base()}/api/params`);
+          for (const key of ['brightness','softness','saturation','warmth','speed','palette_id']) {
+            if (key in params) el[key].value = String(params[key]);
+          }
+          el.paramsOut.textContent = JSON.stringify(params, null, 2);
+          setStatus('Params loaded', 'ok');
+        } catch (e) {
+          setStatus(`Failed to load params: ${String(e.message || e)}`, 'err');
+        }
+      }
+
+      async function saveParams() {
+        const payload = {
+          brightness: Number(el.brightness.value || '0'),
+          softness: Number(el.softness.value || '0'),
+          saturation: Number(el.saturation.value || '0'),
+          warmth: Number(el.warmth.value || '0'),
+          speed: Number(el.speed.value || '0'),
+          palette_id: Number(el.palette_id.value || '0'),
+        };
+        setStatus('Saving params...', 'info');
+        try {
+          const res = await fetch(`${base()}/api/params`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          let json = null;
+          try { json = await res.json(); } catch {}
+          el.paramsOut.textContent = json ? JSON.stringify(json, null, 2) : 'Saved (opaque response)';
+          setStatus('Params saved', 'ok');
+        } catch (e) {
+          try {
+            await fetch(`${base()}/api/params`, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+            el.paramsOut.textContent = 'Saved (opaque response via no-cors)';
+            setStatus('Params saved (opaque)', 'ok');
+          } catch (e2) {
+            setStatus(`Failed to save: ${String(e2.message || e2)}`, 'err');
+          }
+        }
+      }
+
+      function resetUI() {
+        el.patternSelect.innerHTML = '';
+        el.patternsOut.textContent = '';
+        el.paramsOut.textContent = '';
+        setStatus('Idle');
+      }
+
+      el.btnTest.addEventListener('click', testConnection);
+      el.btnLoadPatterns.addEventListener('click', loadPatterns);
+      el.btnSelectPattern.addEventListener('click', selectPattern);
+      el.btnLoadParams.addEventListener('click', loadParams);
+      el.btnSaveParams.addEventListener('click', saveParams);
+      el.btnReset.addEventListener('click', resetUI);
+
+      // Auto-test on load if ip param present
+      if (qs.get('ip')) {
+        testConnection();
+      }
+    </script>
+  </body>
+  </html>
+
