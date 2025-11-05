@@ -144,6 +144,24 @@ All design tokens are defined in `/styles/globals.css` using CSS custom properti
 - Typography scales and font families
 - Custom variant for dark mode
 
+### Accessibility
+- Reduced motion: The app respects `prefers-reduced-motion` and disables non‑essential animations/transitions.
+  - See: `src/styles/globals.css`
+- Screen reader announcements: dynamic events (terminal output, live/pause toggles) are announced via `aria-live` regions.
+  - Utility: `src/components/a11y/announcer.ts`
+  - Integrations: `src/components/views/TerminalView.tsx`, `src/components/views/ProfilingView.tsx`
+
+### Design Iterations (Optional)
+You can preview alternative dark-mode styling from `.superdesign/design_iterations` without changing the Tailwind setup:
+
+- The stylesheet is vendored at `src/styles/experimental/default_ui_darkmode.css`.
+- Enable it by adding `VITE_ENABLE_DESIGN_ITER=true` to a local env file (e.g., `webapp/.env.local`).
+- When enabled, it overrides CSS variables and adds utility classes like `.card`, `.btn`, `.badge`, etc.
+
+Notes:
+- Keep it off in CI and shared builds. It’s intended for local prototyping.
+- Expect some overlap with Tailwind utilities; prefer Tailwind for production styles and treat this file as a visual exploration.
+
 ### Mock Data
 The prototype uses simulated data for demonstration:
 - Performance metrics update at realistic intervals (100-500ms)
@@ -158,6 +176,16 @@ The prototype uses simulated data for demonstration:
 - Connection state tracked globally
 - Real-time updates via `setInterval`
 - Debounced parameter changes (300ms)
+
+### Builder Integration
+- Token mapping for preview: `design/03-guides/handoff/builder/custom_code_tokens_with_toggle.html`
+- Component wrappers (Builder‑friendly):
+  - `src/builder/MetricTileWrapper.tsx`
+  - `src/builder/TerminalPanelWrapper.tsx` (forwards optional `initialCommand`, `autoScroll`, `historyLimit`)
+  - `src/builder/ProfilingChartsWrapper.tsx`
+  - `src/builder/CardWrapper.tsx`, `src/builder/TabsWrapper.tsx`
+- Registration hub: `src/builder/register.tsx` (imported in `src/main.tsx`)
+- Handoff docs: `design/03-guides/handoff/builder/*` (IA, models, prompt patterns, component index)
 
 ## File Structure
 

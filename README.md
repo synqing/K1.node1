@@ -23,7 +23,7 @@ K1.node1/
 │   └── vite.config.ts     (Bundler config)
 │
 ├── docs/                  (Essential documentation only)
-│   ├── adr/               (Architecture Decision Records - 10 decisions)
+│   ├── 02-adr/            (Architecture Decision Records - 10 decisions)
 │   └── CLAUDE.md          (Agent operations manual)
 │
 └── README.md              (This file)
@@ -54,7 +54,12 @@ npm run dev
 
 ### Read Documentation
 Start with: `CLAUDE.md` (Agent operations guide)
-Then: `docs/adr/` (Architecture decisions)
+Then: `docs/02-adr/` (Architecture decisions)
+
+### Testing
+- Frontend Playbook: `docs/07-resources/frontend-testing-playbook.md`
+- Webapp Testing Quickstart: `webapp/README.md` (Jest + RTL setup, commands, E2E notes)
+- Jest config: `webapp/jest.config.ts` | Setup: `webapp/src/test/setup.ts`
 
 ## What Changed from K1.reinvented
 
@@ -81,14 +86,14 @@ Then: `docs/adr/` (Architecture decisions)
 
 **Documentation:**
 - `CLAUDE.md` - How Claude agents should work with this repo
-- `docs/adr/ADR-000*.md` - All architectural decisions with reasoning
-- `docs/PHASE_2D1_AUDIT_START_HERE.md` - Latest comprehensive audit
-- `docs/PHASE_2D1_GRAPH_PARALLEL_MASTER_STRATEGY.md` - Current execution plan
+- `docs/02-adr/ADR-000*.md` - All architectural decisions with reasoning
+- `docs/04-planning/PHASE_2D1_AUDIT_START_HERE.md` - Latest comprehensive audit
+- `docs/04-planning/PHASE_2D1_GRAPH_PARALLEL_MASTER_STRATEGY.md` - Current execution plan
 
 ## Development Workflow
 
 1. **Read CLAUDE.md first** - Understand agent and human workflows
-2. **Check docs/adr/** - Understand why architecture decisions were made
+2. **Check docs/02-adr/** - Understand why architecture decisions were made
 3. **Firmware**: Edit code in `firmware/src/`, test with `pio run`
 4. **Webapp**: Edit code in `webapp/src/`, dev server with `npm run dev`
 5. **Documentation**: Keep it minimal; use `docs/` only for essential info
@@ -113,7 +118,7 @@ If you need something from K1.reinvented:
 ---
 
 **Status:** Ready for development
-**Next:** Check `docs/adr/` for architectural context, then start coding.
+**Next:** Check `docs/02-adr/` for architectural context, then start coding.
 
 ## Local Memory (Mem0)
 

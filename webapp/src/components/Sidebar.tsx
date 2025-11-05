@@ -147,6 +147,8 @@ export function Sidebar({ connectionState, onConnect, onDisconnect, isCollapsed,
       <div className="w-12 bg-[var(--prism-bg-surface)] border-r border-[var(--prism-bg-elevated)] flex flex-col items-center py-4">
         <button
           onClick={onToggleCollapse}
+          aria-label="Expand sidebar"
+          title="Expand sidebar"
           className="w-8 h-8 rounded-md bg-[var(--prism-bg-elevated)] hover:bg-[var(--prism-bg-canvas)] flex items-center justify-center text-[var(--prism-text-secondary)] hover:text-[var(--prism-text-primary)] transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
@@ -172,6 +174,8 @@ export function Sidebar({ connectionState, onConnect, onDisconnect, isCollapsed,
         </div>
         <button
           onClick={onToggleCollapse}
+          aria-label="Collapse sidebar"
+          title="Collapse sidebar"
           className="w-6 h-6 rounded hover:bg-[var(--prism-bg-elevated)] flex items-center justify-center text-[var(--prism-text-secondary)] hover:text-[var(--prism-text-primary)] transition-colors"
         >
           <ChevronRight className="w-4 h-4 rotate-180" />

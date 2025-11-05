@@ -5,6 +5,12 @@ import App from './App.tsx';
 import './index.css';
 import './styles/globals.css';
 import './lib/analysisClient';
+import './builder/register';
+
+// Optional: enable experimental design iteration styles
+if (import.meta.env.VITE_ENABLE_DESIGN_ITER === 'true') {
+  import('./styles/experimental/default_ui_darkmode.css');
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {

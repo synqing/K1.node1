@@ -23,7 +23,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-lg"
+        className="sm:max-w-lg max-h-[90vh] overflow-y-auto"
         style={{
           backgroundColor: 'var(--color-prism-bg-surface)',
           borderColor: 'var(--color-border)',

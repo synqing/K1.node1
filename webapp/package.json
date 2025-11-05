@@ -2,7 +2,11 @@
       "name": "audio-reactive-led-control-dashboard",
       "version": "0.1.0",
       "private": true,
+      "engines": {
+            "node": ">=20 <21"
+      },
       "dependencies": {
+            "@builder.io/react": "^8.2.9",
             "@radix-ui/react-accordion": "^1.2.3",
             "@radix-ui/react-alert-dialog": "^1.1.6",
             "@radix-ui/react-aspect-ratio": "^1.1.2",
@@ -63,6 +67,7 @@
             "jest": "^30.2.0",
             "jest-environment-jsdom": "^30.2.0",
             "jsdom": "^24.0.0",
+            "rollup-plugin-visualizer": "^6.0.5",
             "ts-jest": "^29.4.5",
             "typescript": "^5.6.3",
             "vite": "^6.4.1",

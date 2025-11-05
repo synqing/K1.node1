@@ -5,19 +5,57 @@ import { Input } from '../ui/input';
 import { CommandHistoryItem } from '../../lib/types';
 import { AVAILABLE_COMMANDS, executeCommand } from '../../lib/mockData';
 import { ScrollArea } from '../ui/scroll-area';
+import { announce } from '../a11y/announcer';
 
-export function TerminalView() {
+export interface TerminalViewProps {
+  initialCommand?: string;
+  autoScroll?: boolean;
+  historyLimit?: number;
+}
+
+export function TerminalView({
+  initialCommand,
+  autoScroll: autoScrollDefault = true,
+  historyLimit = 1000,
+}: TerminalViewProps = {}) {
+  const normalizedLimit = Number.isFinite(historyLimit) && historyLimit ? Math.max(1, Math.floor(historyLimit)) : 1000;
+
+  const buildHelpEntry = (): CommandHistoryItem => ({
+    command: 'help',
+    output: AVAILABLE_COMMANDS.map(c => `${c.cmd.padEnd(8)} - ${c.desc}`).join('\n'),
+    timestamp: Date.now() - 10000,
+    type: 'info',
+  });
+
+  const buildInitialHistory = (): CommandHistoryItem[] => {
+    const entries: CommandHistoryItem[] = [buildHelpEntry()];
+    if (initialCommand && initialCommand.trim()) {
+      const result = executeCommand(initialCommand.trim());
+      entries.push({
+        command: initialCommand.trim(),
+        output: result.output,
+        timestamp: Date.now(),
+        type: result.type,
+      });
+    }
+    return entries.slice(-normalizedLimit);
+  };
+
+  const buildInitialCommandHistory = (): string[] => {
+    const commands = ['help'];
+    if (initialCommand && initialCommand.trim()) {
+      const trimmed = initialCommand.trim();
+      if (!commands.includes(trimmed)) {
+        commands.unshift(trimmed);
+      }
+    }
+    return commands.slice(0, normalizedLimit);
+  };
+
   const [command, setCommand] = useState('');
-  const [history, setHistory] = useState<CommandHistoryItem[]>([
-    {
-      command: 'help',
-      output: AVAILABLE_COMMANDS.map(c => `${c.cmd.padEnd(8)} - ${c.desc}`).join('\n'),
-      timestamp: Date.now() - 10000,
-      type: 'info',
-    },
-  ]);
-  const [commandHistory, setCommandHistory] = useState<string[]>(['help']);
-  const [autoScroll, setAutoScroll] = useState(true);
+  const [history, setHistory] = useState<CommandHistoryItem[]>(buildInitialHistory);
+  const [commandHistory, setCommandHistory] = useState<string[]>(buildInitialCommandHistory);
+  const [autoScroll, setAutoScroll] = useState(autoScrollDefault);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -26,6 +64,15 @@ export function TerminalView() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [history, autoScroll]);
+
+  useEffect(() => {
+    setAutoScroll(autoScrollDefault);
+  }, [autoScrollDefault]);
+
+  useEffect(() => {
+    setHistory(prev => prev.slice(-normalizedLimit));
+    setCommandHistory(prev => prev.slice(0, normalizedLimit));
+  }, [normalizedLimit]);
   
   const handleExecute = () => {
     if (!command.trim()) return;
@@ -38,16 +85,20 @@ export function TerminalView() {
       type: result.type,
     };
     
-    setHistory(prev => [...prev, newEntry]);
+    setHistory(prev => {
+      const next = [...prev, newEntry];
+      return next.slice(-normalizedLimit);
+    });
     setCommandHistory(prev => {
       const updated = [command, ...prev.filter(c => c !== command)];
-      return updated.slice(0, 10);
+      return updated.slice(0, normalizedLimit);
     });
     setCommand('');
     
     setTimeout(() => {
       inputRef.current?.focus();
     }, 0);
+    announce('New terminal output');
   };
   
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -93,7 +144,11 @@ export function TerminalView() {
             </button>
             
             <Button
-              onClick={() => setHistory([])}
+              onClick={() => {
+                setHistory(buildInitialHistory());
+                setCommandHistory(buildInitialCommandHistory());
+                announce('Terminal cleared');
+              }}
               size="sm"
               variant="ghost"
               className="text-xs text-[var(--prism-text-secondary)] hover:text-[var(--prism-text-primary)]"

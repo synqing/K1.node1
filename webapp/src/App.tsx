@@ -163,7 +163,7 @@ export default function App() {
           onSetIdlePrefetch={setIdlePrefetch}
         />
         
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 flex flex-col overflow-hidden" role="main">
           <Suspense
             fallback={
               <div className="flex-1 p-6">
@@ -180,7 +180,7 @@ export default function App() {
             {currentView === 'terminal' && <TerminalView />}
             {currentView === 'graph' && <GraphEditorView />}
           </Suspense>
-        </div>
+        </main>
       </div>
       
       <Toaster 

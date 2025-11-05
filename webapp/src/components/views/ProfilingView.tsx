@@ -3,6 +3,9 @@ import { EffectType } from '../../lib/types';
 import { ProfilingFilters } from '../profiling/ProfilingFilters';
 import { LiveStatistics } from '../profiling/LiveStatistics';
 import { toast } from 'sonner';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { announce } from '../a11y/announcer';
 
 // Lazy-load heavy charts bundle (recharts)
 const ProfilingCharts = lazy(() =>
@@ -13,6 +16,7 @@ export function ProfilingView() {
   const [selectedEffect, setSelectedEffect] = useState<EffectType | 'all'>('all');
   const [timeRange, setTimeRange] = useState(500);
   const [showPhaseComparison, setShowPhaseComparison] = useState(false);
+  const [isLive, setIsLive] = useState(true);
   
   const handleExport = () => {
     toast.success('Profiling data exported successfully', {
@@ -22,6 +26,26 @@ export function ProfilingView() {
   
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-medium">Profiling</h2>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" aria-live="polite" aria-label={isLive ? 'Live updating' : 'Paused'}>
+            <span className={`mr-2 inline-block size-2 rounded-full ${isLive ? 'bg-[var(--prism-success)]' : 'bg-[var(--prism-text-secondary)]'}`} />
+            {isLive ? 'Live' : 'Paused'}
+          </Badge>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setIsLive((v) => !v);
+              announce(isLive ? 'Live updates paused' : 'Live updates resumed');
+            }}
+            aria-label={isLive ? 'Pause live updates' : 'Resume live updates'}
+          >
+            {isLive ? 'Pause' : 'Resume'}
+          </Button>
+        </div>
+      </div>
       <ProfilingFilters
         selectedEffect={selectedEffect}
         onEffectChange={setSelectedEffect}

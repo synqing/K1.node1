@@ -153,3 +153,20 @@ Troubleshooting
 
 ## Developer Tooling
 - See `docs/devtools-setup.md` for Quokka, Console Ninja, and Wallaby usage with this app.
+
+## Testing Quickstart
+
+- Unit/Integration (Jest + RTL)
+  - Config: `webapp/jest.config.ts`
+  - Setup: `webapp/src/test/setup.ts` (adds `@testing-library/jest-dom`, polyfills `requestIdleCallback`)
+  - Run: `npm run test` | watch: `npm run test:watch` | coverage: `npm run test:coverage`
+  - Patterns: prefer role-based queries; use fake timers for debounced hooks; isolate providers.
+
+- E2E (Playwright)
+  - Recommended config: see Frontend Testing Playbook
+  - Trace/screenshots on failure; shard heavy flows.
+
+- References
+  - Frontend Testing Playbook: `docs/07-resources/frontend-testing-playbook.md`
+  - Jest config (aliases/jsdom/CSS mapping): `webapp/jest.config.ts`
+  - Repo-wide CLAUDE manual: `CLAUDE.md`

@@ -28,11 +28,11 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* Project references */
+    "composite": true
   },
   "include": ["src", "../webapp-backend/src/api-client/**/*"],
-  "references": [{ "path": "./tsconfig.node.json" }],
-  "compilerOptions": {
-    "composite": true
-  }
+  "references": [{ "path": "./tsconfig.node.json" }]
 }

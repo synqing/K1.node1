@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useInfiniteTracks, useMetrics, useArtifacts, useActivityLog, useTelemetryStream } from '@backend/react-query-hooks';
 import { ErrorBoundary } from '../common/ErrorBoundary';
@@ -8,10 +8,10 @@ import { Button } from '../ui/button';
 import { Toolbar } from '../analysis/Toolbar';
 import { UploadModal } from '../analysis/UploadModal';
 import { TrackListItem } from '../analysis/TrackListItem';
-import { BeatGridChart } from '../analysis/BeatGridChart';
-import { FrequencyChart } from '../analysis/FrequencyChart';
-import { DynamicsChart } from '../analysis/DynamicsChart';
-import { SectionsTimeline } from '../analysis/SectionsTimeline';
+const BeatGridChart = lazy(() => import('../analysis/BeatGridChart').then(m => ({ default: m.BeatGridChart })));
+const FrequencyChart = lazy(() => import('../analysis/FrequencyChart').then(m => ({ default: m.FrequencyChart })));
+const DynamicsChart = lazy(() => import('../analysis/DynamicsChart').then(m => ({ default: m.DynamicsChart })));
+const SectionsTimeline = lazy(() => import('../analysis/SectionsTimeline').then(m => ({ default: m.SectionsTimeline })));
 import { GraphPresetCard } from '../analysis/GraphPresetCard';
 import { ArtifactTable, type ArtifactRow } from '../analysis/ArtifactTable';
 import { ActivityLog, type ActivityLogItem } from '../analysis/ActivityLog';
@@ -426,10 +426,18 @@ export function AnalysisView({ connectionState }: AnalysisViewProps) {
             </Card>
 
             <section className="grid gap-4 md:grid-cols-2">
-              <BeatGridChart />
-              <FrequencyChart />
-              <DynamicsChart />
-              <SectionsTimeline />
+              <Suspense fallback={<div className="h-48 w-full bg-[var(--color-prism-bg-elevated)]/50 rounded" />}> 
+                <BeatGridChart />
+              </Suspense>
+              <Suspense fallback={<div className="h-48 w-full bg-[var(--color-prism-bg-elevated)]/50 rounded" />}> 
+                <FrequencyChart />
+              </Suspense>
+              <Suspense fallback={<div className="h-48 w-full bg-[var(--color-prism-bg-elevated)]/50 rounded" />}> 
+                <DynamicsChart />
+              </Suspense>
+              <Suspense fallback={<div className="h-24 w-full bg-[var(--color-prism-bg-elevated)]/50 rounded" />}> 
+                <SectionsTimeline />
+              </Suspense>
             </section>
 
             <GraphPresetCard />

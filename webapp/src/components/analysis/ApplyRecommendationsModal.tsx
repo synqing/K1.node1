@@ -154,7 +154,10 @@ export function ApplyRecommendationsModal({ open, onOpenChange, deviceIp, connec
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent style={{ backgroundColor: 'var(--color-prism-bg-surface)', borderColor: 'var(--color-border)' }}>
+      <AlertDialogContent
+        className="max-h-[90vh] overflow-y-auto"
+        style={{ backgroundColor: 'var(--color-prism-bg-surface)', borderColor: 'var(--color-border)' }}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle style={{ color: 'var(--color-prism-text-primary)' }}>Preview Analysis Recommendations</AlertDialogTitle>
           <AlertDialogDescription>
