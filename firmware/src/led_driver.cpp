@@ -18,7 +18,9 @@ float global_brightness = 0.3f;  // Start at 30% to avoid retina damage
 uint8_t raw_led_data[NUM_LEDS * 3];
 
 // RMT peripheral handles
-rmt_channel_handle_t tx_chan = NULL;
+rmt_channel_handle_t tx_chan = NULL;   // alias to A for legacy
+rmt_channel_handle_t tx_chan_a = NULL;
+rmt_channel_handle_t tx_chan_b = NULL;
 rmt_encoder_handle_t led_encoder = NULL;
 
 // RMT encoder instance
@@ -90,29 +92,72 @@ esp_err_t rmt_new_led_strip_encoder(const led_strip_encoder_config_t *config, rm
 // ============================================================================
 
 void init_rmt_driver() {
-    printf("init_rmt_driver\n");
-    rmt_tx_channel_config_t tx_chan_config = {
-        .gpio_num = (gpio_num_t)LED_DATA_PIN,  // GPIO number
-        .clk_src = RMT_CLK_SRC_DEFAULT,        // default source clock
-        .resolution_hz = 20000000,             // 20 MHz tick resolution (1 tick = 0.05us)
-        .mem_block_symbols = 64,               // 64 * 4 = 256 bytes
-        .trans_queue_depth = 4,                // pending transactions depth
-        .intr_priority = 99,
-        .flags = { .with_dma = 1 },            // DMA enabled to reduce ISR pressure
-    };
+#if __has_include(<driver/rmt_tx.h>)
+    // ESP-IDF v5 dual-channel mode with new API
+    printf("init_rmt_driver (dual-channel, v5 API)\n");
 
-	printf("rmt_new_tx_channel\n");
-	ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &tx_chan));
+    // Create encoder once (shared across channels)
+    if (!led_encoder) {
+        ESP_LOGI(TAG, "Install led strip encoder");
+        led_strip_encoder_config_t encoder_config = {
+            .resolution = 20000000,
+        };
+        printf("rmt_new_led_strip_encoder\n");
+        ESP_ERROR_CHECK(rmt_new_led_strip_encoder(&encoder_config, &led_encoder));
+    }
 
-    ESP_LOGI(TAG, "Install led strip encoder");
-    led_strip_encoder_config_t encoder_config = {
-        .resolution = 20000000,
-    };
-	printf("rmt_new_led_strip_encoder\n");
-	ESP_ERROR_CHECK(rmt_new_led_strip_encoder(&encoder_config, &led_encoder));
+    // Configure TX channel A (LED_DATA_PIN_A)
+    if (!tx_chan_a) {
+        rmt_tx_channel_config_t tx_chan_config_a = {
+            .gpio_num = (gpio_num_t)LED_DATA_PIN_A,
+            .clk_src = RMT_CLK_SRC_DEFAULT,
+            .resolution_hz = 20000000,
+            .mem_block_symbols = 64,
+            .trans_queue_depth = 4,
+            .intr_priority = 99,
+            .flags = { .with_dma = 1 },
+        };
+        printf("rmt_new_tx_channel(A)\n");
+        ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config_a, &tx_chan_a));
+        printf("rmt_enable(A)\n");
+        ESP_ERROR_CHECK(rmt_enable(tx_chan_a));
+    }
 
-	printf("rmt_enable\n");
-	ESP_ERROR_CHECK(rmt_enable(tx_chan));
+    // Configure TX channel B (LED_DATA_PIN_B)
+    // Fallback to single-channel if second channel unavailable (HW resource exhaustion)
+    if (!tx_chan_b) {
+        rmt_tx_channel_config_t tx_chan_config_b = {
+            .gpio_num = (gpio_num_t)LED_DATA_PIN_B,
+            .clk_src = RMT_CLK_SRC_DEFAULT,
+            .resolution_hz = 20000000,
+            .mem_block_symbols = 64,
+            .trans_queue_depth = 4,
+            .intr_priority = 99,
+            .flags = { .with_dma = 1 },
+        };
+        printf("rmt_new_tx_channel(B)\n");
+        esp_err_t err_b = rmt_new_tx_channel(&tx_chan_config_b, &tx_chan_b);
+        if (err_b != ESP_OK) {
+            ESP_LOGW(TAG, "Failed to allocate RMT channel B (0x%x): fallback to single-channel", err_b);
+            tx_chan_b = NULL;
+        } else {
+            printf("rmt_enable(B)\n");
+            ESP_ERROR_CHECK(rmt_enable(tx_chan_b));
+        }
+    }
+
+    // Legacy alias
+    tx_chan = tx_chan_a;
+
+#else
+    // Fallback: Old ESP-IDF API (single-channel, no dual-channel support)
+    // The old API has completely different types/functions and is not supported
+    // Initialize dummy handles to prevent crashes in transmit_leds()
+    printf("init_rmt_driver (old API detected - LED output disabled)\n");
+    tx_chan = (rmt_channel_handle_t)(intptr_t)0xDEADBEEF;  // Dummy handle
+    tx_chan_a = (rmt_channel_handle_t)(intptr_t)0xDEADBEEF;
+    tx_chan_b = NULL;  // No dual-channel on old API
+#endif
 }
 
 // Note: quantize_color() is defined inline in led_driver.h (required for compiler inlining)

@@ -513,9 +513,13 @@ void draw_octave(float time, const PatternParameters& params) {
  * Uses static buffer for frame-to-frame persistence (like Emotiscope's novelty_image_prev)
  * Spreads energy from center outward with Gaussian-like blur
  */
+// Channel selection helper
+#include "pattern_channel.h"
+
 void draw_bloom(float time, const PatternParameters& params) {
-    static float bloom_trail[NUM_LEDS] = {0.0f};
-    static float bloom_trail_prev[NUM_LEDS] = {0.0f};
+    static float bloom_trail[2][NUM_LEDS] = {{0.0f}};
+    static float bloom_trail_prev[2][NUM_LEDS] = {{0.0f}};
+    const uint8_t ch_idx = get_pattern_channel_index();
 
     PATTERN_AUDIO_START();
 
@@ -523,8 +527,8 @@ void draw_bloom(float time, const PatternParameters& params) {
     // Reduce saturation: decay incorporates softness (persistence)
     float trail_decay = 0.92f + 0.06f * clip_float(params.softness); // 0.92..0.98
     // Accelerate: pre-scale previous trail with DSPS mulc, then use alpha=1.0
-    dsps_mulc_f32_inplace(bloom_trail_prev, NUM_LEDS, trail_decay);
-    draw_sprite_float(bloom_trail, bloom_trail_prev, NUM_LEDS, NUM_LEDS, spread_speed, 1.0f);
+    dsps_mulc_f32_inplace(bloom_trail_prev[ch_idx], NUM_LEDS, trail_decay);
+    draw_sprite_float(bloom_trail[ch_idx], bloom_trail_prev[ch_idx], NUM_LEDS, NUM_LEDS, spread_speed, 1.0f);
 
 	if (AUDIO_IS_AVAILABLE()) {
 		// Loudness-aware injection using absolute bands, with sqrt response to favor quiet content
@@ -537,14 +541,14 @@ void draw_bloom(float time, const PatternParameters& params) {
 		float inject = inject_base * (0.25f + energy_gate * 0.85f) * boost;
 		// Minimal floor to avoid vanishing on near-silence when energy is present
 		if (inject < 0.02f && energy_gate > 0.05f) inject = 0.02f;
-		bloom_trail[0] = fmaxf(bloom_trail[0], inject);
+		bloom_trail[ch_idx][0] = fmaxf(bloom_trail[ch_idx][0], inject);
 		// Seed an adjacent cell to improve initial spread
-		bloom_trail[1] = fmaxf(bloom_trail[1], inject * 0.6f);
+		bloom_trail[ch_idx][1] = fmaxf(bloom_trail[ch_idx][1], inject * 0.6f);
 	}
 
 	int half_leds = NUM_LEDS >> 1;
 	for (int i = 0; i < half_leds; ++i) {
-		float brightness = clip_float(bloom_trail[i]);
+		float brightness = clip_float(bloom_trail[ch_idx][i]);
 		CRGBF color = color_from_palette(params.palette_id, static_cast<float>(i) / half_leds, brightness);
 		color.r *= params.brightness;
 		color.g *= params.brightness;
@@ -557,24 +561,25 @@ void draw_bloom(float time, const PatternParameters& params) {
 	}
 
     // Accelerated copy (wrapper uses memcpy underneath)
-    dsps_memcpy_accel(bloom_trail_prev, bloom_trail, sizeof(float) * NUM_LEDS);
+    dsps_memcpy_accel(bloom_trail_prev[ch_idx], bloom_trail[ch_idx], sizeof(float) * NUM_LEDS);
 
 	// Uniform background handling across patterns
 	apply_background_overlay(params);
 }
 
 void draw_bloom_mirror(float time, const PatternParameters& params) {
-	static CRGBF bloom_buffer[NUM_LEDS];
-	static CRGBF bloom_buffer_prev[NUM_LEDS];
+	static CRGBF bloom_buffer[2][NUM_LEDS];
+	static CRGBF bloom_buffer_prev[2][NUM_LEDS];
+	const uint8_t ch_idx = get_pattern_channel_index();
 
 	PATTERN_AUDIO_START();
 
 	// Scroll the full strip outward and apply decay
 	float scroll_speed = 0.25f + 1.75f * clip_float(params.speed);
-	std::fill(std::begin(bloom_buffer), std::end(bloom_buffer), CRGBF{0.0f, 0.0f, 0.0f});
+	for (int i = 0; i < NUM_LEDS; ++i) bloom_buffer[ch_idx][i] = CRGBF{0.0f, 0.0f, 0.0f};
 	// Tuned decay to reduce washout; respect softness
 	float decay = 0.92f + 0.06f * clip_float(params.softness); // 0.92..0.98
-	draw_sprite(bloom_buffer, bloom_buffer_prev, NUM_LEDS, NUM_LEDS, scroll_speed, decay);
+	draw_sprite(bloom_buffer[ch_idx], bloom_buffer_prev[ch_idx], NUM_LEDS, NUM_LEDS, scroll_speed, decay);
 
 	// Build chromagram-driven colour blend (Sensory Bridge style)
 	CRGBF wave_color = { 0.0f, 0.0f, 0.0f };
@@ -639,15 +644,15 @@ void draw_bloom_mirror(float time, const PatternParameters& params) {
 	// Apply user-adjustable low-level boost (custom_param_3 ∈ [0,1] → [1.0,2.0])
 	float boost_mirror = 1.0f + fmaxf(0.0f, fminf(1.0f, params.custom_param_3)) * 1.0f;
 	conf_inject *= boost_mirror;
-	bloom_buffer[center - 1].r += wave_color.r * conf_inject;
-	bloom_buffer[center - 1].g += wave_color.g * conf_inject;
-	bloom_buffer[center - 1].b += wave_color.b * conf_inject;
-	bloom_buffer[center].r += wave_color.r * conf_inject;
-	bloom_buffer[center].g += wave_color.g * conf_inject;
-	bloom_buffer[center].b += wave_color.b * conf_inject;
+	bloom_buffer[ch_idx][center - 1].r += wave_color.r * conf_inject;
+	bloom_buffer[ch_idx][center - 1].g += wave_color.g * conf_inject;
+	bloom_buffer[ch_idx][center - 1].b += wave_color.b * conf_inject;
+	bloom_buffer[ch_idx][center].r += wave_color.r * conf_inject;
+	bloom_buffer[ch_idx][center].g += wave_color.g * conf_inject;
+	bloom_buffer[ch_idx][center].b += wave_color.b * conf_inject;
 
 	// Preserve unfaded frame for next scroll before rendering adjustments
-	std::memcpy(bloom_buffer_prev, bloom_buffer, sizeof(CRGBF) * NUM_LEDS);
+	std::memcpy(bloom_buffer_prev[ch_idx], bloom_buffer[ch_idx], sizeof(CRGBF) * NUM_LEDS);
 
 	// Apply tail fade on the far end (rendering only)
 	int fade_span = NUM_LEDS >> 2;
@@ -655,14 +660,14 @@ void draw_bloom_mirror(float time, const PatternParameters& params) {
 		float prog = static_cast<float>(i) / static_cast<float>(fade_span);
 		float atten = prog * prog;
 		int idx = NUM_LEDS - 1 - i;
-		bloom_buffer[idx].r *= atten;
-		bloom_buffer[idx].g *= atten;
-		bloom_buffer[idx].b *= atten;
+		bloom_buffer[ch_idx][idx].r *= atten;
+		bloom_buffer[ch_idx][idx].g *= atten;
+		bloom_buffer[ch_idx][idx].b *= atten;
 	}
 
 	// Mirror right half onto left for symmetry
 	for (int i = 0; i < center; ++i) {
-		bloom_buffer[i] = bloom_buffer[(NUM_LEDS - 1) - i];
+		bloom_buffer[ch_idx][i] = bloom_buffer[ch_idx][(NUM_LEDS - 1) - i];
 	}
 
 	// Output to LED buffer with brightness applied
@@ -681,7 +686,7 @@ void draw_bloom_mirror(float time, const PatternParameters& params) {
 			}
 		}
 
-		HSVF px_hsv = rgb_to_hsv(bloom_buffer[i]);
+		HSVF px_hsv = rgb_to_hsv(bloom_buffer[ch_idx][i]);
 		float px_brightness = clip_float(px_hsv.v);
 
 		CRGBF palette_color = color_from_palette(
@@ -980,15 +985,17 @@ void draw_tempiscope(float time, const PatternParameters& params) {
 // float position = eased * NUM_LEDS;  // Use eased position instead of linear
 
 // Static buffers for tunnel image and motion blur persistence
-static CRGBF beat_tunnel_variant_image[NUM_LEDS];
-static CRGBF beat_tunnel_variant_image_prev[NUM_LEDS];
+// Dualized for dual-channel independence: [0] = channel_a, [1] = channel_b
+static CRGBF beat_tunnel_variant_image[2][NUM_LEDS] = {{}};
+static CRGBF beat_tunnel_variant_image_prev[2][NUM_LEDS] = {{}};
 static float beat_tunnel_variant_angle = 0.0f;
-static CRGBF beat_tunnel_image[NUM_LEDS];
-static CRGBF beat_tunnel_image_prev[NUM_LEDS];
+static CRGBF beat_tunnel_image[2][NUM_LEDS] = {{}};
+static CRGBF beat_tunnel_image_prev[2][NUM_LEDS] = {{}};
 static float beat_tunnel_angle = 0.0f;
 
 void draw_beat_tunnel(float time, const PatternParameters& params) {
 	PATTERN_AUDIO_START();
+	const uint8_t ch_idx = get_pattern_channel_index();
 
 	static float last_time_bt = 0.0f;
 	float dt_bt = time - last_time_bt;
@@ -997,7 +1004,7 @@ void draw_beat_tunnel(float time, const PatternParameters& params) {
 	last_time_bt = time;
 
 	for (int i = 0; i < NUM_LEDS; i++) {
-		beat_tunnel_image[i] = CRGBF(0.0f, 0.0f, 0.0f);
+		beat_tunnel_image[ch_idx][i] = CRGBF(0.0f, 0.0f, 0.0f);
 	}
 
 	float speed = 0.0015f + 0.0065f * clip_float(params.speed);
@@ -1009,7 +1016,7 @@ void draw_beat_tunnel(float time, const PatternParameters& params) {
 	float position = (0.125f + 0.875f * clip_float(params.speed)) * sinf(beat_tunnel_angle) * 0.5f;
 	// Respect global softness in persistence/decay
 	float decay = 0.90f + 0.08f * clip_float(params.softness); // 0.90..0.98
-	draw_sprite(beat_tunnel_image, beat_tunnel_image_prev, NUM_LEDS, NUM_LEDS, position, decay);
+	draw_sprite(beat_tunnel_image[ch_idx], beat_tunnel_image_prev[ch_idx], NUM_LEDS, NUM_LEDS, position, decay);
 
 	if (!AUDIO_IS_AVAILABLE()) {
 		for (int i = 0; i < NUM_LEDS; i++) {
@@ -1018,9 +1025,9 @@ void draw_beat_tunnel(float time, const PatternParameters& params) {
 			float brightness = expf(-(distance * distance) / (2.0f * 0.08f * 0.08f));
 			brightness = clip_float(brightness * clip_float(params.background));
 			CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
-			beat_tunnel_image[i].r += color.r * brightness;
-			beat_tunnel_image[i].g += color.g * brightness;
-			beat_tunnel_image[i].b += color.b * brightness;
+			beat_tunnel_image[ch_idx][i].r += color.r * brightness;
+			beat_tunnel_image[ch_idx][i].g += color.g * brightness;
+			beat_tunnel_image[ch_idx][i].b += color.b * brightness;
 		}
 	} else {
 		float energy = fminf(1.0f, (AUDIO_VU * 0.8f) + (AUDIO_NOVELTY * 0.5f));
@@ -1031,36 +1038,37 @@ void draw_beat_tunnel(float time, const PatternParameters& params) {
 			brightness = clip_float(brightness);
 
 			CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
-			beat_tunnel_image[i].r += color.r * brightness;
-			beat_tunnel_image[i].g += color.g * brightness;
-			beat_tunnel_image[i].b += color.b * brightness;
+			beat_tunnel_image[ch_idx][i].r += color.r * brightness;
+			beat_tunnel_image[ch_idx][i].g += color.g * brightness;
+			beat_tunnel_image[ch_idx][i].b += color.b * brightness;
 		}
 	}
 
 	for (int i = 0; i < NUM_LEDS; i++) {
-		beat_tunnel_image[i].r = clip_float(beat_tunnel_image[i].r);
-		beat_tunnel_image[i].g = clip_float(beat_tunnel_image[i].g);
-		beat_tunnel_image[i].b = clip_float(beat_tunnel_image[i].b);
+		beat_tunnel_image[ch_idx][i].r = clip_float(beat_tunnel_image[ch_idx][i].r);
+		beat_tunnel_image[ch_idx][i].g = clip_float(beat_tunnel_image[ch_idx][i].g);
+		beat_tunnel_image[ch_idx][i].b = clip_float(beat_tunnel_image[ch_idx][i].b);
 	}
 
-	apply_mirror_mode(beat_tunnel_image, true);
+	apply_mirror_mode(beat_tunnel_image[ch_idx], true);
 
 	for (int i = 0; i < NUM_LEDS; i++) {
-		leds[i].r = beat_tunnel_image[i].r * params.brightness;
-		leds[i].g = beat_tunnel_image[i].g * params.brightness;
-		leds[i].b = beat_tunnel_image[i].b * params.brightness;
+		leds[i].r = beat_tunnel_image[ch_idx][i].r * params.brightness;
+		leds[i].g = beat_tunnel_image[ch_idx][i].g * params.brightness;
+		leds[i].b = beat_tunnel_image[ch_idx][i].b * params.brightness;
 	}
 
     // Apply uniform background overlay
     apply_background_overlay(params);
 
 	for (int i = 0; i < NUM_LEDS; i++) {
-		beat_tunnel_image_prev[i] = beat_tunnel_image[i];
+		beat_tunnel_image_prev[ch_idx][i] = beat_tunnel_image[ch_idx][i];
 	}
 }
 
 void draw_beat_tunnel_variant(float time, const PatternParameters& params) {
     PATTERN_AUDIO_START();
+    const uint8_t ch_idx = get_pattern_channel_index();
 
     // Frame-rate independent delta time
     static float last_time_bt = 0.0f;
@@ -1080,7 +1088,7 @@ void draw_beat_tunnel_variant(float time, const PatternParameters& params) {
 
 	// Clear frame buffer
     for (int i = 0; i < NUM_LEDS; i++) {
-        beat_tunnel_variant_image[i] = CRGBF(0.0f, 0.0f, 0.0f);
+        beat_tunnel_variant_image[ch_idx][i] = CRGBF(0.0f, 0.0f, 0.0f);
 	}
 
     // Animate sprite position using sine wave modulation (rate per second)
@@ -1091,7 +1099,7 @@ void draw_beat_tunnel_variant(float time, const PatternParameters& params) {
 
     // Use draw_sprite for proper scrolling motion effect!
     float decay = 0.6f + (0.38f * fmaxf(0.0f, fminf(1.0f, params.softness)));
-    draw_sprite(beat_tunnel_variant_image, beat_tunnel_variant_image_prev, NUM_LEDS, NUM_LEDS, position, decay);
+    draw_sprite(beat_tunnel_variant_image[ch_idx], beat_tunnel_variant_image_prev[ch_idx], NUM_LEDS, NUM_LEDS, position, decay);
 
 	if (!AUDIO_IS_AVAILABLE()) {
 		// Fallback: simple animated pattern using palette system
@@ -1104,9 +1112,9 @@ void draw_beat_tunnel_variant(float time, const PatternParameters& params) {
 			// Use palette system directly from web UI selection
 			CRGBF color = color_from_palette(params.palette_id, led_pos, brightness * 0.5f);
 
-            beat_tunnel_variant_image[i].r += color.r * brightness;
-            beat_tunnel_variant_image[i].g += color.g * brightness;
-            beat_tunnel_variant_image[i].b += color.b * brightness;
+            beat_tunnel_variant_image[ch_idx][i].r += color.r * brightness;
+            beat_tunnel_variant_image[ch_idx][i].g += color.g * brightness;
+            beat_tunnel_variant_image[ch_idx][i].b += color.b * brightness;
 		}
 	} else {
         float energy = fminf(1.0f, (AUDIO_VU * 0.7f) + (AUDIO_NOVELTY * 0.4f));
@@ -1118,27 +1126,27 @@ void draw_beat_tunnel_variant(float time, const PatternParameters& params) {
             brightness = clip_float(brightness);
 
             CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
-            beat_tunnel_variant_image[i].r += color.r * brightness;
-            beat_tunnel_variant_image[i].g += color.g * brightness;
-            beat_tunnel_variant_image[i].b += color.b * brightness;
+            beat_tunnel_variant_image[ch_idx][i].r += color.r * brightness;
+            beat_tunnel_variant_image[ch_idx][i].g += color.g * brightness;
+            beat_tunnel_variant_image[ch_idx][i].b += color.b * brightness;
         }
 	}
 
 	// Clamp values to [0, 1]
 	for (int i = 0; i < NUM_LEDS; i++) {
-        beat_tunnel_variant_image[i].r = fmaxf(0.0f, fminf(1.0f, beat_tunnel_variant_image[i].r));
-        beat_tunnel_variant_image[i].g = fmaxf(0.0f, fminf(1.0f, beat_tunnel_variant_image[i].g));
-        beat_tunnel_variant_image[i].b = fmaxf(0.0f, fminf(1.0f, beat_tunnel_variant_image[i].b));
+        beat_tunnel_variant_image[ch_idx][i].r = fmaxf(0.0f, fminf(1.0f, beat_tunnel_variant_image[ch_idx][i].r));
+        beat_tunnel_variant_image[ch_idx][i].g = fmaxf(0.0f, fminf(1.0f, beat_tunnel_variant_image[ch_idx][i].g));
+        beat_tunnel_variant_image[ch_idx][i].b = fmaxf(0.0f, fminf(1.0f, beat_tunnel_variant_image[ch_idx][i].b));
 	}
 
 	// Apply mirror mode
-    apply_mirror_mode(beat_tunnel_variant_image, true);
+    apply_mirror_mode(beat_tunnel_variant_image[ch_idx], true);
 
 	// Copy tunnel image to LED output and apply brightness
 	for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i].r = beat_tunnel_variant_image[i].r * params.brightness;
-        leds[i].g = beat_tunnel_variant_image[i].g * params.brightness;
-        leds[i].b = beat_tunnel_variant_image[i].b * params.brightness;
+        leds[i].r = beat_tunnel_variant_image[ch_idx][i].r * params.brightness;
+        leds[i].g = beat_tunnel_variant_image[ch_idx][i].g * params.brightness;
+        leds[i].b = beat_tunnel_variant_image[ch_idx][i].b * params.brightness;
 	}
 
     // Apply uniform background overlay
@@ -1146,7 +1154,7 @@ void draw_beat_tunnel_variant(float time, const PatternParameters& params) {
 
 	// Save current frame for next iteration's motion blur
 	for (int i = 0; i < NUM_LEDS; i++) {
-        beat_tunnel_variant_image_prev[i] = beat_tunnel_variant_image[i];
+        beat_tunnel_variant_image_prev[ch_idx][i] = beat_tunnel_variant_image[ch_idx][i];
     }
 }
 

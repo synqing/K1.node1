@@ -10,87 +10,10 @@
 //
 // Functions for reading and storing data acquired by the I2S microphone
 
-// Prefer ESP-IDF v5 I2S std header; fall back to lightweight editor-only stubs
-#if __has_include(<driver/i2s_std.h>)
-#  include <driver/i2s_std.h>
-#  include <driver/gpio.h>
-#else
-#  include <stddef.h>
-#  include <stdint.h>
-#  include <stdbool.h>
-   typedef int esp_err_t;
-#  ifndef ESP_OK
-#    define ESP_OK 0
-#  endif
-   typedef int gpio_num_t;
-
-   typedef void* i2s_chan_handle_t;
-
-   typedef enum { I2S_ROLE_MASTER = 0 } i2s_role_t;
-   typedef struct {
-       int id;
-       i2s_role_t role;
-   } i2s_chan_config_t;
-
-#  ifndef I2S_NUM_AUTO
-#    define I2S_NUM_AUTO (-1)
-#  endif
-#  define I2S_CHANNEL_DEFAULT_CONFIG(num, role) ((i2s_chan_config_t){ .id = (int)(num), .role = (role) })
-
-   typedef enum { I2S_DATA_BIT_WIDTH_32BIT = 32 } i2s_data_bit_width_t;
-   typedef enum { I2S_SLOT_BIT_WIDTH_32BIT = 32 } i2s_slot_bit_width_t;
-   typedef enum { I2S_SLOT_MODE_STEREO = 2 } i2s_slot_mode_t;
-
-#  ifndef I2S_STD_SLOT_RIGHT
-#    define I2S_STD_SLOT_RIGHT (1u << 1)
-#  endif
-#  ifndef I2S_GPIO_UNUSED
-#    define I2S_GPIO_UNUSED ((gpio_num_t)-1)
-#  endif
-
-   typedef struct {
-       uint32_t sample_rate_hz;
-   } i2s_std_clk_config_t;
-#  define I2S_STD_CLK_DEFAULT_CONFIG(sr) ((i2s_std_clk_config_t){ .sample_rate_hz = (sr) })
-
-   typedef struct {
-       i2s_data_bit_width_t data_bit_width;
-       i2s_slot_bit_width_t slot_bit_width;
-       i2s_slot_mode_t      slot_mode;
-       uint32_t             slot_mask;
-       uint32_t             ws_width;
-       bool                 ws_pol;
-       bool                 bit_shift;
-       bool                 left_align;
-       bool                 big_endian;
-       bool                 bit_order_lsb;
-   } i2s_std_slot_config_t;
-
-   typedef struct {
-       int        mclk;
-       gpio_num_t bclk;
-       gpio_num_t ws;
-       int        dout;
-       gpio_num_t din;
-       struct { bool mclk_inv; bool bclk_inv; bool ws_inv; } invert_flags;
-   } i2s_std_gpio_config_t;
-
-   typedef struct {
-       i2s_std_clk_config_t  clk_cfg;
-       i2s_std_slot_config_t slot_cfg;
-       i2s_std_gpio_config_t gpio_cfg;
-   } i2s_std_config_t;
-
-   // Minimal prototypes for editor indexing
-   esp_err_t i2s_new_channel(const i2s_chan_config_t* cfg, i2s_chan_handle_t* tx_handle, i2s_chan_handle_t* rx_handle);
-   esp_err_t i2s_channel_init_std_mode(i2s_chan_handle_t handle, const i2s_std_config_t* std_cfg);
-   esp_err_t i2s_channel_enable(i2s_chan_handle_t handle);
-   esp_err_t i2s_channel_read(i2s_chan_handle_t handle, void* data, size_t size, size_t* bytes_read, uint32_t timeout_ticks);
-
-#  ifndef portMAX_DELAY
-#    define portMAX_DELAY 0xFFFFFFFFu
-#  endif
-#endif
+// Use Arduino/ESP-IDF headers directly to avoid type conflicts
+#include <Arduino.h>
+#include <driver/gpio.h>
+#include <driver/i2s_std.h>
 
 #include "../logging/logger.h"
 #include <string.h>

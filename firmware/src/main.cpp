@@ -4,6 +4,10 @@
 #include <SPIFFS.h>
 // Ensure LED driver interface is visible before any usage
 #include "led_driver.h"  // declares init_rmt_driver(), transmit_leds(), NUM_LEDS
+#ifdef DYNAMIC_LED_CHANNELS
+#include "render_channel.h"
+extern "C" void visual_scheduler(void* param);
+#endif
 // Forward declaration to satisfy IDE/indexer in case of header parsing issues
 void init_rmt_driver();
 // Prefer real ESP-IDF UART header; fall back to editor-only stubs if unavailable
@@ -431,6 +435,9 @@ void loop_gpu(void* param) {
 
         // Get current parameters (thread-safe read from active buffer)
         const PatternParameters& params = get_params();
+        // Phase 0: force channel index 0 for legacy render path
+        extern uint8_t g_pattern_channel_index;
+        g_pattern_channel_index = 0;
 
         // BRIGHTNESS BINDING: Synchronize global_brightness with params.brightness
         extern float global_brightness;
@@ -570,8 +577,28 @@ void setup() {
     TaskHandle_t gpu_task_handle = NULL;
     TaskHandle_t audio_task_handle = NULL;
 
-    // Create GPU rendering task on Core 0
-    // INCREASED STACK: 12KB -> 16KB (4,288 bytes margin was insufficient)
+    // Create GPU/Visual task on Core 0
+#ifdef DYNAMIC_LED_CHANNELS
+    // Phase 0: VisualScheduler parity mode (uses channel A only, falls back to global RMT handles)
+    static RenderChannel g_channel_a;
+    static RenderChannel g_channel_b;
+    static RenderChannel* g_channels[2] = { &g_channel_a, &g_channel_b };
+    // Bind per-channel RMT handles and shared encoder
+    g_channel_a.tx_handle = tx_chan_a ? tx_chan_a : tx_chan; // alias safe
+    g_channel_b.tx_handle = tx_chan_b ? tx_chan_b : tx_chan; // fallback to A if B missing
+    g_channel_a.encoder   = led_encoder;
+    g_channel_b.encoder   = led_encoder;
+    BaseType_t gpu_result = xTaskCreatePinnedToCore(
+        visual_scheduler,   // Task function
+        "visual_sched",     // Task name
+        16384,              // Stack size (16KB for LED rendering + pattern complexity)
+        (void*)g_channels,  // Parameters (channel set)
+        1,                  // Priority (same as audio - no preemption preference)
+        &gpu_task_handle,   // Task handle for monitoring
+        0                   // Pin to Core 0
+    );
+#else
+    // Legacy single-channel GPU loop
     BaseType_t gpu_result = xTaskCreatePinnedToCore(
         loop_gpu,           // Task function
         "loop_gpu",         // Task name
@@ -581,6 +608,7 @@ void setup() {
         &gpu_task_handle,   // Task handle for monitoring
         0                   // Pin to Core 0
     );
+#endif
 
     // Create audio processing task on Core 1
     // INCREASED STACK: 8KB -> 12KB (1,692 bytes margin was dangerously low)

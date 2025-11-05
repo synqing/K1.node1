@@ -61,17 +61,25 @@
 #include "logging/logger.h"
 #include "led_tx_events.h"
 
-#define LED_DATA_PIN ( 5 )
+// Dual-channel output GPIOs (A and B)
+#ifndef LED_DATA_PIN_A
+#define LED_DATA_PIN_A ( 4 )
+#endif
+#ifndef LED_DATA_PIN_B
+#define LED_DATA_PIN_B ( 5 )
+#endif
 
-// It won't void any kind of stupid warranty, but things will *definitely* break at this point if you change this number.
-#define NUM_LEDS ( 180 )
+// Per-channel LED count
+#ifndef NUM_LEDS
+#define NUM_LEDS ( 160 )
+#endif
 
 // CENTER-ORIGIN ARCHITECTURE (Mandatory for all patterns)
 // All effects MUST radiate from center point, never edge-to-edge
 // NO rainbows, NO linear gradients - only radial/symmetric effects
-#define STRIP_CENTER_POINT ( 89 )   // Physical LED at center (180/2 - 1)
-#define STRIP_HALF_LENGTH ( 90 )    // Distance from center to each edge
-#define STRIP_LENGTH ( 180 )        // Total span (must equal NUM_LEDS)
+#define STRIP_CENTER_POINT ( 79 )   // For 160 LEDs, use left-of-middle index
+#define STRIP_HALF_LENGTH ( 80 )    // Distance from center to each edge
+#define STRIP_LENGTH ( 160 )        // Total span (must equal NUM_LEDS)
 
 // 32-bit color input
 extern CRGBF leds[NUM_LEDS];
@@ -81,9 +89,23 @@ extern CRGBF leds[NUM_LEDS];
 extern float global_brightness;
 
 // RMT peripheral handles
+#if __has_include(<driver/rmt_tx.h>)
+// Legacy single-channel handle (alias to channel A)
 extern rmt_channel_handle_t tx_chan;
+// Dual-channel handles
+extern rmt_channel_handle_t tx_chan_a;
+extern rmt_channel_handle_t tx_chan_b;
 extern rmt_encoder_handle_t led_encoder;
 
+#else
+// Fallback stubs for old API
+extern void* tx_chan;
+extern void* tx_chan_a;
+extern void* tx_chan_b;
+extern void* led_encoder;
+#endif
+
+#if __has_include(<driver/rmt_tx.h>)
 typedef struct {
     rmt_encoder_t base;
     rmt_encoder_t *bytes_encoder;
@@ -100,11 +122,25 @@ typedef struct {
 // Implementation in led_driver.cpp
 extern rmt_led_strip_encoder_t strip_encoder;
 extern rmt_transmit_config_t tx_config;
+#else
+// Fallback stubs for old API
+typedef struct {
+    int dummy;
+} rmt_led_strip_encoder_t;
+
+typedef struct {
+    int dummy;
+} led_strip_encoder_config_t;
+
+extern int strip_encoder;
+extern int tx_config;
+#endif
 
 // 8-bit color output buffer (accessible from inline transmit_leds)
 // Implementation in led_driver.cpp
 extern uint8_t raw_led_data[NUM_LEDS * 3];
 
+#if __has_include(<driver/rmt_tx.h>)
 IRAM_ATTR static size_t rmt_encode_led_strip(rmt_encoder_t *encoder, rmt_channel_handle_t channel, const void *primary_data, size_t data_size, rmt_encode_state_t *ret_state){
     rmt_led_strip_encoder_t *led_encoder = __containerof(encoder, rmt_led_strip_encoder_t, base);
     rmt_encoder_handle_t bytes_encoder = led_encoder->bytes_encoder;
@@ -139,6 +175,12 @@ out:
     *ret_state = state;
     return encoded_symbols;
 }
+#else
+// Fallback: Old API - stub encoder
+IRAM_ATTR static size_t rmt_encode_led_strip(void *encoder, void *channel, const void *primary_data, size_t data_size, void *ret_state){
+    return 0;
+}
+#endif
 
 // ============================================================================
 // PUBLIC API FUNCTIONS
@@ -205,7 +247,8 @@ inline void quantize_color(bool temporal_dithering) {
     }
 }
 
-// IRAM_ATTR function must be in header for memory placement
+#if __has_include(<driver/rmt_tx.h>)
+// IRAM_ATTR function must be in header for memory placement (v5 API)
 // Made static to ensure internal linkage (each TU gets its own copy)
 IRAM_ATTR static inline void transmit_leds() {
     // Wait here if previous frame transmission has not yet completed
@@ -264,3 +307,9 @@ IRAM_ATTR static inline void transmit_leds() {
         ACCUM_RMT_TRANSMIT_US = tmp;
     }
 }
+#else
+// Fallback: Old API - transmit_leds is a no-op
+IRAM_ATTR static inline void transmit_leds() {
+    // Old RMT API: not implemented in this stub
+}
+#endif
