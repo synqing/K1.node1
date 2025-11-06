@@ -40,36 +40,9 @@
 #include "emotiscope_helpers.h"  // For interpolate() and response curves
 
 // ============================================================================
-// Phase wrapping helper for beat synchronization
-static inline float wrap_phase(float phase_delta) {
-	while (phase_delta > M_PI) {
-		phase_delta -= static_cast<float>(2.0 * M_PI);
-	}
-	while (phase_delta < -M_PI) {
-		phase_delta += static_cast<float>(2.0 * M_PI);
-	}
-	return phase_delta;
-}
-
-// Convert phase error to milliseconds and compare against tolerance
-static inline bool is_beat_phase_locked_ms(const AudioDataSnapshot& audio_snapshot,
-		uint16_t bin,
-		float target_phase,
-		float tolerance_ms) {
-	if (bin >= NUM_TEMPI || tolerance_ms < 0.0f) {
-		return false;
-	}
-
-	const float tempo_hz = tempi_bpm_values_hz[bin];
-	if (tempo_hz <= 0.0f) {
-		return false;
-	}
-
-	const float delta = wrap_phase(audio_snapshot.tempo_phase[bin] - target_phase);
-	const float delta_time_ms = std::fabs(delta) * 1000.0f / (static_cast<float>(2.0 * M_PI) * tempo_hz);
-
-	return delta_time_ms <= tolerance_ms;
-}
+// Function declarations (implementations in pattern_audio_interface.cpp)
+float wrap_phase(float phase_delta);
+bool is_beat_phase_locked_ms(const AudioDataSnapshot& audio_snapshot, uint16_t bin, float target_phase, float tolerance_ms);
 
 // ============================================================================
 // PRIMARY INTERFACE MACRO
@@ -104,7 +77,7 @@ static inline bool is_beat_phase_locked_ms(const AudioDataSnapshot& audio_snapsh
  *   - Non-blocking mutex (1ms timeout) prevents render stalls
  */
 #define PATTERN_AUDIO_START() \
-    AudioDataSnapshot audio = {0}; \
+    AudioDataSnapshot audio{}; \
     bool audio_available = get_audio_snapshot(&audio); \
     static uint32_t pattern_last_update = 0; \
     bool audio_is_fresh = (audio_available && \
@@ -285,62 +258,9 @@ static inline float beat_gate(float conf) {
 // HELPER FUNCTIONS
 // ============================================================================
 
-/**
- * get_audio_band_energy()
- *
- * Calculate average energy across a frequency range.
- *
- * PARAMETERS:
- *   audio     : AudioDataSnapshot - Audio data snapshot
- *   start_bin : int - Starting frequency bin (0-63)
- *   end_bin   : int - Ending frequency bin (0-63)
- *
- * RETURNS:
- *   float - Average energy (0.0-1.0) across specified bins
- *
- * SAFETY:
- *   - Automatically clamps bin indices to valid range
- *   - Returns 0.0 if range is invalid
- *
- * EXAMPLE:
- *   float bass = get_audio_band_energy(audio, 0, 8);   // 55-220 Hz
- *   float mids = get_audio_band_energy(audio, 16, 32); // 440-880 Hz
- */
-inline float get_audio_band_energy(const AudioDataSnapshot& audio,
-                                     int start_bin, int end_bin) {
-    // Validate bin range
-    if (start_bin < 0 || start_bin >= NUM_FREQS ||
-        end_bin < 0 || end_bin >= NUM_FREQS ||
-        start_bin > end_bin) {
-        return 0.0f;
-    }
-
-    // Sum energy across bins
-    float sum = 0.0f;
-    for (int i = start_bin; i <= end_bin; i++) {
-        sum += audio.spectrogram[i];
-    }
-
-    // Return average
-    int num_bins = end_bin - start_bin + 1;
-    return sum / (float)num_bins;
-}
-
-// Absolute (pre-normalized) band energy using spectrogram_absolute
-inline float get_audio_band_energy_absolute(const AudioDataSnapshot& audio,
-                                           int start_bin, int end_bin) {
-    if (start_bin < 0 || start_bin >= NUM_FREQS ||
-        end_bin < 0 || end_bin >= NUM_FREQS ||
-        start_bin > end_bin) {
-        return 0.0f;
-    }
-    float sum = 0.0f;
-    for (int i = start_bin; i <= end_bin; i++) {
-        sum += audio.spectrogram_absolute[i];
-    }
-    int num_bins = end_bin - start_bin + 1;
-    return sum / (float)num_bins;
-}
+// Function declarations (implementations in pattern_audio_interface.cpp)
+float get_audio_band_energy(const AudioDataSnapshot& audio, int start_bin, int end_bin);
+float get_audio_band_energy_absolute(const AudioDataSnapshot& audio, int start_bin, int end_bin);
 
 // ============================================================================
 // FREQUENCY BAND CONVENIENCE MACROS
@@ -408,6 +328,65 @@ inline float get_audio_band_energy_absolute(const AudioDataSnapshot& audio,
 // Phase-locked beat detection for precise synchronization
 #define AUDIO_BEAT_PHASE_LOCKED(bin, phase_target, tolerance_ms) \
     (is_beat_phase_locked_ms(audio, (bin), (phase_target), (tolerance_ms)))
+
+// ============================================================================
+// COLOR & BRIGHTNESS MODULATION HELPERS (Using New Audio Parameters)
+// ============================================================================
+
+/**
+ * AUDIO_COLOR_SHIFT()
+ * Returns a color shift value (0.0 to color_reactivity) based on VU level
+ * Use this to modulate hue, saturation, or other color properties
+ *
+ * EXAMPLE:
+ *   float hue = base_hue + AUDIO_COLOR_SHIFT() * 60.0f;  // Up to 60° hue shift
+ */
+#define AUDIO_COLOR_SHIFT() (AUDIO_VU * get_params().color_reactivity)
+
+/**
+ * AUDIO_COLOR_HUE(base)
+ * Returns a hue value that shifts with audio (0.0-1.0 range)
+ * Wraps around at 1.0 for smooth color cycling
+ *
+ * EXAMPLE:
+ *   float dynamic_hue = AUDIO_COLOR_HUE(0.5f);  // Base hue 0.5, shifts with audio
+ */
+#define AUDIO_COLOR_HUE(base) fmodf((base) + AUDIO_COLOR_SHIFT() * 0.2f, 1.0f)
+
+/**
+ * AUDIO_COLOR_SATURATION(base)
+ * Returns saturation that increases with treble (brightness/excitement)
+ * Treble makes colors more vivid, silence makes them more pastel
+ *
+ * EXAMPLE:
+ *   float sat = AUDIO_COLOR_SATURATION(0.7f);  // Base 0.7, boosts with treble
+ */
+#define AUDIO_COLOR_SATURATION(base) \
+    clip_float((base) + (AUDIO_TREBLE() * get_params().color_reactivity * 0.3f))
+
+/**
+ * AUDIO_BRIGHTNESS()
+ * Returns brightness value with floor applied (never goes fully black)
+ * Ensures patterns remain visible even during silence
+ *
+ * EXAMPLE:
+ *   float brightness = AUDIO_BRIGHTNESS();  // VU-based brightness with floor
+ */
+#define AUDIO_BRIGHTNESS() \
+    (get_params().brightness_floor + \
+     (AUDIO_VU * (1.0f - get_params().brightness_floor)))
+
+/**
+ * AUDIO_BRIGHTNESS_SCALED(scale)
+ * Returns brightness with custom scaling and floor applied
+ * Useful for effects that need different brightness ranges
+ *
+ * EXAMPLE:
+ *   float pulse_brightness = AUDIO_BRIGHTNESS_SCALED(2.0f);  // Extra bright pulses
+ */
+#define AUDIO_BRIGHTNESS_SCALED(scale) \
+    (get_params().brightness_floor + \
+     (AUDIO_VU * (scale) * (1.0f - get_params().brightness_floor)))
 
 // ============================================================================
 // TEMPO BIN ACCESS (Advanced: Per-Tempo-Bin Beat Detection & Phase Tracking)

@@ -220,8 +220,8 @@ inline float get_hue_from_position(float position) {
  * Maps palette_departure ACROSS the LED strip (left to right gradient)
  * Position determines palette progress:
  * - LED 0 (left) = palette start (dark earth)
- * - LED 90 (middle) = palette middle (golden light)
- * - LED 180 (right) = palette end (emerald green)
+ * - LED 80 (middle) = palette middle (golden light)
+ * - LED 160 (right) = palette end (emerald green)
  *
  * Time modulates the overall brightness for subtle pulsing
  */
@@ -742,7 +742,7 @@ static pulse_wave pulse_waves[MAX_PULSE_WAVES];
 
 // Helper: get dominant chromatic note (highest energy in chromagram)
 float get_dominant_chroma_hue() {
-	AudioDataSnapshot audio = {0};
+	AudioDataSnapshot audio{};
 	bool audio_available = get_audio_snapshot(&audio);
 
 	if (!audio_available) {

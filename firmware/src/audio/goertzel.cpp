@@ -17,6 +17,7 @@
 #include <atomic>
 #include <Arduino.h>
 #include "../logging/logger.h"
+#include "../parameters.h"
 
 // ============================================================================
 // GLOBAL DATA DEFINITIONS
@@ -477,11 +478,34 @@ void calculate_magnitudes() {
 		// magnitudes_unfiltered[] have 100-200x frequency-based attenuation from calculate_magnitude_of_bin()
 		// that was crushing low frequencies. Beat detection uses spectrogram[] (auto-ranged) which
 		// normalizes all frequencies equally. VU must use the same scale for consistency.
+
+		// Get audio parameters for processing
+		const PatternParameters& params = get_params();
+		const float bass_treble_balance = params.bass_treble_balance;
+		const float audio_sensitivity = params.audio_sensitivity;
+
 		float vu_sum = 0.0f;
 		for (uint16_t i = 0; i < NUM_FREQS; i++) {
-			vu_sum += spectrogram[i];  // Use AUTO-RANGED values (same scale as beat detection)
+			// Apply bass_treble_balance weighting
+			// -1.0 = bass emphasis, 0.0 = balanced, +1.0 = treble emphasis
+			float weight = 1.0f;
+			if (bass_treble_balance < 0.0f) {
+				// Bass emphasis: reduce high frequency contribution
+				float freq_position = (float)i / NUM_FREQS;  // 0.0 to 1.0
+				weight = 1.0f + (bass_treble_balance * freq_position);  // Lower frequencies get more weight
+			} else if (bass_treble_balance > 0.0f) {
+				// Treble emphasis: reduce low frequency contribution
+				float freq_position = (float)i / NUM_FREQS;  // 0.0 to 1.0
+				weight = 1.0f - (bass_treble_balance * (1.0f - freq_position));  // Higher frequencies get more weight
+			}
+
+			vu_sum += spectrogram[i] * weight;  // Use AUTO-RANGED values with frequency weighting
 		}
-		float vu_level_calculated = vu_sum / NUM_FREQS;  // Now reflects actual audio loudness with balanced frequency response
+		float vu_level_calculated = vu_sum / NUM_FREQS;  // Now reflects actual audio loudness with frequency emphasis
+
+		// Apply audio_sensitivity (gain/amplification)
+		vu_level_calculated *= audio_sensitivity;
+
 		audio_level = vu_level_calculated;  // Update legacy global variable
 
 		// Cap VU at reasonable maximum to prevent saturation (optional, but prevents edge cases)

@@ -57,6 +57,44 @@ bool validate_and_clamp(PatternParameters& params) {
         clamped = true;
     }
 
+    // Audio/Visual Response parameters (custom ranges)
+
+    // audio_responsiveness: 0.0-1.0 (smooth vs snappy)
+    validate_float_0_1(params.audio_responsiveness, 0.5f);
+
+    // audio_sensitivity: 0.1-4.0 (gain multiplier)
+    if (isnan(params.audio_sensitivity) || isinf(params.audio_sensitivity) ||
+        params.audio_sensitivity < 0.1f || params.audio_sensitivity > 4.0f) {
+        params.audio_sensitivity = constrain(params.audio_sensitivity, 0.1f, 4.0f);
+        if (isnan(params.audio_sensitivity) || isinf(params.audio_sensitivity)) {
+            params.audio_sensitivity = 1.0f;  // Unity gain default
+        }
+        clamped = true;
+    }
+
+    // bass_treble_balance: -1.0 to +1.0 (frequency emphasis)
+    if (isnan(params.bass_treble_balance) || isinf(params.bass_treble_balance) ||
+        params.bass_treble_balance < -1.0f || params.bass_treble_balance > 1.0f) {
+        params.bass_treble_balance = constrain(params.bass_treble_balance, -1.0f, 1.0f);
+        if (isnan(params.bass_treble_balance) || isinf(params.bass_treble_balance)) {
+            params.bass_treble_balance = 0.0f;  // Balanced default
+        }
+        clamped = true;
+    }
+
+    // color_reactivity: 0.0-1.0 (audio->color influence)
+    validate_float_0_1(params.color_reactivity, 0.5f);
+
+    // brightness_floor: 0.0-0.3 (minimum brightness)
+    if (isnan(params.brightness_floor) || isinf(params.brightness_floor) ||
+        params.brightness_floor < 0.0f || params.brightness_floor > 0.3f) {
+        params.brightness_floor = constrain(params.brightness_floor, 0.0f, 0.3f);
+        if (isnan(params.brightness_floor) || isinf(params.brightness_floor)) {
+            params.brightness_floor = 0.05f;  // 5% default
+        }
+        clamped = true;
+    }
+
     return clamped;
 }
 

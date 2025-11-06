@@ -94,7 +94,12 @@ esp_err_t rmt_new_led_strip_encoder(const led_strip_encoder_config_t *config, rm
 esp_err_t rmt_new_led_strip_encoder_2(const led_strip_encoder_config_t *config, rmt_encoder_handle_t *ret_encoder) {
 	esp_err_t ret = ESP_OK;
 
+	printf("DEBUG: Assigning encoder functions for secondary channel\n");
+	printf("  &strip_encoder_2 = %p\n", &strip_encoder_2);
+	printf("  &strip_encoder_2.base = %p\n", &strip_encoder_2.base);
+
 	strip_encoder_2.base.encode = rmt_encode_led_strip_2;
+	printf("  Assigned encode function = %p\n", (void*)strip_encoder_2.base.encode);
 	strip_encoder_2.base.del    = rmt_del_led_strip_encoder;
 	strip_encoder_2.base.reset  = rmt_led_strip_encoder_reset;
 
@@ -123,6 +128,11 @@ esp_err_t rmt_new_led_strip_encoder_2(const led_strip_encoder_config_t *config, 
 
 void init_rmt_driver() {
     printf("init_rmt_driver\n");
+#if __has_include(<driver/rmt_tx.h>)
+    printf("USING RMT V2 API (rmt_tx.h)\n");
+#else
+    printf("USING LEGACY RMT V1 API\n");
+#endif
 
     // ========== PRIMARY CHANNEL (GPIO 5) ==========
     rmt_tx_channel_config_t tx_chan_config = {
@@ -159,15 +169,39 @@ void init_rmt_driver() {
         .flags = { .with_dma = 1 },              // DMA enabled to reduce ISR pressure
     };
 
-	printf("rmt_new_tx_channel (secondary)\n");
-	ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config_2, &tx_chan_2));
+	printf("rmt_new_tx_channel (secondary) - GPIO %d\n", LED_DATA_PIN_2);
+	esp_err_t ch2_result = rmt_new_tx_channel(&tx_chan_config_2, &tx_chan_2);
+	printf("  Secondary channel creation result: %s (0x%x)\n", esp_err_to_name(ch2_result), ch2_result);
+	printf("  tx_chan_2 handle = %p\n", tx_chan_2);
+	ESP_ERROR_CHECK(ch2_result);
 
     ESP_LOGI(TAG, "Install led strip encoder (secondary)");
 	printf("rmt_new_led_strip_encoder_2 (secondary)\n");
-	ESP_ERROR_CHECK(rmt_new_led_strip_encoder_2(&encoder_config, &led_encoder_2));
+	esp_err_t enc2_result = rmt_new_led_strip_encoder_2(&encoder_config, &led_encoder_2);
+	printf("  Secondary encoder creation result: %s (0x%x)\n", esp_err_to_name(enc2_result), enc2_result);
+	printf("  led_encoder_2 handle = %p\n", led_encoder_2);
+	ESP_ERROR_CHECK(enc2_result);
 
 	printf("rmt_enable (secondary)\n");
-	ESP_ERROR_CHECK(rmt_enable(tx_chan_2));
+	esp_err_t en2_result = rmt_enable(tx_chan_2);
+	printf("  Secondary channel enable result: %s (0x%x)\n", esp_err_to_name(en2_result), en2_result);
+	ESP_ERROR_CHECK(en2_result);
+
+	printf("SECONDARY CHANNEL FULLY INITIALIZED - GPIO %d READY\n", LED_DATA_PIN_2);
+
+	// Critical debug: Verify global handles
+	printf("DEBUG: Global handle verification:\n");
+	printf("  tx_chan (primary) = %p\n", tx_chan);
+	printf("  tx_chan_2 (secondary) = %p\n", tx_chan_2);
+	printf("  led_encoder (primary) = %p\n", led_encoder);
+	printf("  led_encoder_2 (secondary) = %p\n", led_encoder_2);
+	printf("  &strip_encoder = %p\n", &strip_encoder);
+	printf("  &strip_encoder_2 = %p\n", &strip_encoder_2);
+
+	if (tx_chan_2 == NULL || led_encoder_2 == NULL) {
+		printf("FATAL ERROR: Secondary channel handles are NULL!\n");
+		while(1) { vTaskDelay(1000); }  // Halt if initialization failed
+	}
 }
 
 #else  // Legacy RMT v1 fallback (ESP-IDF v4.x / Arduino core 2.x)

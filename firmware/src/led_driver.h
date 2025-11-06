@@ -304,14 +304,39 @@ IRAM_ATTR static inline void transmit_leds() {
     // Push into rolling LED TX event buffer for correlation across frames
     led_tx_events_push(t_tx0);
 #if __has_include(<driver/rmt_tx.h>)
+    // Debug: Log transmit attempts every 2 seconds
+    static uint32_t last_debug_ms = 0;
+    uint32_t now_ms = millis();
+    bool should_debug = (now_ms - last_debug_ms > 2000);
+
+    if (should_debug) {
+        LOG_WARN(TAG_LED, "=== TRANSMIT DEBUG ===");
+        LOG_WARN(TAG_LED, "tx_chan=%p, led_encoder=%p, data=%p, bytes=%d",
+                 tx_chan, led_encoder, raw_led_data, NUM_LEDS*3);
+        LOG_WARN(TAG_LED, "tx_chan_2=%p, led_encoder_2=%p, data=%p, bytes=%d",
+                 tx_chan_2, led_encoder_2, raw_led_data, NUM_LEDS*3);
+    }
+
     // Transmit to primary strip (GPIO 5)
     esp_err_t tx_ret = rmt_transmit(tx_chan, led_encoder, raw_led_data, NUM_LEDS*3, &tx_config);
     // Transmit to secondary strip (GPIO 4) - simultaneous, non-blocking
-    esp_err_t tx_ret_2 = rmt_transmit(tx_chan_2, led_encoder_2, raw_led_data, NUM_LEDS*3, &tx_config);
+    esp_err_t tx_ret_2 = ESP_FAIL;  // Default to fail
+    if (tx_chan_2 != NULL && led_encoder_2 != NULL) {
+        tx_ret_2 = rmt_transmit(tx_chan_2, led_encoder_2, raw_led_data, NUM_LEDS*3, &tx_config);
+    } else {
+        if (should_debug) {
+            LOG_WARN(TAG_LED, "SKIP secondary transmit: tx_chan_2=%p led_encoder_2=%p", tx_chan_2, led_encoder_2);
+        }
+    }
+
+    if (should_debug) {
+        LOG_WARN(TAG_LED, "Primary (GPIO5) transmit: %s (0x%x)", esp_err_to_name(tx_ret), tx_ret);
+        LOG_WARN(TAG_LED, "Secondary (GPIO4) transmit: %s (0x%x)", esp_err_to_name(tx_ret_2), tx_ret_2);
+        last_debug_ms = now_ms;
+    }
 
     if (tx_ret != ESP_OK || tx_ret_2 != ESP_OK) {
         static uint32_t last_err_ms = 0;
-        uint32_t now_ms = millis();
         if (now_ms - last_err_ms > 1000) {
             if (tx_ret != ESP_OK) LOG_WARN(TAG_LED, "rmt_transmit error (ch1): %d", (int)tx_ret);
             if (tx_ret_2 != ESP_OK) LOG_WARN(TAG_LED, "rmt_transmit error (ch2): %d", (int)tx_ret_2);

@@ -52,6 +52,7 @@ void init_rmt_driver();
 #include "logging/logger.h"
 #include "beat_events.h"
 #include "diagnostics.h"
+#include "diagnostics/heartbeat_logger.h"
 #include "audio/goertzel.h" // For spectrogram[]
 #include "udp_echo.h"      // UDP echo server for RTT measurements
 #include "led_tx_events.h"  // Rolling buffer of LED transmit timestamps
@@ -410,6 +411,8 @@ static inline void run_audio_pipeline_once() {
 
     // Lock-free buffer synchronization with Core 0
     finish_audio_frame();
+    heartbeat_logger_note_audio(audio_back.update_counter);
+    heartbeat_logger_note_audio(audio_back.update_counter);
 }
 
 // ============================================================================
@@ -441,6 +444,7 @@ void loop_gpu(void* param) {
 
         // Transmit to LEDs via RMT (non-blocking DMA)
         transmit_leds();
+        heartbeat_logger_note_frame();
 
         // FPS tracking (minimal overhead)
         watch_cpu_fps();
@@ -513,6 +517,7 @@ void setup() {
     } else {
         LOG_INFO(TAG_CORE0, "SPIFFS mounted successfully");
         // Lazy enumeration removed; can be added to status endpoint if needed
+        heartbeat_logger_init();
     }
 
     // Defer web server and diagnostics until Wi-Fi connects (see handle_wifi_connected)
@@ -634,6 +639,8 @@ void loop() {
         if (ch == 'd' || ch == 'D') {
             audio_debug_enabled = !audio_debug_enabled;
             Serial.printf("DEBUG: audio_debug_enabled = %s\n", audio_debug_enabled ? "true" : "false");
+        } else if (ch == 'h' || ch == 'H') {
+            heartbeat_logger_dump_recent(Serial);
         }
     }
 
@@ -681,6 +688,7 @@ void loop() {
     
     // Send sync packet to s3z secondary device (if enabled)
     send_uart_sync_frame();
+    heartbeat_logger_poll();
 
     // Small delay to prevent this loop from consuming too much CPU
     // Core 0 (loop_gpu) handles all LED rendering at high FPS
