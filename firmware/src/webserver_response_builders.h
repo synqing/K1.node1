@@ -65,7 +65,7 @@ static AsyncWebServerResponse* create_error_response(
     String output;
     serializeJson(doc, output);
 
-    auto *response = request->beginResponse(status_code, "application/json", output);
+    AsyncWebServerResponse *response = request->beginResponse(status_code, "application/json", output);
     attach_cors_headers(response);
     return response;
 }
@@ -74,34 +74,40 @@ static AsyncWebServerResponse* create_error_response(
 // JSON Response Builders
 // ========================================================================================
 
+// Function declarations (implementations in webserver_response_builders.cpp)
 /**
  * Build JSON response for current pattern parameters
- * Used by GET /api/params endpoint
+ *
+ * TODO: Serialize all PatternParameters fields to JSON:
+ * - brightness, softness, color, color_range, saturation, warmth
+ * - background, dithering, speed, palette_id
+ * - beat_threshold, beat_squash_power, audio_responsiveness
+ * - audio_sensitivity, bass_treble_balance, color_reactivity, brightness_floor
+ *
+ * @return JSON string with all current pattern parameters
  */
-static String build_params_json() {
+inline String build_params_json() {
+    DynamicJsonDocument doc(2048);
     const PatternParameters& params = get_params();
 
-    StaticJsonDocument<512> doc;
-    // Global visual controls
-    doc["brightness"] = params.brightness;
-    doc["softness"] = params.softness;
-    doc["color"] = params.color;
-    doc["color_range"] = params.color_range;
-    doc["saturation"] = params.saturation;
-    doc["warmth"] = params.warmth;
-    doc["background"] = params.background;
-    doc["dithering"] = params.dithering;
-    // Pattern-specific
-    doc["speed"] = params.speed;
-    doc["palette_id"] = params.palette_id;
-    // Custom parameters (exposed for UI sync)
-    doc["custom_param_1"] = params.custom_param_1;
-    doc["custom_param_2"] = params.custom_param_2;
-    doc["custom_param_3"] = params.custom_param_3;
-
-    // Beat gating controls
-    doc["beat_threshold"] = params.beat_threshold;
-    doc["beat_squash_power"] = params.beat_squash_power;
+    // TODO: Fill in all parameter fields
+    // doc["brightness"] = params.brightness;
+    // doc["softness"] = params.softness;
+    // doc["color"] = params.color;
+    // doc["color_range"] = params.color_range;
+    // doc["saturation"] = params.saturation;
+    // doc["warmth"] = params.warmth;
+    // doc["background"] = params.background;
+    // doc["dithering"] = params.dithering;
+    // doc["speed"] = params.speed;
+    // doc["palette_id"] = params.palette_id;
+    // doc["beat_threshold"] = params.beat_threshold;
+    // doc["beat_squash_power"] = params.beat_squash_power;
+    // doc["audio_responsiveness"] = params.audio_responsiveness;
+    // doc["audio_sensitivity"] = params.audio_sensitivity;
+    // doc["bass_treble_balance"] = params.bass_treble_balance;
+    // doc["color_reactivity"] = params.color_reactivity;
+    // doc["brightness_floor"] = params.brightness_floor;
 
     String output;
     serializeJson(doc, output);
@@ -109,23 +115,34 @@ static String build_params_json() {
 }
 
 /**
- * Build JSON response for available patterns list
- * Used by GET /api/patterns endpoint
+ * Build JSON response for available patterns
+ *
+ * TODO: Iterate through pattern_registry and return array of:
+ * - pattern name, id, description, is_audio_reactive flag
+ *
+ * Expected format:
+ * {
+ *   "patterns": [
+ *     {"name": "Spectrum", "id": "spectrum", "description": "...", "audio_reactive": true},
+ *     {"name": "Pulse", "id": "pulse", "description": "...", "audio_reactive": true},
+ *     ...
+ *   ]
+ * }
+ *
+ * @return JSON array of all available patterns with metadata
  */
-static String build_patterns_json() {
-    DynamicJsonDocument doc(2048);
+inline String build_patterns_json() {
+    DynamicJsonDocument doc(8192);
     JsonArray patterns = doc.createNestedArray("patterns");
 
-    for (uint8_t i = 0; i < g_num_patterns; i++) {
-        JsonObject pattern = patterns.createNestedObject();
-        pattern["index"] = i;
-        pattern["id"] = g_pattern_registry[i].id;
-        pattern["name"] = g_pattern_registry[i].name;
-        pattern["description"] = g_pattern_registry[i].description;
-        pattern["is_audio_reactive"] = g_pattern_registry[i].is_audio_reactive;
-    }
-
-    doc["current_pattern"] = g_current_pattern_index;
+    // TODO: Iterate pattern_registry
+    // for (uint16_t i = 0; i < NUM_PATTERNS; i++) {
+    //     JsonObject p = patterns.createNestedObject();
+    //     p["name"] = pattern_registry[i].name;
+    //     p["id"] = pattern_registry[i].id;
+    //     p["description"] = pattern_registry[i].description;
+    //     p["audio_reactive"] = pattern_registry[i].is_audio_reactive;
+    // }
 
     String output;
     serializeJson(doc, output);
@@ -133,36 +150,60 @@ static String build_patterns_json() {
 }
 
 /**
- * Build JSON response for palette metadata and color previews
- * Used by GET /api/palettes endpoint
+ * Build JSON response for available color palettes
+ *
+ * TODO: Iterate through palette_table and return array of:
+ * - palette id, name, number of keyframes, color samples
+ *
+ * Expected format:
+ * {
+ *   "palettes": [
+ *     {"id": 0, "name": "Fire", "keyframes": 5, "colors": [...]},
+ *     {"id": 1, "name": "Ocean", "keyframes": 4, "colors": [...]},
+ *     ...
+ *   ]
+ * }
+ *
+ * @return JSON array of all available palettes with metadata
  */
-static String build_palettes_json() {
-    DynamicJsonDocument doc(4096);  // Larger buffer for palette data
+inline String build_palettes_json() {
+    DynamicJsonDocument doc(24576);  // Increased capacity for 33 palettes with colors
     JsonArray palettes = doc.createNestedArray("palettes");
 
     for (uint8_t i = 0; i < NUM_PALETTES; i++) {
-        JsonObject palette = palettes.createNestedObject();
-        palette["id"] = i;
-        palette["name"] = palette_names[i];
-
-        // Add color preview - sample 5 colors across the palette
-        JsonArray colors = palette.createNestedArray("colors");
-        for (int j = 0; j < 5; j++) {
-            float progress = j / 4.0f;  // 0.0, 0.25, 0.5, 0.75, 1.0
-            CRGBF color = color_from_palette(i, progress, 1.0f);
-            JsonObject colorObj = colors.createNestedObject();
-            colorObj["r"] = (uint8_t)(color.r * 255);
-            colorObj["g"] = (uint8_t)(color.g * 255);
-            colorObj["b"] = (uint8_t)(color.b * 255);
-        }
-
-        // Add metadata
+        // Read PaletteInfo from PROGMEM (palette_table is stored in PROGMEM)
         PaletteInfo info;
         memcpy_P(&info, &palette_table[i], sizeof(PaletteInfo));
-        palette["num_keyframes"] = info.num_entries;
-    }
 
-    doc["count"] = NUM_PALETTES;
+        // Create palette object with metadata
+        JsonObject p = palettes.createNestedObject();
+        p["id"] = i;
+        p["name"] = palette_names[i];  // palette_names is direct array of const char* pointers
+        p["keyframes"] = info.num_entries;
+
+        // Extract color samples from palette data (each entry is 4 bytes: pos, R, G, B)
+        JsonArray colors = p.createNestedArray("colors");
+
+        // Allocate buffer for palette data (worst case: 14 keyframes * 4 bytes = 56 bytes)
+        // Each palette has a max of ~14 keyframes based on palette_table
+        uint8_t palette_data[256];
+        size_t palette_bytes = info.num_entries * 4;
+        memcpy_P(palette_data, info.data, palette_bytes);
+
+        // Iterate through each keyframe and extract RGB color
+        for (uint8_t j = 0; j < info.num_entries; j++) {
+            JsonObject color = colors.createNestedObject();
+            uint8_t pos = palette_data[j * 4];
+            uint8_t r = palette_data[j * 4 + 1];
+            uint8_t g = palette_data[j * 4 + 2];
+            uint8_t b = palette_data[j * 4 + 3];
+
+            color["position"] = pos;
+            color["r"] = r;
+            color["g"] = g;
+            color["b"] = b;
+        }
+    }
 
     String output;
     serializeJson(doc, output);
@@ -208,6 +249,28 @@ static void apply_params_json(const JsonObjectConst& root) {
     if (root.containsKey("beat_squash_power")) {
         updated.beat_squash_power = root["beat_squash_power"].as<float>();
         LOG_DEBUG(TAG_WEB, "Param update: beat_squash_power=%.3f", updated.beat_squash_power);
+    }
+
+    // Audio/Visual Response parameters
+    if (root.containsKey("audio_responsiveness")) {
+        updated.audio_responsiveness = root["audio_responsiveness"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: audio_responsiveness=%.3f", updated.audio_responsiveness);
+    }
+    if (root.containsKey("audio_sensitivity")) {
+        updated.audio_sensitivity = root["audio_sensitivity"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: audio_sensitivity=%.3f", updated.audio_sensitivity);
+    }
+    if (root.containsKey("bass_treble_balance")) {
+        updated.bass_treble_balance = root["bass_treble_balance"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: bass_treble_balance=%.3f", updated.bass_treble_balance);
+    }
+    if (root.containsKey("color_reactivity")) {
+        updated.color_reactivity = root["color_reactivity"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: color_reactivity=%.3f", updated.color_reactivity);
+    }
+    if (root.containsKey("brightness_floor")) {
+        updated.brightness_floor = root["brightness_floor"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: brightness_floor=%.3f", updated.brightness_floor);
     }
 
     bool ok = update_params_safe(updated);
