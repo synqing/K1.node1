@@ -2,6 +2,7 @@
 /*
 # Keep root tracked files
 !.gitignore
+!conductor.json
 
 # Unignore firmware and webapp directories, then their contents
 !firmware/

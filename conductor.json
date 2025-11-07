@@ -1,0 +1,128 @@
+{
+  "projectName": "K1.node1",
+  "description": "Multi-agent Conductor.build orchestration for ESP32-S3 LED firmware + React webapp",
+  "scripts": {
+    "setup": "bash -lc 'set -euo pipefail; cd \"$CONDUCTOR_WORKSPACE_PATH\"; echo \"[Setup] Initializing K1.node1 workspace...\"; if [ -f \"$CONDUCTOR_ROOT_PATH/.env\" ]; then cp \"$CONDUCTOR_ROOT_PATH/.env\" .env; echo \"[Setup] .env provisioned\"; elif [ -f \"$CONDUCTOR_ROOT_PATH/.env.example\" ]; then cp \"$CONDUCTOR_ROOT_PATH/.env.example\" .env; echo \"[Setup] .env.example copied (fill in values)\"; fi; if [ -f \"$CONDUCTOR_ROOT_PATH/ops/scripts/preflight.sh\" ]; then bash \"$CONDUCTOR_ROOT_PATH/ops/scripts/preflight.sh\" --scope all || echo \"[Warn] Preflight incomplete; continuing\"; fi; if [ -d \"$CONDUCTOR_ROOT_PATH/webapp\" ]; then cd \"$CONDUCTOR_WORKSPACE_PATH/webapp\" && (command -v npm >/dev/null 2>&1 && npm ci && echo \"[Setup] webapp deps installed\" || echo \"[Warn] npm not found\"); fi; if [ -d \"$CONDUCTOR_ROOT_PATH/firmware\" ]; then cd \"$CONDUCTOR_WORKSPACE_PATH/firmware\" && (command -v pio >/dev/null 2>&1 && pio pkg install && echo \"[Setup] firmware deps installed\" || echo \"[Warn] pio not found\"); fi; echo \"[Setup] Complete; workspace ready at $CONDUCTOR_WORKSPACE_PATH\"'",
+    "run": "bash -lc 'set -e; cd \"$CONDUCTOR_WORKSPACE_PATH\"; TARGET=${K1_TARGET:-web}; case \"$TARGET\" in web) echo \"[Run] Starting webapp dev server on port $CONDUCTOR_PORT...\"; cd webapp && npm run dev -- --port \"$CONDUCTOR_PORT\" ;; fw:build) echo \"[Run] Building firmware (no upload)...\"; cd firmware && pio run -e esp32-s3-devkitc-1 ;; fw:upload) echo \"[Run] Building and uploading firmware to device...\"; cd firmware && pio run -e esp32-s3-devkitc-1 && pio run -t upload -e esp32-s3-devkitc-1 ;; fw:monitor) echo \"[Run] Opening device serial monitor...\"; cd firmware && pio device monitor -b 115200 ;; test:pattern) echo \"[Run] Testing pattern on device...\"; bash \"$CONDUCTOR_ROOT_PATH/ops/scripts/test_pattern.sh\" ;; test:integration) echo \"[Run] Running integration tests (firmware + webapp + device)...\"; bash \"$CONDUCTOR_ROOT_PATH/ops/scripts/test_integration.sh\" ;; *) echo \"[Error] Unknown K1_TARGET=$TARGET\"; echo \"  Allowed: web | fw:build | fw:upload | fw:monitor | test:pattern | test:integration\"; exit 64 ;; esac'",
+    "archive": "bash -lc 'set -e; echo \"[Archive] Cleaning sensitive files from workspace...\"; rm -f \"$CONDUCTOR_WORKSPACE_PATH/.env\" || true; rm -f \"$CONDUCTOR_WORKSPACE_PATH/.conductor/api_keys.json\" || true; rm -rf \"$CONDUCTOR_WORKSPACE_PATH/firmware/.pio/build\" || true; echo \"[Archive] Cleanup complete\"'"
+  },
+  "runScriptMode": "nonconcurrent",
+  "maxConcurrentWorkspaces": 6,
+  "portRange": {
+    "start": 3000,
+    "count": 10,
+    "perWorkspace": true
+  },
+  "environment": {
+    "NODE_VERSION": "20.11.0",
+    "PATH_ADDITIONS": "$CONDUCTOR_WORKSPACE_PATH/node_modules/.bin:$CONDUCTOR_WORKSPACE_PATH/firmware/.pio/penv/bin",
+    "PIO_HOME": "$CONDUCTOR_WORKSPACE_PATH/firmware/.pio",
+    "K1_TARGET": "web"
+  },
+  "mcp": {
+    "enabled": true,
+    "servers": [
+      {
+        "name": "github",
+        "type": "github_api",
+        "auth_env": "GITHUB_TOKEN",
+        "scopes": ["repo:read", "repo:write", "actions:read"],
+        "rate_limit": "5000 req/hour",
+        "audit_log": true,
+        "agents": ["Feature", "Bugfix", "Release", "Test"]
+      },
+      {
+        "name": "linear",
+        "type": "linear_api",
+        "auth_env": "LINEAR_API_KEY",
+        "workspace": "k1",
+        "scopes": ["issue:read", "issue:write"],
+        "rate_limit": "500 req/min",
+        "audit_log": true,
+        "agents": ["Feature", "Bugfix", "Release", "Research"]
+      },
+      {
+        "name": "k1_device",
+        "type": "http_api",
+        "base_url": "http://192.168.1.104:3000",
+        "auth_header": "X-API-Key",
+        "auth_env": "K1_DEVICE_API_KEY",
+        "timeout_sec": 10,
+        "rate_limit": "100 req/min",
+        "audit_log": true,
+        "allowed_endpoints": [
+          "GET /api/patterns",
+          "GET /api/pattern/{id}",
+          "POST /api/select",
+          "POST /api/params",
+          "GET /api/metrics",
+          "GET /api/device/health",
+          "GET /api/device/logs"
+        ],
+        "agents": ["Feature", "Test", "Bugfix", "Optimization"]
+      },
+      {
+        "name": "sentry",
+        "type": "sentry_api",
+        "auth_env": "SENTRY_READ_TOKEN",
+        "organization": "k1-org",
+        "project": "esp32-firmware",
+        "scopes": ["issues:read", "performance:read"],
+        "rate_limit": "1000 req/hour",
+        "audit_log": true,
+        "agents": ["Bugfix", "Optimization", "Research"]
+      },
+      {
+        "name": "notion",
+        "type": "notion_api",
+        "auth_env": "NOTION_API_KEY",
+        "workspace": "K1.node1",
+        "scopes": ["page:read", "page:write", "database:read"],
+        "rate_limit": "100 req/min",
+        "audit_log": true,
+        "disallowed_operations": ["delete"],
+        "agents": ["Research", "Feature", "Bugfix"]
+      }
+    ]
+  },
+  "git": {
+    "agentIdentity": {
+      "name": "K1 Claude Agent",
+      "email": "ai-bot+k1@anthropic.com"
+    },
+    "branchPrefix": "conductor",
+    "autoCreateBranch": true,
+    "autoPushBranch": true,
+    "diffMode": "unified",
+    "auditLog": true
+  },
+  "workspace": {
+    "timeout_sec": 3600,
+    "cleanup_on_archive": true,
+    "symlink_shared_caches": true,
+    "shared_paths": [
+      "node_modules",
+      "firmware/.pio"
+    ]
+  },
+  "monitoring": {
+    "prometheus_enabled": true,
+    "prometheus_port": 8080,
+    "logs_dir": "~/.conductor/logs",
+    "audit_log": "~/.conductor/audit.log",
+    "metrics": [
+      "workspace_count_active",
+      "run_duration_seconds{target}",
+      "device_upload_queue_length",
+      "agent_success_rate",
+      "build_cache_hit_rate"
+    ]
+  },
+  "failover": {
+    "max_retries": 3,
+    "retry_backoff_sec": 10,
+    "escalation_after_attempts": 2,
+    "device_offline_escalation": true,
+    "timeout_device_check_sec": 30
+  }
+}
