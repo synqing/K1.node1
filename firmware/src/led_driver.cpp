@@ -211,7 +211,7 @@ rmt_channel_t v1_rmt_channel = RMT_CHANNEL_0;
 rmt_item32_t v1_items[NUM_LEDS * 24 + 64];
 
 // Add secondary channel support for RMT v1
-rmt_channel_t v1_rmt_channel_2 = RMT_CHANNEL_1;  // Secondary on channel 1
+rmt_channel_t v1_rmt_channel_2 = RMT_CHANNEL_4;  // Secondary on channel 4 (avoid adjacent channels)
 rmt_item32_t v1_items_2[NUM_LEDS * 24 + 64];     // Secondary buffer
 
 void init_rmt_driver() {
@@ -222,7 +222,7 @@ void init_rmt_driver() {
     config.rmt_mode = RMT_MODE_TX;
     config.channel = v1_rmt_channel;
     config.gpio_num = (gpio_num_t)LED_DATA_PIN;
-    config.mem_block_num = 4;
+    config.mem_block_num = 4;  // Restore to 4 blocks for stability
     config.clk_div = 2;  // 40MHz base clock / 2 = 20MHz tick (0.05us)
     config.tx_config.loop_en = false;
     config.tx_config.carrier_en = false;
@@ -242,12 +242,15 @@ void init_rmt_driver() {
         printf("Primary channel (GPIO %d) initialized OK\n", LED_DATA_PIN);
     }
 
-    // SECONDARY CHANNEL (GPIO 4, RMT Channel 1)
+    // SECONDARY CHANNEL DISABLED - causing corruption/interference
+    // TODO: Fix RMT v1 dual channel implementation
+    /*
+    // SECONDARY CHANNEL (GPIO 4, RMT Channel 4)
     rmt_config_t config2 = {};
     config2.rmt_mode = RMT_MODE_TX;
     config2.channel = v1_rmt_channel_2;
     config2.gpio_num = (gpio_num_t)LED_DATA_PIN_2;
-    config2.mem_block_num = 4;
+    config2.mem_block_num = 2;  // Use 2 blocks for channel 4
     config2.clk_div = 2;  // Same timing as primary
     config2.tx_config.loop_en = false;
     config2.tx_config.carrier_en = false;
@@ -265,6 +268,17 @@ void init_rmt_driver() {
         printf("Secondary rmt_driver_install failed: %d\n", (int)err);
     } else {
         printf("Secondary channel (GPIO %d) initialized OK\n", LED_DATA_PIN_2);
+    }
+    */
+    printf("WARNING: RMT secondary channel DISABLED due to interference issues\n");
+
+    // Initialize SPI-based secondary channel instead
+    printf("Initializing SPI for secondary LED output (GPIO 4)...\n");
+    esp_err_t spi_ret = init_spi_led_driver();
+    if (spi_ret != ESP_OK) {
+        printf("Failed to initialize SPI LED driver: %s\n", esp_err_to_name(spi_ret));
+    } else {
+        printf("SPI secondary channel ready on GPIO 4\n");
     }
 }
 #else

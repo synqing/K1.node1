@@ -199,6 +199,12 @@ out2:
 // Implementation in led_driver.cpp
 void init_rmt_driver();
 
+// SPI LED driver functions for secondary channel (GPIO 4)
+// Implementation in spi_led_driver.cpp
+esp_err_t init_spi_led_driver();
+void spi_transmit_leds(const uint8_t* led_data);
+void deinit_spi_led_driver();
+
 // Timestamp of last LED transmit start (micros)
 // Uses relaxed ordering since this is a timestamp capture for latency measurement
 #include <atomic>
@@ -377,13 +383,8 @@ IRAM_ATTR static inline void transmit_leds() {
     // Transmit to PRIMARY channel (GPIO 5)
     rmt_write_items(v1_rmt_channel, v1_items, idx, false);
 
-    // Copy items to secondary buffer (same data for mirroring)
-    extern rmt_channel_t v1_rmt_channel_2;
-    extern rmt_item32_t v1_items_2[];
-    memcpy(v1_items_2, v1_items, idx * sizeof(rmt_item32_t));
-
-    // Transmit to SECONDARY channel (GPIO 4)
-    rmt_write_items(v1_rmt_channel_2, v1_items_2, idx, false);
+    // Transmit to SECONDARY channel (GPIO 4) via SPI
+    spi_transmit_leds(raw_led_data);
 #else
     // RMT not available at all; yield briefly to allow system tasks to run
     vTaskDelay(pdMS_TO_TICKS(1));
