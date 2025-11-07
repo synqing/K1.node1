@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# One Run script for Conductor's "Run" button.
+# Select behavior via RUN_TARGET env var; defaults to web dev.
+#
+# Supported:
+#   RUN_TARGET=web:dev        → run dev server (PORT=$CONDUCTOR_PORT)
+#   RUN_TARGET=web:test       → run unit tests
+#   RUN_TARGET=web:e2e        → run Playwright tests
+#   RUN_TARGET=fw:monitor     → serial monitor (115200)
+#   RUN_TARGET=fw:test        → PlatformIO test (Phase A env if present)
+#   RUN_TARGET=fw:build       → PlatformIO build (release env if present)
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "${ROOT_DIR}"
+
+TARGET="${RUN_TARGET:-web:dev}"
+PORT="${CONDUCTOR_PORT:-5173}"   # Conductor provides CONDUCTOR_PORT for parallel servers
+LOCK_FILE=".conductor-run.lock"
+
+# simple nonconcurrent guard (Conductor can also run in nonconcurrent mode)
+if [[ -f "${LOCK_FILE}" ]]; then
+  echo "[RUN] Another run appears active (found ${LOCK_FILE}). Remove it if stale."
+  exit 2
+fi
+trap 'rm -f "${LOCK_FILE}"' EXIT
+echo $$ > "${LOCK_FILE}"
+
+echo "[RUN] target=${TARGET} PORT=${PORT} pwd=$(pwd)"
+
+case "${TARGET}" in
+  web:dev)
+    if [[ ! -d "webapp" ]]; then echo "[RUN] webapp/ missing"; exit 1; fi
+    pushd webapp >/dev/null
+    export PORT="${PORT}"
+    # Pass common dev port flag for Vite-like scripts; harmless if ignored
+    if npm run | grep -q "dev"; then
+      npm run dev -- --port "${PORT}"
+    else
+      echo "[RUN] No 'dev' script in webapp/package.json"; exit 1
+    fi
+    ;;
+
+  web:test)
+    pushd webapp >/dev/null
+    if npm run | grep -q "test"; then
+      npm test -- --runInBand
+    else
+      echo "[RUN] No 'test' script"; exit 1
+    fi
+    ;;
+
+  web:e2e)
+    pushd webapp >/dev/null
+    npx --yes playwright install --with-deps >/dev/null 2>&1 || true
+    npx playwright test --reporter=list || exit $?
+    ;;
+
+  fw:monitor)
+    if ! command -v platformio >/dev/null 2>&1; then
+      echo "[RUN] PlatformIO not found. Install: pipx install platformio (or use VSCode PIO CLI)."; exit 1
+    fi
+    pushd firmware >/dev/null
+    platformio device monitor --baud 115200
+    ;;
+
+  fw:test)
+    if ! command -v platformio >/dev/null 2>&1; then
+      echo "[RUN] PlatformIO not found. Install: pipx install platformio"; exit 1
+    fi
+    pushd firmware >/dev/null
+    if grep -q "esp32-s3-devkitc-1" platformio.ini; then
+      platformio test -e esp32-s3-devkitc-1
+    else
+      platformio test
+    fi
+    ;;
+
+  fw:build)
+    if ! command -v platformio >/dev/null 2>&1; then
+      echo "[RUN] PlatformIO not found. Install: pipx install platformio"; exit 1
+    fi
+    pushd firmware >/dev/null
+    if grep -q "esp32-s3-devkitc-1" platformio.ini; then
+      "$ROOT_DIR/ops/scripts/firmware-build-queue.sh" platformio run -e esp32-s3-devkitc-1
+    else
+      "$ROOT_DIR/ops/scripts/firmware-build-queue.sh" platformio run
+    fi
+    ;;
+
+  *)
+    echo "[RUN] Unknown RUN_TARGET='${TARGET}'. Supported: web:dev | web:test | web:e2e | fw:monitor | fw:test | fw:build"
+    exit 3
+    ;;
+esac

@@ -43,6 +43,10 @@
 - Compile‑time guards: use `__has_include` to select RMT v1/v2 code paths; gate strict/relaxed modes via flags.
 - Timeouts bounded: skip work on timeout; rate‑limit any warnings.
 
+## Performance Targets
+- LED render FPS: minimum 120, target 150 (serialize uploads; keep hot paths lean).
+- Audio FPS: ≥100 sustained.
+
 ## Building & Flashing
 - Clean build: `pio run -e esp32-s3-devkitc-1 -t clean && pio run`
 - Upload: `pio run -e esp32-s3-devkitc-1 -t upload`
@@ -91,4 +95,3 @@
   - `docs/Playbooks/phase_a_security_and_phase0_readiness_playbook.md`
   - `docs/06-reference/phase_a_security_fixes_reference.md`
   - `docs/09-reports/security_fix_validation.md`
-

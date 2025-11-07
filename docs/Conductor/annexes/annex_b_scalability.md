@@ -17,17 +17,19 @@ Conductor allows **multiple agents to run in parallel workspaces**, but K1.node1
 | **Device (192.168.1.104)** | Single ESP32-S3; only one active pattern at a time | OTA uploads must serialize; pattern tests must queue |
 | **USB/OTA Serial Port** | One physical connection | Only one agent can upload firmware at a time |
 | **Build System** | PlatformIO compilation; 2–3 min per build | Parallel builds on same host use shared cache (OK) |
-| **Host CPU/RAM** | M1/M2 MacBook Pro (8–10 cores, 16 GB RAM default) | 4–5 concurrent workspaces reasonable; 8+ causes swapping |
+| **Host CPU/RAM** | MacBook Pro M4 Pro (14 cores, 48 GB RAM) | 12–16 concurrent workspaces reasonable; 20 burst with guardrails |
 
-### Practical Limits
-- **Firmware builds**: 3–5 concurrent (serial compilation OK if deps cached; reuse .pio/ cache)
-- **Device uploads**: 1 at a time (enforce via `runScriptMode: "nonconcurrent"`)
-- **Total active workspaces**: 6–8 on 16 GB RAM; 10–12 on 32+ GB RAM
+### Practical Limits (M4 Pro, 14c/48GB)
+- **Firmware builds (CPU-bound)**: 3–4 concurrent active compiles (each compile spawns parallel jobs); beyond 4, wall‑clock often increases due to contention. Queue additional builds.
+- **Webapp builds/dev (I/O/memory moderate)**: +4–6 in parallel is safe alongside firmware compiles.
+- **Mixed workload example**: 3 firmware compiles + 6 webapp/dev/test workspaces concurrently without thrash.
+- **Device uploads (single device)**: 1 at a time (enforce via `runScriptMode: "nonconcurrent"`).
+- **Total active workspaces**: 12–16 steady‑state; up to 20 burst if most are non‑CPU‑bound (docs, analysis, light tests).
 
-### Configuration Example
+### Configuration Example (recommended defaults for M4 Pro)
 ```json
 {
-  "maxConcurrentWorkspaces": 6,
+  "maxConcurrentWorkspaces": 16,
   "runScriptMode": "nonconcurrent",
   "deviceUploadQueue": {
     "max_concurrent": 1,
@@ -193,15 +195,17 @@ Large artifacts (firmware `.bin`, test reports) stored in:
 
 ## Monitoring & Oversight at Scale
 
-### Metrics to Track
+### Metrics to Track (targets for M4 Pro)
 ```json
 {
-  "workspace_count_active": 6,
-  "device_upload_queue_length": 2,
-  "build_cache_hit_rate": 0.85,
-  "agent_success_rate": 0.92,
+  "workspace_count_active": 14,
+  "device_upload_queue_length": 0,
+  "build_cache_hit_rate": 0.90,
+  "agent_success_rate": 0.95,
   "mean_time_to_upload": "45s",
-  "mean_time_to_compile": "120s"
+  "mean_time_to_compile": "90s",
+  "render_fps_min": 120,
+  "render_fps_target": 150
 }
 ```
 
@@ -226,19 +230,20 @@ scrape_configs:
 
 ## Capacity Planning
 
-### M1/M2 MacBook Pro (16 GB RAM, 8 cores)
+### MacBook Pro M4 Pro (48 GB RAM, 14 cores)
 
-| Scenario | Concurrent Workspaces | Est. Build Time | Est. Disk |
-|----------|----------------------|-----------------|-----------|
-| **Light** (3 agents on web features) | 3 | 5 min | 18 MB |
-| **Medium** (5 agents: 3 firmware, 2 webapp) | 5 | 10 min (serialized uploads) | 30 MB |
-| **Heavy** (8 agents across all domains) | 8 | 15+ min (if queued) | 48 MB |
+| Scenario | Concurrent Workspaces | Est. Build Time | Notes |
+|----------|----------------------|-----------------|-------|
+| **Light** (web/dev/docs heavy) | 12 | 5–7 min | Mostly I/O; low CPU contention |
+| **Mixed** (3 fw builds + 6 webapp + 3 docs) | 12 | 8–10 min | Keep fw compiles ≤4 in parallel |
+| **Heavy** (CPU‑bound bursts) | 16 | 12–15 min | Queue extra fw builds; uploads serialized |
+| **Burst** (non‑CPU‑bound surge) | 20 | N/A | Only if most tasks are light (no fw compiles) |
 
 ### Growth Levers
-1. **Add RAM**: 32 GB → support 12+ concurrent workspaces
-2. **Add host**: 2-node setup (primary + backup) → 16+ workspaces, redundancy
-3. **Offload builds**: Use CI/CD for heavy builds; agents only iterate locally
-4. **Device redundancy**: 2x ESP32-S3 devices → parallel uploads, device rotation for maintenance
+1. **Guardrails**: Cap parallel firmware compiles at 4; queue excess.
+2. **Add host**: 2‑node setup (primary + backup) → 24–32 workspaces and redundancy.
+3. **Offload builds**: Use CI/CD for heavy or release builds; agents iterate locally against cached deps.
+4. **Device redundancy**: +1–2 ESP32‑S3 devices → parallelize uploads/tests; route via device queue.
 
 ---
 

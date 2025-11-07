@@ -841,8 +841,8 @@ void test_performance_regression() {
                         expected.free_heap_end - 5000,
                         expected.free_heap_end + 5000);
 
-    // FPS must remain above 100
-    TEST_ASSERT_GREATER_THAN(100.0f, actual.audio_fps);
+    // LED Render FPS must remain ≥120 (target 150). Audio FPS target remains ≥100.
+    TEST_ASSERT_GREATER_THAN(120.0f, actual.render_fps);
 }
 ```
 
@@ -1199,7 +1199,8 @@ def generate_trend_graph(metrics_file, output_png):
     axes[2].plot(df['timestamp'], df['fps'], marker='o', color='green')
     axes[2].set_ylabel('FPS')
     axes[2].set_title('Audio Processing Throughput')
-    axes[2].axhline(y=100, color='r', linestyle='--', label='Minimum (100 FPS)')
+    axes[2].axhline(y=120, color='r', linestyle='--', label='Minimum (120 FPS)')
+    axes[2].axhline(y=150, color='g', linestyle=':', label='Target (150 FPS)')
     axes[2].legend()
     axes[2].grid(True)
 
