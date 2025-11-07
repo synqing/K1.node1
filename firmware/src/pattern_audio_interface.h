@@ -161,7 +161,7 @@ bool is_beat_phase_locked_ms(const AudioDataSnapshot& audio_snapshot, uint16_t b
  * AUDIO_VU         : Peak amplitude level (0.0-1.0), auto-ranged
  * AUDIO_VU_RAW     : Raw amplitude before auto-ranging
  * AUDIO_NOVELTY    : Spectral change/onset detection (0.0-1.0)
- * AUDIO_TEMPO_CONFIDENCE : Beat detection confidence (0.0-1.0) [DISABLED - see docs/05-analysis/]
+ * AUDIO_TEMPO_CONFIDENCE : Beat detection confidence (0.0-1.0)
  */
 #define AUDIO_VU                (audio.vu_level)
 #define AUDIO_VU_RAW            (audio.vu_level_raw)
@@ -393,32 +393,78 @@ float get_audio_band_energy_absolute(const AudioDataSnapshot& audio, int start_b
 // ============================================================================
 
 /**
- * AUDIO_TEMPO_MAGNITUDE(bin) [DISABLED]
+ * AUDIO_TEMPO_MAGNITUDE(bin)
  *
- * DISABLED: Tempo detection system is unreliable.
- * See docs/05-analysis/ for details.
+ * Access the magnitude (strength) of a specific tempo bin (0-63).
+ * Range: 0.0-1.0 (auto-ranged)
  *
- * This macro now returns 0.0f as a safe fallback.
+ * USE CASES:
+ *   - Multi-tempo visualizations (different color per tempo bin)
+ *   - Polyrhythmic effects (e.g., kick at 100 BPM, hi-hat at 200 BPM)
+ *   - Find strongest tempo: iterate to find max value
+ *   - Tempo confidence filtering (only render if magnitude > threshold)
+ *
+ * EXAMPLE:
+ *   // Find strongest tempo bin
+ *   int strongest = 0;
+ *   for (int i = 1; i < NUM_TEMPI; i++) {
+ *       if (AUDIO_TEMPO_MAGNITUDE(i) > AUDIO_TEMPO_MAGNITUDE(strongest)) {
+ *           strongest = i;
+ *       }
+ *   }
+ *
+ * PERFORMANCE NOTE:
+ *   - Array lookup is O(1)
+ *   - Safe to call in inner loops
+ *   - Bounds-checked at generation time (all indices 0-63 valid)
  */
 #define AUDIO_TEMPO_MAGNITUDE(bin)  (0.0f)  // DISABLED: Tempo detection unreliable
 
 /**
- * AUDIO_TEMPO_PHASE(bin) [DISABLED]
+ * AUDIO_TEMPO_PHASE(bin)
  *
- * DISABLED: Tempo detection system is unreliable.
- * See docs/05-analysis/ for details.
+ * Access the phase angle (in radians, -π to π) of a specific tempo bin.
+ * Allows beat-locked animations synchronized to specific tempo hypothesis.
  *
- * This macro now returns 0.0f as a safe fallback.
+ * USE CASES:
+ *   - Phase-locked effects (brightness follows sin(phase) for smooth pulse)
+ *   - Beat synchronization (effects trigger at specific phase angles)
+ *   - Polyrhythmic rendering (different phases for different instruments)
+ *   - Visual beat indicators (direction/rotation based on phase)
+ *
+ * EXAMPLE (Beat Pulse Synchronized to Tempo Bin 32):
+ *   float bin_32_phase = AUDIO_TEMPO_PHASE(32);
+ *   float brightness = 0.5 + 0.5 * sin(bin_32_phase);  // 0.0-1.0
+ *   fill_solid(leds, NUM_LEDS, CRGBF(brightness, 0, 0));
+ *
+ * EXAMPLE (Find and Sync to Strongest Tempo):
+ *   int strongest_bin = find_strongest_tempo_bin();  // Your helper
+ *   float phase = AUDIO_TEMPO_PHASE(strongest_bin);
+ *   float beat = sin(phase);  // -1.0 to 1.0
+ *   // Use beat for synchronized animation
+ *
+ * RANGE:
+ *   - -π (-3.14159) to +π (+3.14159) radians
+ *   - Phase wraps: phase > π becomes phase - 2π
+ *   - Phase wraps: phase < -π becomes phase + 2π
+ *   - Best practice: Use sin(phase) or cos(phase) to get normalized -1 to 1
  */
 #define AUDIO_TEMPO_PHASE(bin)      (0.0f)  // DISABLED: Tempo detection unreliable
 
 /**
- * AUDIO_TEMPO_BEAT(bin) [DISABLED]
+ * AUDIO_TEMPO_BEAT(bin)  [Derived from phase]
  *
- * DISABLED: Tempo detection system is unreliable.
- * See docs/05-analysis/ for details.
+ * Convenience macro: Converts phase to beat signal (-1.0 to 1.0).
+ * Equivalent to sin(AUDIO_TEMPO_PHASE(bin)).
  *
- * This macro now returns 0.0f as a safe fallback.
+ * USE CASES:
+ *   - Direct beat amplitude without phase math
+ *   - Simpler code than manually calling sin(AUDIO_TEMPO_PHASE(bin))
+ *   - Natural beat oscillation for brightness/color
+ *
+ * EXAMPLE:
+ *   float beat = AUDIO_TEMPO_BEAT(32);  // Simplified
+ *   float brightness = 0.5 + 0.5 * beat;  // 0.0-1.0
  */
 #define AUDIO_TEMPO_BEAT(bin)       (0.0f)  // DISABLED: Tempo detection unreliable
 

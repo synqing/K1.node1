@@ -38,6 +38,9 @@ struct PatternParameters {
     float bass_treble_balance;  // -1.0 to +1.0 (-1=bass only, 0=balanced, +1=treble only)
     float color_reactivity;     // 0.0-1.0 (how much audio affects colors)
     float brightness_floor;     // 0.0-0.3 (minimum brightness, prevents full black)
+
+    // LED transport pacing
+    float frame_min_period_ms;  // 4.0 - 20.0 (minimum frame period; 6.0ms ≈ 166 FPS)
 };
 
 // Default parameter values (from Emotiscope reference)
@@ -70,6 +73,8 @@ inline PatternParameters get_default_params() {
     params.bass_treble_balance = 0.0f;   // Equal frequency weighting
     params.color_reactivity = 0.5f;      // Moderate audio-to-color influence
     params.brightness_floor = 0.05f;     // 5% minimum brightness
+    // LED transport pacing
+    params.frame_min_period_ms = 6.0f;   // Cap ~166 FPS by default
     return params;
 }
 

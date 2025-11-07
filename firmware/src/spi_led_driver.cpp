@@ -1,3 +1,5 @@
+﻿#include "led_driver.h"
+#if USE_SPI_SECONDARY
 // SPI-based LED driver for secondary channel (GPIO 4)
 // Uses SPI peripheral to generate WS2812B timing
 // Completely independent of RMT - no interference
@@ -136,3 +138,4 @@ void deinit_spi_led_driver() {
         spi_buffer = NULL;
     }
 }
+#endif // USE_SPI_SECONDARY

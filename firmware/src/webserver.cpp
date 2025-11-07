@@ -23,6 +23,7 @@
 #include "diagnostics.h"                  // Runtime diagnostics control
 #include "beat_events.h"                  // Latency probe controls
 #include "audio/tempo.h"                   // Tempo telemetry
+#include "diagnostics/rmt_probe.h"        // RMT telemetry
 #include "led_driver.h"                    // Access LED raw frame buffer
 // Debug telemetry defaults (compile-time overrides)
 #ifndef REALTIME_WS_ENABLED_DEFAULT
@@ -77,16 +78,25 @@ class GetDeviceInfoHandler : public K1RequestHandler {
 public:
     GetDeviceInfoHandler() : K1RequestHandler(ROUTE_DEVICE_INFO, ROUTE_GET) {}
     void handle(RequestContext& ctx) override {
-        StaticJsonDocument<256> doc;
+        StaticJsonDocument<384> doc;
         doc["device"] = "K1.reinvented";
-        #ifdef ESP_ARDUINO_VERSION
-        doc["firmware"] = String(ESP.getSdkVersion());
-        #else
-        doc["firmware"] = "Unknown";
-        #endif
-        doc["uptime"] = (uint32_t)(millis() / 1000);
+        doc["uptime_ms"] = millis();
         doc["ip"] = WiFi.localIP().toString();
         doc["mac"] = WiFi.macAddress();
+        // Build signature / environment fingerprint
+        JsonObject build = doc.createNestedObject("build");
+        #ifdef ARDUINO
+        build["arduino"] = ARDUINO;
+        #endif
+        #ifdef ARDUINO_ESP32_RELEASE_3_0_0
+        build["arduino_release"] = ARDUINO_ESP32_RELEASE_3_0_0;
+        #endif
+        #ifdef IDF_VER
+        build["idf_ver"] = IDF_VER;
+        #endif
+        build["platformio_platform"] = "espressif32@6.12.0";
+        build["framework"] = "arduino@3.20017.241212";
+
         String output;
         serializeJson(doc, output);
         ctx.sendJson(200, output);
@@ -918,6 +928,29 @@ public:
     }
 };
 
+// GET /api/rmt - RMT telemetry (refill counts and max gaps)
+class GetRmtDiagHandler : public K1RequestHandler {
+public:
+    GetRmtDiagHandler() : K1RequestHandler(ROUTE_RMT, ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        const RmtProbe* p1 = nullptr; const RmtProbe* p2 = nullptr;
+        rmt_probe_get(&p1, &p2);
+        StaticJsonDocument<256> doc;
+        if (p1) {
+            JsonObject ch1 = doc.createNestedObject("ch1");
+            ch1["empty"] = p1->mem_empty_count;
+            ch1["maxgap_us"] = p1->max_gap_us;
+        }
+        if (p2) {
+            JsonObject ch2 = doc.createNestedObject("ch2");
+            ch2["empty"] = p2->mem_empty_count;
+            ch2["maxgap_us"] = p2->max_gap_us;
+        }
+        String out; serializeJson(doc, out);
+        ctx.sendJson(200, out);
+    }
+};
+
 // GET /api/audio/tempo - Current tempo/beat telemetry snapshot
 class GetAudioTempoHandler : public K1RequestHandler {
 public:
@@ -1508,6 +1541,7 @@ void init_webserver() {
     registerGetHandler(server, ROUTE_LATENCY_ALIGN, new GetLatencyAlignHandler());
     registerGetHandler(server, ROUTE_BEAT_EVENTS_RECENT, new GetBeatEventsRecentHandler());
     registerGetHandler(server, ROUTE_LED_TX_RECENT, new GetLedTxRecentHandler());
+    registerGetHandler(server, ROUTE_RMT, new GetRmtDiagHandler());
     registerGetHandler(server, ROUTE_AUDIO_TEMPO, new GetAudioTempoHandler());
     registerGetHandler(server, ROUTE_AUDIO_SNAPSHOT, new GetAudioSnapshotHandler());
     registerGetHandler(server, ROUTE_WIFI_STATUS, new GetWifiStatusHandler());

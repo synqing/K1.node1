@@ -11,6 +11,7 @@
 #include "led_driver.h"
 #include "logging/logger.h"
 #include "pattern_audio_interface.h"
+#include "diagnostics/rmt_probe.h"
 #include "pattern_registry.h"
 
 namespace {
@@ -31,6 +32,11 @@ struct HeartbeatEntry {
   float tempo_confidence;
   bool silence;
   uint16_t beat_queue_depth;
+  // RMT diagnostics
+  uint32_t rmt_empty_ch1;
+  uint32_t rmt_empty_ch2;
+  uint32_t rmt_maxgap_ch1;
+  uint32_t rmt_maxgap_ch2;
 };
 
 constexpr size_t kHistorySize = 64;
@@ -189,6 +195,18 @@ void heartbeat_logger_poll() {
   line += " tempo="; line += entry.tempo_confidence;
   line += " silence="; line += (entry.silence ? 1 : 0);
   line += " beat_q="; line += entry.beat_queue_depth;
+  #ifdef DEBUG_TELEMETRY
+  {
+    const RmtProbe* p1 = nullptr; const RmtProbe* p2 = nullptr;
+    rmt_probe_get(&p1, &p2);
+    if (p1 && p2) {
+      line += " rmt_empty_ch1="; line += p1->mem_empty_count;
+      line += " rmt_empty_ch2="; line += p2->mem_empty_count;
+      line += " rmt_maxgap_us_ch1="; line += p1->max_gap_us;
+      line += " rmt_maxgap_us_ch2="; line += p2->max_gap_us;
+    }
+  }
+  #endif
   line += "\n";
   append_line(line);
 }

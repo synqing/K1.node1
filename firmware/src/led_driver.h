@@ -38,6 +38,13 @@
                           const void *data, size_t data_size, const rmt_transmit_config_t *config);
 #endif
 
+// If you must hard-require IDF5 for dual RMT, define REQUIRE_IDF5_DUAL_RMT in build flags.
+#ifdef REQUIRE_IDF5_DUAL_RMT
+#  if !__has_include(<driver/rmt_tx.h>)
+#    error "Dual-RMT build requires IDF5 (driver/rmt_tx.h). Use Arduino core 3.x / espressif32 >= 6.x."
+#  endif
+#endif
+
 #if !__has_include(<driver/rmt_tx.h>) && __has_include(<driver/rmt.h>)
 #  include <driver/rmt.h>
 #endif
@@ -62,6 +69,7 @@
 #include "parameters.h"  // Access get_params() for dithering flag
 #include "logging/logger.h"
 #include "led_tx_events.h"
+#include "audio/goertzel.h"  // for audio_level used by quiet-mode skip
 
 #define LED_DATA_PIN ( 5 )
 #define LED_DATA_PIN_2 ( 4 )   // Secondary LED strip output (dual output for LED duplication)
@@ -75,6 +83,9 @@
 #define STRIP_CENTER_POINT ( 79 )   // Physical LED at center (160/2 - 1)
 #define STRIP_HALF_LENGTH ( 80 )    // Distance from center to each edge
 #define STRIP_LENGTH ( 160 )        // Total span (must equal NUM_LEDS)
+
+static_assert(STRIP_LENGTH == NUM_LEDS, "STRIP_LENGTH must equal NUM_LEDS");
+static_assert(STRIP_CENTER_POINT == (NUM_LEDS/2 - 1), "STRIP_CENTER_POINT must be center index (NUM_LEDS/2 - 1)");
 
 // 32-bit color input
 extern CRGBF leds[NUM_LEDS];
@@ -108,14 +119,33 @@ extern rmt_led_strip_encoder_t strip_encoder;
 extern rmt_led_strip_encoder_t strip_encoder_2;
 extern rmt_transmit_config_t tx_config;
 
-// 8-bit color output buffer (accessible from inline transmit_leds)
-// Implementation in led_driver.cpp
+// Per-channel mapping/config
+typedef struct {
+    // Mapping from output byte positions [0,1,2] to source channels: 0=R, 1=G, 2=B
+    uint8_t map[3];
+    uint16_t length; // number of LEDs driven on this channel (<= NUM_LEDS)
+    uint16_t offset; // starting LED offset in logical leds[]
+} LedChannelConfig;
+
+// Channel configs (defaults: GRB order, whole strip, no offset)
+extern LedChannelConfig g_ch1_config;
+extern LedChannelConfig g_ch2_config;
+
+// 8-bit color buffers
+// rgb8_data: canonical RGB order for each LED (used to pack into per-channel byte order)
+// raw_led_data: channel 1 packed buffer (length = NUM_LEDS*3)
+// raw_led_data_ch2: channel 2 packed buffer (may alias raw_led_data if mapping identical)
+extern uint8_t rgb8_data[NUM_LEDS * 3];
 extern uint8_t raw_led_data[NUM_LEDS * 3];
+extern uint8_t raw_led_data_ch2[NUM_LEDS * 3];
 
 // Legacy RMT v1 transmit buffer and channel (used when only driver/rmt.h is available)
 #if !__has_include(<driver/rmt_tx.h>) && __has_include(<driver/rmt.h>)
 extern rmt_channel_t v1_rmt_channel;
 extern rmt_item32_t v1_items[NUM_LEDS * 24 + 64];
+extern rmt_item32_t v1_items_2[NUM_LEDS * 24 + 64];
+extern rmt_channel_t v1_rmt_channel_2;
+// Reuse v1_items for both channels (items are not modified by driver)
 #endif
 
 #if __has_include(<driver/rmt_tx.h>)
@@ -199,11 +229,16 @@ out2:
 // Implementation in led_driver.cpp
 void init_rmt_driver();
 
+#ifndef USE_SPI_SECONDARY
+#define USE_SPI_SECONDARY 0
+#endif
+#if USE_SPI_SECONDARY
 // SPI LED driver functions for secondary channel (GPIO 4)
 // Implementation in spi_led_driver.cpp
 esp_err_t init_spi_led_driver();
 void spi_transmit_leds(const uint8_t* led_data);
 void deinit_spi_led_driver();
+#endif
 
 // Timestamp of last LED transmit start (micros)
 // Uses relaxed ordering since this is a timestamp capture for latency measurement
@@ -226,32 +261,27 @@ inline void quantize_color(bool temporal_dithering) {
 		const float brightness_scale_dither = global_brightness * 254.0f;
 
 		for (uint16_t i = 0; i < NUM_LEDS; i++) {
-			// Optimized dithering with fewer operations per channel
-			const uint16_t base_idx = i * 3;
-			
-			// RED channel
-			const float decimal_r = leds[i].r * brightness_scale_dither;
-			const uint8_t whole_r = (uint8_t)decimal_r;
-			raw_led_data[base_idx + 1] = whole_r + ((decimal_r - whole_r) >= dither_threshold);
-
-			// GREEN channel  
-			const float decimal_g = leds[i].g * brightness_scale_dither;
-			const uint8_t whole_g = (uint8_t)decimal_g;
-			raw_led_data[base_idx + 0] = whole_g + ((decimal_g - whole_g) >= dither_threshold);
-
-			// BLUE channel
-			const float decimal_b = leds[i].b * brightness_scale_dither;
-			const uint8_t whole_b = (uint8_t)decimal_b;
-			raw_led_data[base_idx + 2] = whole_b + ((decimal_b - whole_b) >= dither_threshold);
+			const uint16_t base = i * 3;
+			// RED
+			const float dec_r = leds[i].r * brightness_scale_dither;
+			const uint8_t whole_r = (uint8_t)dec_r;
+			rgb8_data[base + 0] = whole_r + ((dec_r - whole_r) >= dither_threshold);
+			// GREEN
+			const float dec_g = leds[i].g * brightness_scale_dither;
+			const uint8_t whole_g = (uint8_t)dec_g;
+			rgb8_data[base + 1] = whole_g + ((dec_g - whole_g) >= dither_threshold);
+			// BLUE
+			const float dec_b = leds[i].b * brightness_scale_dither;
+			const uint8_t whole_b = (uint8_t)dec_b;
+			rgb8_data[base + 2] = whole_b + ((dec_b - whole_b) >= dither_threshold);
 		}
 	}
 	else {
-		// Optimized non-dithered path with pre-calculated multiplier
 		for (uint16_t i = 0; i < NUM_LEDS; i++) {
-			const uint16_t base_idx = i * 3;
-			raw_led_data[base_idx + 1] = (uint8_t)(leds[i].r * brightness_scale);  // RED
-			raw_led_data[base_idx + 0] = (uint8_t)(leds[i].g * brightness_scale);  // GREEN
-			raw_led_data[base_idx + 2] = (uint8_t)(leds[i].b * brightness_scale);  // BLUE
+			const uint16_t base = i * 3;
+			rgb8_data[base + 0] = (uint8_t)(leds[i].r * brightness_scale);
+			rgb8_data[base + 1] = (uint8_t)(leds[i].g * brightness_scale);
+			rgb8_data[base + 2] = (uint8_t)(leds[i].b * brightness_scale);
 		}
 	}
     {
@@ -259,6 +289,19 @@ inline void quantize_color(bool temporal_dithering) {
         uint32_t tmp = ACCUM_QUANTIZE_US;
         tmp = tmp + delta;
         ACCUM_QUANTIZE_US = tmp;
+    }
+}
+
+inline void pack_channel_bytes(const uint8_t* rgb, uint8_t* out, const LedChannelConfig& cfg) {
+    const uint16_t n = cfg.length;
+    const uint16_t off = cfg.offset;
+    for (uint16_t i = 0; i < n; ++i) {
+        const uint16_t src = (uint16_t)(i + off);
+        const uint16_t base_src = src * 3;
+        const uint16_t base_out = i * 3;
+        out[base_out + 0] = rgb[base_src + cfg.map[0]];
+        out[base_out + 1] = rgb[base_src + cfg.map[1]];
+        out[base_out + 2] = rgb[base_src + cfg.map[2]];
     }
 }
 
@@ -285,15 +328,14 @@ IRAM_ATTR static inline void transmit_leds() {
         static uint32_t last_warn_ms = 0;
         uint32_t now_ms = millis();
         if (now_ms - last_warn_ms > 5000) {  // Reduced warning frequency
+            #if DEBUG_LED_TX
             LOG_WARN(TAG_LED, "RMT transmission timeout (skipping frame for performance)");
+            #endif
             last_warn_ms = now_ms;
         }
         return;
     }
 #endif
-
-	// Clear the 8-bit buffer
-	memset(raw_led_data, 0, NUM_LEDS*3);
 
 	// Quantize the floating point color to 8-bit with dithering
 	//
@@ -303,8 +345,26 @@ IRAM_ATTR static inline void transmit_leds() {
 	bool temporal_dithering = (get_params().dithering >= 0.5f);
 	quantize_color(temporal_dithering);
 
-	// Transmit to LEDs (dual output: GPIO 5 and GPIO 4)
-	uint32_t t_tx0 = micros();
+    // Optional quiet-mode skip: if audio is below threshold for N frames, skip transmit to reduce EMI
+    #ifndef QUIET_SKIP_FRAMES
+    #define QUIET_SKIP_FRAMES 10
+    #endif
+    #ifndef QUIET_VU_THRESH
+    #define QUIET_VU_THRESH 0.01f
+    #endif
+    static uint8_t s_quiet_frames = 0;
+    if (audio_level < QUIET_VU_THRESH) {
+        if (s_quiet_frames < 0xFF) s_quiet_frames++;
+    } else {
+        s_quiet_frames = 0;
+    }
+    if (s_quiet_frames >= QUIET_SKIP_FRAMES) {
+        vTaskDelay(pdMS_TO_TICKS(1));
+        return;
+    }
+
+    // Transmit to LEDs (dual output: GPIO 5 and GPIO 4)
+    uint32_t t_tx0 = micros();
     // Record transmit start timestamp for latency diagnostics
     g_last_led_tx_us = t_tx0;
     // Push into rolling LED TX event buffer for correlation across frames
@@ -315,6 +375,7 @@ IRAM_ATTR static inline void transmit_leds() {
     uint32_t now_ms = millis();
     bool should_debug = (now_ms - last_debug_ms > 2000);
 
+    #if DEBUG_LED_TX
     if (should_debug) {
         LOG_WARN(TAG_LED, "=== TRANSMIT DEBUG ===");
         LOG_WARN(TAG_LED, "tx_chan=%p, led_encoder=%p, data=%p, bytes=%d",
@@ -322,25 +383,44 @@ IRAM_ATTR static inline void transmit_leds() {
         LOG_WARN(TAG_LED, "tx_chan_2=%p, led_encoder_2=%p, data=%p, bytes=%d",
                  tx_chan_2, led_encoder_2, raw_led_data, NUM_LEDS*3);
     }
+    #endif
 
-    // Transmit to primary strip (GPIO 5)
-    esp_err_t tx_ret = rmt_transmit(tx_chan, led_encoder, raw_led_data, NUM_LEDS*3, &tx_config);
-    // Transmit to secondary strip (GPIO 4) - simultaneous, non-blocking
-    esp_err_t tx_ret_2 = ESP_FAIL;  // Default to fail
-    if (tx_chan_2 != NULL && led_encoder_2 != NULL) {
-        tx_ret_2 = rmt_transmit(tx_chan_2, led_encoder_2, raw_led_data, NUM_LEDS*3, &tx_config);
-    } else {
-        if (should_debug) {
-            LOG_WARN(TAG_LED, "SKIP secondary transmit: tx_chan_2=%p led_encoder_2=%p", tx_chan_2, led_encoder_2);
-        }
+    // Pack per-channel bytes based on mapping (channel 1 always packed)
+    pack_channel_bytes(rgb8_data, raw_led_data, g_ch1_config);
+    bool use_ch2_alias = (g_ch2_config.map[0] == g_ch1_config.map[0] &&
+                          g_ch2_config.map[1] == g_ch1_config.map[1] &&
+                          g_ch2_config.map[2] == g_ch1_config.map[2] &&
+                          g_ch2_config.length == g_ch1_config.length &&
+                          g_ch2_config.offset == g_ch1_config.offset);
+    if (!use_ch2_alias) {
+        pack_channel_bytes(rgb8_data, raw_led_data_ch2, g_ch2_config);
     }
 
+    const uint8_t* ch2_data = use_ch2_alias ? raw_led_data : raw_led_data_ch2;
+
+    // Transmit to both strips with minimal skew via critical section
+    // Note: rmt_transmit() returns quickly after queuing; critical section reduces ISR preemption between posts
+    static portMUX_TYPE g_rmt_mux = portMUX_INITIALIZER_UNLOCKED;
+    esp_err_t tx_ret = ESP_FAIL;
+    esp_err_t tx_ret_2 = ESP_FAIL;  // Default to fail
+    taskENTER_CRITICAL(&g_rmt_mux);
+    do {
+        tx_ret = rmt_transmit(tx_chan,   led_encoder,   raw_led_data, g_ch1_config.length*3, &tx_config);
+        if (tx_chan_2 && led_encoder_2) {
+            tx_ret_2 = rmt_transmit(tx_chan_2, led_encoder_2, ch2_data, g_ch2_config.length*3, &tx_config);
+        }
+    } while (0);
+    taskEXIT_CRITICAL(&g_rmt_mux);
+
+    #if DEBUG_LED_TX
     if (should_debug) {
         LOG_WARN(TAG_LED, "Primary (GPIO5) transmit: %s (0x%x)", esp_err_to_name(tx_ret), tx_ret);
         LOG_WARN(TAG_LED, "Secondary (GPIO4) transmit: %s (0x%x)", esp_err_to_name(tx_ret_2), tx_ret_2);
         last_debug_ms = now_ms;
     }
+    #endif
 
+    #if DEBUG_LED_TX
     if (tx_ret != ESP_OK || tx_ret_2 != ESP_OK) {
         static uint32_t last_err_ms = 0;
         if (now_ms - last_err_ms > 1000) {
@@ -349,19 +429,32 @@ IRAM_ATTR static inline void transmit_leds() {
             last_err_ms = now_ms;
         }
     }
+    #endif
 #else
 #if __has_include(<driver/rmt.h>)
     // Legacy RMT v1 fallback (ESP-IDF v4, Arduino core 2.x)
-    // Encode GRB bytes into RMT items at ~800 kHz timing using clk_div=2 (25 ns ticks)
+    // 1) Pack mapped bytes for each channel
+    pack_channel_bytes(rgb8_data, raw_led_data, g_ch1_config);
+    bool use_ch2_alias = (g_ch2_config.map[0] == g_ch1_config.map[0] &&
+                          g_ch2_config.map[1] == g_ch1_config.map[1] &&
+                          g_ch2_config.map[2] == g_ch1_config.map[2] &&
+                          g_ch2_config.length == g_ch1_config.length &&
+                          g_ch2_config.offset == g_ch1_config.offset);
+    if (!use_ch2_alias) {
+        pack_channel_bytes(rgb8_data, raw_led_data_ch2, g_ch2_config);
+    }
+
+    // 2) Encode GRB bytes into RMT items at ~800 kHz timing using clk_div=2 (25 ns ticks)
     const uint16_t T0H = 16;  // ~0.40us high
     const uint16_t T0L = 34;  // ~0.85us low
     const uint16_t T1H = 32;  // ~0.80us high
     const uint16_t T1L = 18;  // ~0.45us low
-    const uint16_t RESET_TICKS = 1600; // ~40us low (two items => ~80us reset)
+    // Increase reset low time margin to improve latch stability on some batches
+    const uint16_t RESET_TICKS = 2000; // ~50us low per item (two items => ~100us reset)
 
     size_t idx = 0;
-    const size_t nbytes = NUM_LEDS * 3;
-    for (size_t i = 0; i < nbytes; ++i) {
+    const size_t nbytes1 = (size_t)g_ch1_config.length * 3;
+    for (size_t i = 0; i < nbytes1; ++i) {
         uint8_t b = raw_led_data[i];
         for (int bit = 7; bit >= 0; --bit) {
             bool one = (b >> bit) & 0x1;
@@ -375,16 +468,44 @@ IRAM_ATTR static inline void transmit_leds() {
             ++idx;
         }
     }
-    // Append reset: keep line low for >50us
     v1_items[idx].duration0 = RESET_TICKS; v1_items[idx].level0 = 0;
     v1_items[idx].duration1 = RESET_TICKS; v1_items[idx].level1 = 0;
     ++idx;
 
-    // Transmit to PRIMARY channel (GPIO 5)
-    rmt_write_items(v1_rmt_channel, v1_items, idx, false);
+    // Secondary channel items
+    size_t idx2 = 0;
+    const uint8_t* ch2_src = use_ch2_alias ? raw_led_data : raw_led_data_ch2;
+    const size_t nbytes2 = (size_t)g_ch2_config.length * 3;
+    for (size_t i = 0; i < nbytes2; ++i) {
+        uint8_t b = ch2_src[i];
+        for (int bit = 7; bit >= 0; --bit) {
+            bool one = (b >> bit) & 0x1;
+            if (one) {
+                v1_items_2[idx2].duration0 = T1H; v1_items_2[idx2].level0 = 1;
+                v1_items_2[idx2].duration1 = T1L; v1_items_2[idx2].level1 = 0;
+            } else {
+                v1_items_2[idx2].duration0 = T0H; v1_items_2[idx2].level0 = 1;
+                v1_items_2[idx2].duration1 = T0L; v1_items_2[idx2].level1 = 0;
+            }
+            ++idx2;
+        }
+    }
+    v1_items_2[idx2].duration0 = RESET_TICKS; v1_items_2[idx2].level0 = 0;
+    v1_items_2[idx2].duration1 = RESET_TICKS; v1_items_2[idx2].level1 = 0;
+    ++idx2;
 
-    // Transmit to SECONDARY channel (GPIO 4) via SPI
-    spi_transmit_leds(raw_led_data);
+    // 3) Ensure previous transmissions are complete; skip frame on timeout to avoid DRIVER/CHANNEL errors
+    if (rmt_wait_tx_done(v1_rmt_channel, pdMS_TO_TICKS(8)) != ESP_OK) {
+        goto after_v1_tx;
+    }
+    if (rmt_wait_tx_done(v1_rmt_channel_2, pdMS_TO_TICKS(8)) != ESP_OK) {
+        goto after_v1_tx;
+    }
+
+    // 4) Transmit to PRIMARY and SECONDARY channels (both via RMT v1)
+    rmt_write_items(v1_rmt_channel,    v1_items,    idx,  false);
+    rmt_write_items(v1_rmt_channel_2,  v1_items_2,  idx2, false);
+after_v1_tx: ;
 #else
     // RMT not available at all; yield briefly to allow system tasks to run
     vTaskDelay(pdMS_TO_TICKS(1));
@@ -396,4 +517,20 @@ IRAM_ATTR static inline void transmit_leds() {
         tmp = tmp + delta;
         ACCUM_RMT_TRANSMIT_US = tmp;
     }
+
+    // Frame pacing to cap FPS and avoid occasional wait_tx_done collisions
+    // Target minimum frame period ~6.0ms (~166 FPS) to stay within 150–180 FPS band
+    // Convert runtime parameter to microseconds (clamped by validator)
+    uint32_t min_period_us = (uint32_t)(get_params().frame_min_period_ms * 1000.0f);
+    static uint32_t s_last_frame_start_us = 0;
+    uint32_t now_us = micros();
+    if (s_last_frame_start_us == 0) s_last_frame_start_us = now_us;
+    uint32_t elapsed_us = now_us - s_last_frame_start_us;
+    if (elapsed_us < min_period_us) {
+        uint32_t remain_us = min_period_us - elapsed_us;
+        // Sleep in ms granularity to yield CPU without busy-waiting
+        uint32_t remain_ms = (remain_us + 999) / 1000;
+        if (remain_ms > 0) vTaskDelay(pdMS_TO_TICKS(remain_ms));
+    }
+    s_last_frame_start_us = micros();
 }

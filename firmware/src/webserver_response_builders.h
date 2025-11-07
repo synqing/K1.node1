@@ -142,6 +142,12 @@ static void apply_params_json(const JsonObjectConst& root) {
         LOG_DEBUG(TAG_WEB, "Param update: brightness_floor=%.3f", updated.brightness_floor);
     }
 
+    // LED transport pacing
+    if (root.containsKey("frame_min_period_ms")) {
+        updated.frame_min_period_ms = root["frame_min_period_ms"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: frame_min_period_ms=%.3f", updated.frame_min_period_ms);
+    }
+
     bool ok = update_params_safe(updated);
     const PatternParameters& applied = get_params();
     LOG_DEBUG(TAG_WEB, "Applied params: brightness=%.3f (valid=%d)", applied.brightness, ok ? 1 : 0);

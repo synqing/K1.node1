@@ -45,7 +45,7 @@ void init_rmt_driver();
 #include "parameters.h"
 #include "pattern_registry.h"
 #include "generated_patterns.h"
-#include "pattern_optimizations.h"  // Performance fixes for underperforming patterns
+#include "pattern_optimizations.h"
 #include "webserver.h"
 #include "cpu_monitor.h"
 #include "connection_state.h"
@@ -54,7 +54,7 @@ void init_rmt_driver();
 #include "beat_events.h"
 #include "diagnostics.h"
 #include "diagnostics/heartbeat_logger.h"
-#include "audio/goertzel.h" // For spectrogram[]
+// (removed duplicate include of audio/goertzel.h)
 #include "udp_echo.h"      // UDP echo server for RTT measurements
 #include "led_tx_events.h"  // Rolling buffer of LED transmit timestamps
 
@@ -462,6 +462,20 @@ void loop_gpu(void* param) {
 void setup() {
     Serial.begin(2000000);
     LOG_INFO(TAG_CORE0, "=== K1.reinvented Starting ===");
+
+    // Print build environment and IDF/Arduino versions up front (so we catch cursed mismatches early)
+#ifdef ARDUINO_ESP32_RELEASE_3_0_0
+    Serial.printf("[build] Arduino core: %s\n", ARDUINO_ESP32_RELEASE_3_0_0);
+#endif
+#ifdef ARDUINO
+    Serial.printf("[build] ARDUINO macro: %d\n", ARDUINO);
+#endif
+#ifdef IDF_VER
+    Serial.printf("[build] ESP-IDF: %s\n", IDF_VER);
+#endif
+#ifdef REQUIRE_IDF5_DUAL_RMT
+    Serial.println("[build] REQUIRE_IDF5_DUAL_RMT=1 (dual RMT enforced)");
+#endif
 
     // Initialize LED driver
     LOG_INFO(TAG_LED, "Initializing LED driver...");

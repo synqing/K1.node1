@@ -38,6 +38,7 @@ String build_params_json() {
     doc["bass_treble_balance"] = params.bass_treble_balance;
     doc["color_reactivity"] = params.color_reactivity;
     doc["brightness_floor"] = params.brightness_floor;
+    doc["frame_min_period_ms"] = params.frame_min_period_ms;
 
     String output;
     serializeJson(doc, output);

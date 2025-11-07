@@ -95,6 +95,16 @@ bool validate_and_clamp(PatternParameters& params) {
         clamped = true;
     }
 
+    // frame_min_period_ms: 4.0 - 20.0 ms (maps to ~250-50 FPS)
+    if (isnan(params.frame_min_period_ms) || isinf(params.frame_min_period_ms) ||
+        params.frame_min_period_ms < 4.0f || params.frame_min_period_ms > 20.0f) {
+        params.frame_min_period_ms = constrain(params.frame_min_period_ms, 4.0f, 20.0f);
+        if (isnan(params.frame_min_period_ms) || isinf(params.frame_min_period_ms)) {
+            params.frame_min_period_ms = 6.0f;  // Default: ~166 FPS
+        }
+        clamped = true;
+    }
+
     return clamped;
 }
 
