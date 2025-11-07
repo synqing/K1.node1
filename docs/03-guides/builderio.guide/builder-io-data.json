@@ -1,0 +1,263 @@
+{
+  "metadata": {
+    "title": "Builder.io Comprehensive Guide",
+    "version": "1.0.0",
+    "lastUpdated": "2025-11-05",
+    "sourceCount": 13,
+    "categories": 4
+  },
+  "sources": [
+    {
+      "id": "webgl-scroll-animation",
+      "title": "Recreating Apple-style 3D scroll animations in Three.js and WebGL",
+      "url": "https://www.builder.io/blog/webgl-scroll-animation",
+      "category": "Animation Techniques",
+      "keyTechnologies": ["Three.js", "WebGL", "React Three Fiber", "GLTF"],
+      "summary": "Implementation guide for creating smooth 3D scroll animations using Three.js and WebGL, including model loading, scroll progress tracking, and scene setup."
+    },
+    {
+      "id": "3d-gsap",
+      "title": "Create a 3d scrolling animation with GSAP and Veo 3",
+      "url": "https://www.builder.io/blog/3d-gsap",
+      "category": "Animation Techniques",
+      "keyTechnologies": ["GSAP", "ScrollTrigger", "Canvas", "Image Sequences"],
+      "summary": "Tutorial on creating zooming 3D effects using GSAP and image sequences, including preloading, canvas rendering, and scroll-driven animations."
+    },
+    {
+      "id": "design-with-ai",
+      "title": "How to generate (actually good) designs with AI",
+      "url": "https://www.builder.io/blog/design-with-ai",
+      "category": "AI-Powered Development",
+      "keyTechnologies": ["Fusion", "AI Design Tools", "Design Systems"],
+      "summary": "Best practices for using AI tools to create interactive designs, including adapting existing resources, connecting to codebases, and iterative refinement."
+    },
+    {
+      "id": "gsap-reveal",
+      "title": "Build a buttery scroll reveal like WAC with GSAP",
+      "url": "https://www.builder.io/blog/gsap-reveal",
+      "category": "Animation Techniques",
+      "keyTechnologies": ["GSAP", "ScrollTrigger", "Timeline Animation"],
+      "summary": "Creating smooth text and video reveal animations synchronized with scroll using GSAP timelines and proper DOM manipulation."
+    },
+    {
+      "id": "view-timeline",
+      "title": "Create Apple-style scroll animations with CSS view-timeline",
+      "url": "https://www.builder.io/blog/view-timeline",
+      "category": "Animation Techniques",
+      "keyTechnologies": ["CSS", "View Timeline", "Scroll-driven Animations"],
+      "summary": "Implementation of pure CSS scroll animations using view timelines for perfect synchronization without JavaScript."
+    },
+    {
+      "id": "daisyui-best-practices",
+      "title": "5 biggest daisyUI anti-patterns (and how to avoid them)",
+      "url": "https://www.builder.io/blog/daisyui-best-practices-ai",
+      "category": "Framework Integration",
+      "keyTechnologies": ["daisyUI", "TailwindCSS", "Component Systems"],
+      "summary": "Common pitfalls and solutions when using daisyUI, including design-to-code gap, component composition, and theme customization."
+    },
+    {
+      "id": "no-handoff-methodology",
+      "title": "The No Handoff Methodology: A Practical Playbook for UX Design Leaders",
+      "url": "https://www.builder.io/blog/no-handoff-methodology",
+      "category": "AI-Powered Development",
+      "keyTechnologies": ["Fusion", "Git Workflows", "Visual IDE"],
+      "summary": "Revolutionary approach to design-development collaboration eliminating traditional handoffs through AI-powered tools and shared code environments."
+    },
+    {
+      "id": "ai-ux-design",
+      "title": "Faster UX Design with AI",
+      "url": "https://www.builder.io/blog/ai-ux-design",
+      "category": "AI-Powered Development",
+      "keyTechnologies": ["Fusion", "AI Design", "Pull Requests"],
+      "summary": "Comparison of traditional Figma workflow versus AI-powered Fusion workflow for faster, more accurate design implementation."
+    },
+    {
+      "id": "supabase-mcp",
+      "title": "Five things to try with the Supabase MCP server",
+      "url": "https://www.builder.io/blog/supabase-mcp",
+      "category": "Framework Integration",
+      "keyTechnologies": ["Supabase", "MCP", "Database", "Authentication"],
+      "summary": "Integration guide for connecting Supabase backend services to Fusion for full-stack development with natural language."
+    },
+    {
+      "id": "figma-ai-generator",
+      "title": "Figma AI Generator",
+      "url": "https://www.builder.io/blog/figma-ai-generator",
+      "category": "Platform Tools",
+      "keyTechnologies": ["Figma", "AI Generation", "Design Systems"],
+      "summary": "Overview of Builder.io's Figma plugin that generates designs using existing component libraries and design systems."
+    },
+    {
+      "id": "create-full-stack-app",
+      "title": "Create a full-stack app with AI",
+      "url": "https://www.builder.io/blog/create-full-stack-app-ai",
+      "category": "Platform Tools",
+      "keyTechnologies": ["Fusion", "Supabase", "Netlify", "Full-stack"],
+      "summary": "Step-by-step guide for building and deploying a complete CRUD application using AI-powered tools."
+    },
+    {
+      "id": "get-started-fusion",
+      "title": "Get started with Fusion",
+      "url": "https://www.builder.io/c/docs/get-started-fusion",
+      "category": "Platform Tools",
+      "keyTechnologies": ["Fusion", "Git", "Visual IDE"],
+      "summary": "Official documentation for setting up and using Builder's Fusion platform for AI-powered development."
+    },
+    {
+      "id": "builder-figma-plugin",
+      "title": "Builder Figma Plugin: Overview",
+      "url": "https://www.builder.io/c/docs/builder-figma-plugin",
+      "category": "Platform Tools",
+      "keyTechnologies": ["Figma", "Code Generation", "Design Import"],
+      "summary": "Documentation for Builder's Figma plugin features including smart export and code generation capabilities."
+    }
+  ],
+  "codeExamples": {
+    "animations": {
+      "webgl": {
+        "modelLoading": "import { useGLTF } from \"@react-three/drei\";\n\nconst MODEL_URL = \"https://cdn.builder.io/path-to-your-model.gltf\";\n\nfunction ImacModel() {\n  const { scene } = useGLTF(MODEL_URL);\n  return <primitive object={scene} scale={1} />;\n}\n\nuseGLTF.preload(MODEL_URL);",
+        "scrollProgress": "function useScrollProgress() {\n  const [progress, setProgress] = useState(0);\n\n  useEffect(() => {\n    const handler = () => {\n      const total = document.body.scrollHeight - window.innerHeight;\n      setProgress(total > 0 ? Math.min(Math.max(window.scrollY / total, 0), 1) : 0);\n    };\n    \n    handler();\n    window.addEventListener(\"scroll\", handler, { passive: true });\n    window.addEventListener(\"resize\", handler);\n    \n    return () => {\n      window.removeEventListener(\"scroll\", handler);\n      window.removeEventListener(\"resize\", handler);\n    };\n  }, []);\n\n  return progress;\n}"
+      },
+      "gsap": {
+        "imageSequence": "const imageUrls = [\n  \"/frame-001.jpg\",\n  // ... up to frame-NNN.jpg\n];",
+        "scrollTrigger": "const tl = gsap.timeline({\n  scrollTrigger: {\n    trigger: containerRef.current,\n    start: \"top top\",\n    end: \"bottom bottom\",\n    scrub: 1,\n    invalidateOnRefresh: true,\n  },\n});"
+      },
+      "css": {
+        "viewTimeline": "@supports (animation-timeline: view()) {\n  @keyframes wipe-out {\n    0% { clip-path: inset(0 0 0% 0); }\n    100% { clip-path: inset(0 0 100% 0); }\n  }\n  \n  .video-layer {\n    animation: wipe-out 1s linear both;\n    animation-range: entry 0% contain 0%;\n  }\n}"
+      }
+    },
+    "frameworks": {
+      "daisyui": {
+        "cardComponent": "<div class=\"card bg-base-100 shadow-xl\">\n  <div class=\"card-body\">\n    <h2 class=\"card-title\">Header from Figma</h2>\n    <p>Content exactly as designed</p>\n    <div class=\"card-actions justify-end\">\n      <button class=\"btn btn-primary\">Action Button</button>\n    </div>\n  </div>\n</div>",
+        "themeConfig": "[data-theme=\"brand-light\"] {\n  --p: 217 70% 51%; /* Brand blue in oklch */\n  --pc: 217 70% 11%; /* Contrasting text */\n  --s: 32 77% 65%; /* Brand orange */\n  --sc: 32 77% 15%;\n}"
+      },
+      "supabase": {
+        "connection": "// Add environment variables\nSUPABASE_URL=https://[project_id].supabase.co\nSUPABASE_ANON_KEY=your_public_anon_key"
+      }
+    },
+    "fusion": {
+      "prompts": {
+        "createComponent": "Import this Figma design and create a working component using our design system",
+        "addDatabase": "Use Supabase MCP to create a table for [feature] and connect it to the frontend",
+        "implementAnimation": "Add a GSAP scroll animation that fades in elements as they enter viewport",
+        "deploy": "Use Netlify MCP to deploy this application and return the live URL"
+      }
+    }
+  },
+  "bestPractices": {
+    "animation": [
+      "Keep textures compressed and meshes decimated for performance",
+      "Use will-change CSS property sparingly",
+      "Prefer transform and opacity for animations",
+      "Implement requestAnimationFrame for custom animations",
+      "Test on slower devices and adjust lerp speed if motion feels jumpy"
+    ],
+    "aiDesign": [
+      "Start with existing resources from ReactBits, 21st.dev, CodePen",
+      "Connect to your actual codebase for context",
+      "Iterate with specific, actionable feedback",
+      "Use Design System Index for better AI understanding",
+      "Work in git-based workflows for version control"
+    ],
+    "noHandoff": [
+      "Design and prototype in production-ready code",
+      "Measure time-to-market from idea to production",
+      "Get consistent customer feedback",
+      "Leverage design system and component library",
+      "Stop creating complex design specs"
+    ],
+    "deployment": [
+      "Connect all required services before starting",
+      "Configure environment variables properly",
+      "Set up CI/CD pipeline early",
+      "Implement error tracking and monitoring",
+      "Document deployment process"
+    ]
+  },
+  "tools": {
+    "builderio": {
+      "fusion": {
+        "description": "Visual IDE for AI-powered development",
+        "features": ["Visual editing", "Git integration", "MCP servers", "Design system awareness"],
+        "url": "https://www.builder.io/fusion"
+      },
+      "figmaPlugin": {
+        "description": "Figma to code conversion with design system awareness",
+        "features": ["Component-aware generation", "Natural language iteration", "Production-ready output"],
+        "url": "https://www.figma.com/community/plugin/747985167520967365"
+      },
+      "chromeExtension": {
+        "description": "Import layouts from any website",
+        "features": ["Layout capture", "Component extraction", "Style preservation"]
+      }
+    },
+    "external": {
+      "supabase": {
+        "description": "Backend as a service",
+        "features": ["Database", "Authentication", "Edge Functions", "Real-time subscriptions"]
+      },
+      "netlify": {
+        "description": "Deployment and hosting platform",
+        "features": ["Continuous deployment", "Serverless functions", "Form handling"]
+      },
+      "gsap": {
+        "description": "Animation library",
+        "features": ["Timeline control", "ScrollTrigger", "Performance optimization"]
+      },
+      "threejs": {
+        "description": "3D graphics library",
+        "features": ["WebGL rendering", "3D models", "Camera controls"]
+      }
+    }
+  },
+  "workflows": {
+    "animationProject": {
+      "steps": [
+        "Choose animation technique (WebGL/GSAP/CSS)",
+        "Set up development environment",
+        "Optimize assets (compress images, decimate meshes)",
+        "Implement scroll handlers",
+        "Add fallbacks for slower devices",
+        "Test performance across devices",
+        "Implement accessibility features"
+      ]
+    },
+    "aiDesignWorkflow": {
+      "steps": [
+        "Set up Fusion account",
+        "Connect Git repository",
+        "Index design system",
+        "Configure MCP servers",
+        "Create AGENTS.md file",
+        "Set up PR workflow",
+        "Train team on new workflow"
+      ]
+    },
+    "fullStackApp": {
+      "steps": [
+        "Create Builder account and start new Fusion project",
+        "Paste initial prompt for app structure",
+        "Create GitHub repository",
+        "Connect Supabase and Netlify MCP servers",
+        "Deploy application",
+        "Add authentication and advanced features"
+      ]
+    }
+  },
+  "metrics": {
+    "traditionalHandoff": {
+      "designTime": "8 hours",
+      "developmentTime": "16 hours",
+      "communicationOverhead": "20+ messages",
+      "qaRounds": "3-5",
+      "totalTime": "6 weeks"
+    },
+    "noHandoffMethodology": {
+      "designTime": "2 hours",
+      "developmentTime": "2 hours",
+      "communicationOverhead": "1 PR review",
+      "qaRounds": "Minor tweaks",
+      "totalTime": "3-5 days"
+    }
+  }
+}

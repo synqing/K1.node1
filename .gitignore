@@ -9,6 +9,10 @@
 !webapp/
 !webapp/**
 
+# Track documentation (analysis, planning, implementation, reports)
+!docs/
+!docs/**
+
 # Track Mem0 local integration code, ignore local state
 !.mem0_local/
 !.mem0_local/README.md

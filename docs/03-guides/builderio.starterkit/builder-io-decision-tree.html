@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Builder.io Decision Tree - Find Your Optimal Workflow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        h1 {
+            color: #1a1a1a;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .question-container {
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .question {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: 500;
+        }
+        
+        .answers {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .answer-btn {
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .answer-btn:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+        
+        .answer-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            transition: left 0.5s;
+        }
+        
+        .answer-btn:hover::before {
+            left: 100%;
+        }
+        
+        .answer-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+        
+        .answer-desc {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .result {
+            animation: slideIn 0.5s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .result-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .result-title {
+            font-size: 28px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .result-icon {
+            font-size: 36px;
+        }
+        
+        .result-desc {
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .recommendations {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .recommendations h3 {
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        
+        .recommendation-list {
+            list-style: none;
+        }
+        
+        .recommendation-list li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+        
+        .recommendation-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #4ade80;
+            font-weight: bold;
+        }
+        
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .tool-card {
+            background: white;
+            color: #333;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .tool-card:hover {
+            transform: scale(1.05);
+        }
+        
+        .tool-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .tool-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .tool-desc {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            background: white;
+            color: #667eea;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: white;
+            transform: translateY(-2px);
+        }
+        
+        .restart-btn {
+            background: #f0f0f0;
+            color: #333;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 20px;
+            transition: background 0.3s ease;
+        }
+        
+        .restart-btn:hover {
+            background: #e0e0e0;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+        
+        .breadcrumbs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .breadcrumb:not(:last-child)::after {
+            content: '→';
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Builder.io Workflow Finder</h1>
+        <p class="subtitle">Answer a few questions to find your optimal development approach</p>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+        
+        <div class="breadcrumbs" id="breadcrumbs"></div>
+        
+        <div class="question-container" id="questionContainer">
+            <!-- Questions will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <script>
+        const decisionTree = {
+            start: {
+                question: "What's your primary goal?",
+                answers: [
+                    {
+                        title: "Build a new feature quickly",
+                        desc: "I need to ship something fast with minimal setup",
+                        next: "feature_complexity"
+                    },
+                    {
+                        title: "Migrate existing workflow",
+                        desc: "We have an established process that needs modernization",
+                        next: "current_workflow"
+                    },
+                    {
+                        title: "Create design system integration",
+                        desc: "I want to connect our design system with development",
+                        next: "design_system_maturity"
+                    },
+                    {
+                        title: "Add animations to my site",
+                        desc: "I need to implement scroll animations or 3D effects",
+                        next: "animation_type"
+                    }
+                ]
+            },
+            
+            feature_complexity: {
+                question: "How complex is your feature?",
+                answers: [
+                    {
+                        title: "Simple UI component",
+                        desc: "Buttons, cards, basic interactions",
+                        result: "figma_plugin"
+                    },
+                    {
+                        title: "Full page with data",
+                        desc: "Forms, lists, database connections",
+                        result: "fusion_fullstack"
+                    },
+                    {
+                        title: "Interactive dashboard",
+                        desc: "Charts, real-time updates, complex state",
+                        result: "fusion_advanced"
+                    }
+                ]
+            },
+            
+            current_workflow: {
+                question: "What's your current design-to-development process?",
+                answers: [
+                    {
+                        title: "Figma → Developer handoff",
+                        desc: "Designers create, developers build from scratch",
+                        result: "no_handoff_migration"
+                    },
+                    {
+                        title: "Design systems in code",
+                        desc: "We already have components, need better tooling",
+                        result: "fusion_integration"
+                    },
+                    {
+                        title: "Ad-hoc/No formal process",
+                        desc: "Different every time, looking for structure",
+                        result: "complete_setup"
+                    }
+                ]
+            },
+            
+            design_system_maturity: {
+                question: "How mature is your design system?",
+                answers: [
+                    {
+                        title: "Well-established",
+                        desc: "Documented components, tokens, guidelines",
+                        result: "design_system_advanced"
+                    },
+                    {
+                        title: "Basic components exist",
+                        desc: "Some reusable pieces, not fully documented",
+                        result: "design_system_growing"
+                    },
+                    {
+                        title: "Starting from scratch",
+                        desc: "Need to build everything",
+                        result: "design_system_new"
+                    }
+                ]
+            },
+            
+            animation_type: {
+                question: "What type of animations do you need?",
+                answers: [
+                    {
+                        title: "3D scroll animations",
+                        desc: "WebGL, Three.js, complex 3D effects",
+                        result: "animation_3d"
+                    },
+                    {
+                        title: "Scroll-triggered reveals",
+                        desc: "Text animations, parallax, fade-ins",
+                        result: "animation_gsap"
+                    },
+                    {
+                        title: "CSS-only animations",
+                        desc: "Lightweight, performant, no libraries",
+                        result: "animation_css"
+                    },
+                    {
+                        title: "Video-based effects",
+                        desc: "Scroll-controlled video, image sequences",
+                        result: "animation_video"
+                    }
+                ]
+            }
+        };
+
+        const results = {
+            figma_plugin: {
+                title: "Figma Plugin + Visual Editor",
+                icon: "🎨",
+                description: "Perfect for simple components and quick iterations. Use the Builder.io Figma plugin to convert designs to code instantly.",
+                recommendations: [
+                    "Install Builder.io Figma plugin",
+                    "Use Smart Export for AI-powered conversion",
+                    "Generate React/Vue/Tailwind code",
+                    "Iterate visually in Builder",
+                    "Export clean, production-ready code"
+                ],
+                tools: [
+                    { icon: "🔌", name: "Figma Plugin", desc: "Design to code" },
+                    { icon: "👁️", name: "Visual Editor", desc: "WYSIWYG editing" },
+                    { icon: "🤖", name: "AI Assistant", desc: "Smart generation" }
+                ],
+                actions: [
+                    { text: "Install Plugin", url: "https://www.figma.com/community/plugin/747985167520967365" },
+                    { text: "View Tutorial", url: "https://www.builder.io/c/docs/builder-figma-plugin" }
+                ]
+            },
+            
+            fusion_fullstack: {
+                title: "Fusion Full-Stack Development",
+                icon: "⚡",
+                description: "Build complete features with AI assistance. Connect databases, add authentication, and deploy—all from natural language prompts.",
+                recommendations: [
+                    "Start with Fusion starter template",
+                    "Connect Supabase MCP for database",
+                    "Use natural language for feature generation",
+                    "Test with real data immediately",
+                    "Deploy with Netlify MCP integration"
+                ],
+                tools: [
+                    { icon: "🔮", name: "Fusion", desc: "AI-powered IDE" },
+                    { icon: "🗄️", name: "Supabase", desc: "Database & Auth" },
+                    { icon: "🚀", name: "Netlify", desc: "Deployment" },
+                    { icon: "🔗", name: "MCP Servers", desc: "Service integration" }
+                ],
+                actions: [
+                    { text: "Try Fusion", url: "https://www.builder.io/fusion" },
+                    { text: "Full-Stack Guide", url: "https://www.builder.io/blog/create-full-stack-app-ai" }
+                ]
+            },
+            
+            fusion_advanced: {
+                title: "Fusion Advanced Workflows",
+                icon: "🚀",
+                description: "For complex applications requiring sophisticated state management, real-time updates, and enterprise features.",
+                recommendations: [
+                    "Set up comprehensive AGENTS.md",
+                    "Index existing component library",
+                    "Configure multiple MCP servers",
+                    "Implement CI/CD with GitHub Actions",
+                    "Use visual regression testing",
+                    "Set up monitoring and analytics"
+                ],
+                tools: [
+                    { icon: "🏗️", name: "Fusion Pro", desc: "Enterprise IDE" },
+                    { icon: "📊", name: "Analytics", desc: "Performance tracking" },
+                    { icon: "🔍", name: "Testing", desc: "Automated QA" },
+                    { icon: "📈", name: "Monitoring", desc: "Real-time metrics" }
+                ],
+                actions: [
+                    { text: "Enterprise Demo", url: "https://www.builder.io/m/demo" },
+                    { text: "Advanced Docs", url: "https://www.builder.io/c/docs/get-started-fusion" }
+                ]
+            },
+            
+            no_handoff_migration: {
+                title: "No Handoff Methodology Migration",
+                icon: "🤝",
+                description: "Transform your team's workflow from sequential handoffs to collaborative development in code.",
+                recommendations: [
+                    "Week 1-2: Set up Fusion and train team",
+                    "Week 3-4: Pilot with simple features",
+                    "Week 5-6: Expand to full team",
+                    "Week 7-8: Sunset old processes",
+                    "Measure 75% time reduction",
+                    "Celebrate shipping 10x faster!"
+                ],
+                tools: [
+                    { icon: "👥", name: "Team Workspace", desc: "Collaborative IDE" },
+                    { icon: "📝", name: "Git Integration", desc: "Version control" },
+                    { icon: "🔄", name: "PR Workflow", desc: "Code review" },
+                    { icon: "📚", name: "Training", desc: "Team onboarding" }
+                ],
+                actions: [
+                    { text: "Migration Guide", url: "https://www.builder.io/blog/no-handoff-methodology" },
+                    { text: "Schedule Demo", url: "https://www.builder.io/m/demo" }
+                ]
+            },
+            
+            animation_3d: {
+                title: "3D WebGL Animations",
+                icon: "🎮",
+                description: "Create immersive 3D scroll experiences using Three.js and React Three Fiber.",
+                recommendations: [
+                    "Use React Three Fiber for declarative 3D",
+                    "Implement scroll progress tracking",
+                    "Optimize models (< 1MB compressed)",
+                    "Add environment maps for realism",
+                    "Test on mobile devices",
+                    "Provide fallbacks for older browsers"
+                ],
+                tools: [
+                    { icon: "🎲", name: "Three.js", desc: "3D graphics" },
+                    { icon: "⚛️", name: "R3F", desc: "React integration" },
+                    { icon: "🎨", name: "Drei", desc: "Helper components" },
+                    { icon: "📦", name: "GLTF", desc: "3D models" }
+                ],
+                actions: [
+                    { text: "WebGL Tutorial", url: "https://www.builder.io/blog/webgl-scroll-animation" },
+                    { text: "View Examples", url: "https://threejs.org/examples/" }
+                ]
+            },
+            
+            animation_gsap: {
+                title: "GSAP Scroll Animations",
+                icon: "🎬",
+                description: "Professional scroll-triggered animations with timeline control and smooth performance.",
+                recommendations: [
+                    "Use ScrollTrigger for scroll binding",
+                    "Create timeline sequences",
+                    "Implement letter-by-letter reveals",
+                    "Add stagger effects",
+                    "Optimize with will-change",
+                    "Test with different scroll speeds"
+                ],
+                tools: [
+                    { icon: "🎯", name: "GSAP", desc: "Animation library" },
+                    { icon: "📜", name: "ScrollTrigger", desc: "Scroll binding" },
+                    { icon: "⏱️", name: "Timeline", desc: "Sequencing" },
+                    { icon: "🎪", name: "Effects", desc: "Premium plugins" }
+                ],
+                actions: [
+                    { text: "GSAP Guide", url: "https://www.builder.io/blog/gsap-reveal" },
+                    { text: "Interactive Demos", url: "https://greensock.com/showcase/" }
+                ]
+            },
+            
+            animation_css: {
+                title: "CSS View Timeline",
+                icon: "🎨",
+                description: "Native CSS scroll animations without JavaScript libraries for maximum performance.",
+                recommendations: [
+                    "Use CSS view-timeline API",
+                    "Implement animation-range",
+                    "Create wipe transitions",
+                    "Add timeline scope",
+                    "Provide JavaScript fallback",
+                    "Test browser support"
+                ],
+                tools: [
+                    { icon: "🖌️", name: "CSS", desc: "Native animations" },
+                    { icon: "📍", name: "View Timeline", desc: "Scroll binding" },
+                    { icon: "🎭", name: "Keyframes", desc: "Animation states" },
+                    { icon: "📱", name: "Responsive", desc: "Adaptive design" }
+                ],
+                actions: [
+                    { text: "CSS Timeline Guide", url: "https://www.builder.io/blog/view-timeline" },
+                    { text: "Browser Support", url: "https://caniuse.com/css-view-timeline" }
+                ]
+            },
+            
+            complete_setup: {
+                title: "Complete Builder.io Setup",
+                icon: "🏗️",
+                description: "Start from scratch with a comprehensive setup including all tools and best practices.",
+                recommendations: [
+                    "Use starter kit template",
+                    "Set up Git repository",
+                    "Install Fusion and plugins",
+                    "Configure design system",
+                    "Connect MCP servers",
+                    "Implement CI/CD pipeline",
+                    "Add testing framework",
+                    "Set up monitoring"
+                ],
+                tools: [
+                    { icon: "📦", name: "Starter Kit", desc: "Boilerplate" },
+                    { icon: "🛠️", name: "Full Toolkit", desc: "All features" },
+                    { icon: "📖", name: "Documentation", desc: "Guides" },
+                    { icon: "👨‍🏫", name: "Training", desc: "Resources" }
+                ],
+                actions: [
+                    { text: "Download Starter", url: "#starter-kit" },
+                    { text: "Setup Guide", url: "https://www.builder.io/c/docs/get-started-fusion" }
+                ]
+            },
+            
+            design_system_advanced: {
+                title: "Advanced Design System Integration",
+                icon: "🎯",
+                description: "Connect your mature design system with AI-powered development for maximum efficiency.",
+                recommendations: [
+                    "Run component indexing script",
+                    "Document usage patterns",
+                    "Create design tokens mapping",
+                    "Set up automated sync",
+                    "Configure visual regression",
+                    "Implement change tracking"
+                ],
+                tools: [
+                    { icon: "🔍", name: "Indexing", desc: "Auto-discovery" },
+                    { icon: "🔗", name: "Token Sync", desc: "Design tokens" },
+                    { icon: "📸", name: "Visual Tests", desc: "Regression" },
+                    { icon: "📊", name: "Analytics", desc: "Usage tracking" }
+                ],
+                actions: [
+                    { text: "Index Components", url: "https://www.builder.io/c/docs/component-indexing" },
+                    { text: "Integration Guide", url: "https://www.builder.io/c/docs" }
+                ]
+            }
+        };
+
+        let currentPath = [];
+        let currentQuestion = 'start';
+
+        function updateProgress() {
+            const progress = document.getElementById('progress');
+            const totalSteps = 3; // Maximum depth
+            const currentStep = currentPath.length;
+            const percentage = (currentStep / totalSteps) * 100;
+            progress.style.width = `${percentage}%`;
+        }
+
+        function updateBreadcrumbs() {
+            const container = document.getElementById('breadcrumbs');
+            container.innerHTML = currentPath.map(step => 
+                `<span class="breadcrumb">${step}</span>`
+            ).join('');
+        }
+
+        function showQuestion(questionKey) {
+            const container = document.getElementById('questionContainer');
+            const questionData = decisionTree[questionKey];
+            
+            if (!questionData) {
+                console.error('Question not found:', questionKey);
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="question">${questionData.question}</div>
+                <div class="answers">
+                    ${questionData.answers.map(answer => `
+                        <div class="answer-btn" onclick="handleAnswer('${answer.next || answer.result}', '${answer.title}', ${answer.result ? 'true' : 'false'})">
+                            <div class="answer-title">${answer.title}</div>
+                            <div class="answer-desc">${answer.desc}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                ${currentPath.length > 0 ? '<button class="restart-btn" onclick="restart()">Start Over</button>' : ''}
+            `;
+            
+            updateProgress();
+            updateBreadcrumbs();
+        }
+
+        function handleAnswer(next, answerText, isResult) {
+            currentPath.push(answerText);
+            
+            if (isResult) {
+                showResult(next);
+            } else {
+                currentQuestion = next;
+                showQuestion(next);
+            }
+        }
+
+        function showResult(resultKey) {
+            const container = document.getElementById('questionContainer');
+            const result = results[resultKey];
+            
+            if (!result) {
+                console.error('Result not found:', resultKey);
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="result">
+                    <div class="result-card">
+                        <div class="result-title">
+                            <span class="result-icon">${result.icon}</span>
+                            ${result.title}
+                        </div>
+                        <div class="result-desc">${result.description}</div>
+                        
+                        <div class="recommendations">
+                            <h3>Recommended Steps:</h3>
+                            <ul class="recommendation-list">
+                                ${result.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                            </ul>
+                        </div>
+                        
+                        <div class="tools-grid">
+                            ${result.tools.map(tool => `
+                                <div class="tool-card">
+                                    <div class="tool-icon">${tool.icon}</div>
+                                    <div class="tool-name">${tool.name}</div>
+                                    <div class="tool-desc">${tool.desc}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="action-buttons">
+                            ${result.actions.map(action => `
+                                <a href="${action.url}" target="_blank" class="action-btn">${action.text}</a>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <button class="restart-btn" onclick="restart()">Try Another Path</button>
+                </div>
+            `;
+            
+            updateProgress();
+            updateBreadcrumbs();
+        }
+
+        function restart() {
+            currentPath = [];
+            currentQuestion = 'start';
+            showQuestion('start');
+        }
+
+        // Initialize
+        showQuestion('start');
+    </script>
+</body>
+</html>
