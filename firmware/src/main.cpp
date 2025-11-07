@@ -45,6 +45,7 @@ void init_rmt_driver();
 #include "parameters.h"
 #include "pattern_registry.h"
 #include "generated_patterns.h"
+#include "pattern_optimizations.h"  // Performance fixes for underperforming patterns
 #include "webserver.h"
 #include "cpu_monitor.h"
 #include "connection_state.h"
@@ -568,6 +569,11 @@ void setup() {
     LOG_INFO(TAG_CORE0, "Initializing pattern registry...");
     init_pattern_registry();
     LOG_INFO(TAG_CORE0, "Loaded %d patterns", g_num_patterns);
+
+    // Apply performance optimizations to underperforming patterns
+    apply_pattern_optimizations();
+    LOG_INFO(TAG_CORE0, "Applied pattern optimizations");
+
     LOG_INFO(TAG_CORE0, "Starting pattern: %s", get_current_pattern().name);
 
     // ========================================================================

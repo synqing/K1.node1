@@ -778,8 +778,8 @@ void draw_pulse(float time, const PatternParameters& params) {
 	uint32_t now = millis();
 	if (now - last_diagnostic > 1000) {
 		last_diagnostic = now;
-		LOG_DEBUG(TAG_GPU, "[PULSE] audio_available=%d, tempo_confidence=%.2f, brightness=%.2f, speed=%.2f",
-			(int)AUDIO_IS_AVAILABLE(), AUDIO_TEMPO_CONFIDENCE, params.brightness, params.speed);
+		LOG_DEBUG(TAG_GPU, "[PULSE] audio_available=%d, brightness=%.2f, speed=%.2f",
+			(int)AUDIO_IS_AVAILABLE(), params.brightness, params.speed);
 	}
 
 	// Fallback to ambient if no audio
@@ -914,8 +914,8 @@ void draw_tempiscope(float time, const PatternParameters& params) {
 	uint32_t now = millis();
 	if (now - last_diagnostic > 1000) {
 		last_diagnostic = now;
-		LOG_DEBUG(TAG_GPU, "[TEMPISCOPE] audio_available=%d, tempo_confidence=%.2f, brightness=%.2f, speed=%.2f",
-			(int)AUDIO_IS_AVAILABLE(), AUDIO_TEMPO_CONFIDENCE, params.brightness, params.speed);
+		LOG_DEBUG(TAG_GPU, "[TEMPISCOPE] audio_available=%d, brightness=%.2f, speed=%.2f",
+			(int)AUDIO_IS_AVAILABLE(), params.brightness, params.speed);
 	}
 
 	// Fallback to animated gradient if no audio
@@ -1074,8 +1074,8 @@ void draw_beat_tunnel_variant(float time, const PatternParameters& params) {
 	uint32_t now = millis();
 	if (now - last_diagnostic > 1000) {
 		last_diagnostic = now;
-		LOG_DEBUG(TAG_GPU, "[BEAT_TUNNEL] audio_available=%d, tempo_confidence=%.2f, brightness=%.2f, speed=%.2f",
-			(int)AUDIO_IS_AVAILABLE(), AUDIO_TEMPO_CONFIDENCE, params.brightness, params.speed);
+		LOG_DEBUG(TAG_GPU, "[BEAT_TUNNEL] audio_available=%d, brightness=%.2f, speed=%.2f",
+			(int)AUDIO_IS_AVAILABLE(), params.brightness, params.speed);
 	}
 
 	// Clear frame buffer
@@ -1630,18 +1630,15 @@ void draw_snapwave(float time, const PatternParameters& params) {
         snapwave_buffer[i].b = snapwave_buffer[i - 1].b * 0.99f + snapwave_buffer[i].b * 0.01f;
     }
 
-    // --- Phase 3: Beat Detection & Center Flash (INJECT AT CENTER ONLY) ---
-    // Watch for rising edge in tempo_confidence
-    static float last_confidence = 0.0f;
-    const float BEAT_THRESHOLD = 0.05f;
-
-    float beat_strength = AUDIO_TEMPO_CONFIDENCE - last_confidence;
-    bool beat_detected = (beat_strength > BEAT_THRESHOLD) && (AUDIO_TEMPO_CONFIDENCE > 0.15f);
-    last_confidence = AUDIO_TEMPO_CONFIDENCE * 0.95f;
+    // --- Phase 3: Time-Based Pulse & Center Flash (INJECT AT CENTER ONLY) ---
+    // Replaced tempo-based beat detection with time-based pulse
+    // Beat frequency = speed parameter (1.0 = ~1 beat per second)
+    float beat_phase = fmodf(time * params.speed * 2.0f, 1.0f);
+    bool beat_detected = (beat_phase < 0.15f);  // Quick pulse (first 15% of cycle)
 
     if (beat_detected) {
         // Get beat color from palette using params.color slider
-        float beat_brightness = fminf(1.0f, beat_strength * 5.0f);
+        float beat_brightness = fminf(1.0f, (0.15f - beat_phase) / 0.15f);  // Fade over pulse duration
         CRGBF beat_color = color_from_palette(
             params.palette_id,
             clip_float(params.color),
