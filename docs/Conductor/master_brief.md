@@ -15,7 +15,7 @@ Establish a Conductor.build-based multi-agent workspace system for K1.node1 that
 1. **Isolates each agent's work** in a Git worktree + branch with reserved port ranges
 2. **Orchestrates firmware + webapp workflows uniformly** (compile, validate, deploy, test)
 3. **Coordinates real-time OTA updates** to device at `192.168.1.104`
-4. **Integrates external tools** (GitHub, Linear/Jira, Sentry) via MCP with least-privilege scopes
+4. **Integrates external tools** (GitHub, Taskmaster, Sentry) via MCP with least-privilege scopes
 5. **Enables parallel agent execution** with diff-first code review and PR creation
 
 ---
@@ -114,13 +114,13 @@ Conductor agents integrate with external systems via **Model Context Protocol (M
 | Domain | MCP Server | Scope | Agent Use Case |
 |--------|-----------|-------|-----------------|
 | **VCS** | GitHub API | Read/Write (push, PR create) | Feature Agent, CI Triage Agent |
-| **Project Mgmt** | Linear / Jira | Read/Write (update status, link PR) | Feature Agent, Release Agent |
+| **Project Mgmt** | Taskmaster | Read/Write (update status, link PR) | Feature Agent, Release Agent |
 | **Monitoring** | Sentry (read-only) | Fetch error rates, device crashes | Optimization Agent, Bugfix Agent |
 | **Firmware Testing** | K1 Device API (read/write) | Query pattern state, upload patterns | Pattern Test Agent |
 | **Docs** | Notion / Confluence | Read/Write (sync research, specs) | Research Agent, Content Agent |
 
 **Security principle**: Each agent workspace gets the **minimal scope** required for its role. Example:
-- Feature Agent: GitHub read/write, Linear read/write, K1 device read-only
+- Feature Agent: GitHub read/write, Taskmaster read/write (file-scoped), K1 device read-only
 - Bugfix Agent: GitHub read/write, Sentry read-only, K1 device read/write (for testing)
 
 ---
@@ -143,8 +143,8 @@ Conductor agents integrate with external systems via **Model Context Protocol (M
 1. **Phase 1**: Refine `conductor.json` with K1.node1-specific hooks
 2. **Phase 2**: Implement setup hook (env validation, PlatformIO, Node deps)
 3. **Phase 3**: Implement run hooks (web dev, firmware build, OTA)
-4. **Phase 4**: Set up MCP allowlists (GitHub, Linear, K1 device API)
-5. **Phase 5**: Test with Feature Agent on a real issue (e.g., "add new pattern")
+4. **Phase 4**: Set up MCP allowlists (GitHub, Taskmaster, K1 device API)
+5. **Phase 5**: Test with Feature Agent on a real task (e.g., "add new pattern")
 6. **Phase 6**: Refine monitoring, logs, and error recovery
 
 **Timeline**: 2–3 weeks for Phase 1–3; phased MCP rollout thereafter.

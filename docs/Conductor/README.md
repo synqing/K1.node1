@@ -9,6 +9,11 @@
 
 ## Overview
 
+Important project-specific override (K1.node1)
+- We do NOT use Jira/Linear for planning or issue tracking in this repository.
+- The source of truth for tasks is Taskmaster under `.taskmaster/`, with the active task list at `.taskmaster/tasks/tasks.json`.
+- Anywhere these docs mention “Linear/Jira issues,” read that as “Taskmaster tasks” with MCP access scoped to `.taskmaster/` files.
+
 Complete technical documentation for integrating **Conductor.build** as a multi-agent workspace orchestration platform for K1.node1. This directory contains:
 
 1. **Master Brief** — High-level architecture and project scope
@@ -37,7 +42,7 @@ Executive overview aligned to K1.node1 (firmware + webapp + device). Defines:
 
 Phase 1 deployment procedure with quick start (5 min). Covers:
 - Prerequisites validation (Node ≥20, Git, PlatformIO)
-- `.env` setup (API keys for GitHub, Linear, K1 device, etc.)
+- `.env` setup (API keys for GitHub, Taskmaster integration paths, K1 device, etc.)
 - Local Conductor installation and initialization
 - Test workspace creation and validation
 - Phase 2 agent role workflows (Feature, Bugfix, Test, Release, Research)
@@ -56,7 +61,7 @@ Phase 1 deployment procedure with quick start (5 min). Covers:
 Describes how Conductor agents interact with external systems:
 - **Version control**: Git worktree + PR flow, diff viewer
 - **IDEs**: Conductor as orchestration layer (not replacement)
-- **Issue trackers**: Linear/Jira MCP for issue context + status updates
+- **Task tracking**: Taskmaster MCP (reads/writes `.taskmaster/tasks/tasks.json`) for task context + status updates
 - **CI/CD**: GitHub Actions feedback loop (logs → agent → retry)
 - **Device API**: Real-time validation (OTA deploy, metrics capture, baselines)
 - **Knowledge bases**: Notion/Confluence for research findings
@@ -119,7 +124,7 @@ Each role includes: workflow steps, success criteria, escalation rules, checklis
 Least-privilege security model for multi-agent environments:
 - **MCP allowlists**:
   - GitHub API (repo:read/write, actions:read)
-  - Linear (issue:read/write for K1 project only)
+  - Taskmaster (task:read/write restricted to `.taskmaster/` scope)
   - K1 Device API (pattern:read/write, device:read)
   - Sentry (read-only monitoring)
   - Notion (page:read/write, database:read)
@@ -173,7 +178,7 @@ Production-ready configuration with K1.node1-specific customizations:
 - Setup hook: installs deps (Node, PlatformIO, etc.)
 - Run hook: targets (`web`, `fw:build`, `fw:upload`, `test:pattern`, `test:integration`)
 - Archive hook: cleans secrets and build artifacts
-- MCP servers: GitHub, Linear, K1 device, Sentry, Notion
+- MCP servers: GitHub, Taskmaster, K1 device, Sentry, Notion
 - Port binding: `$CONDUCTOR_PORT` assignment (prevents collisions)
 - Run serialization: `nonconcurrent` mode (prevents simultaneous OTA uploads)
 

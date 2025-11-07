@@ -22,7 +22,7 @@
 
 ### Workflow
 ```
-1. Receive issue (e.g., K1-45: "Add Aurora pattern")
+1. Receive task (Taskmaster: ".taskmaster/tasks/tasks.json", e.g., "Add Aurora pattern")
 2. Create workspace: feature/k1-45-aurora
 3. Implement:
    - firmware/src/generated_patterns.h (draw_aurora function)
@@ -45,7 +45,7 @@
 - [ ] Flash usage < 70%
 - [ ] Device test: metrics captured
 - [ ] Baseline comparison: no regression
-- [ ] PR linked to Linear issue
+- [ ] PR linked to Taskmaster task entry
 - [ ] Commit message: `feat: ...`
 
 ---
@@ -75,7 +75,7 @@
 - [ ] Fix doesn't break existing tests
 - [ ] New regression test added
 - [ ] Device validation passed
-- [ ] PR references Linear issue
+- [ ] PR references Taskmaster task
 
 ---
 
@@ -161,7 +161,7 @@
 7. Publish:
    - GitHub Release (upload .bin + dist archive)
    - Update docs/RELEASES.md
-8. Notify: post release announcement to Linear
+8. Notify: update Taskmaster task to "Released"
 ```
 
 ### Metrics
@@ -194,7 +194,7 @@
    - Create Notion page with links
 5. Propose solution (e.g., "Reduce I2S buffer from 512 to 256 samples")
 6. Open PR: docs/05-analysis/audio_latency_analysis.md
-7. Attach findings to related Linear issues
+7. Attach findings to related Taskmaster tasks
 ```
 
 ### Metrics

@@ -14,7 +14,7 @@ Each agent workspace is isolated as a **Git worktree + feature branch**; Conduct
 
 ### K1.node1 Workflow
 ```
-Feature Agent opens issue "Add new LED pattern: Aurora"
+Feature Agent opens task "Add new LED pattern: Aurora" in Taskmaster (.taskmaster/tasks/tasks.json)
     ↓
 Conductor creates workspace: feature/aurora-pattern
     CONDUCTOR_WORKSPACE_PATH=/tmp/conductor/ws-123/
@@ -31,7 +31,7 @@ Agent runs local tests (K1_TARGET=test:pattern)
     ↓
 Agent opens PR via Conductor diff viewer (⌘D):
   • Title: "feat: add Aurora LED pattern with tunable parameters"
-  • Body: Linked to Linear issue, test results, metrics baseline
+  • Body: Link to Taskmaster task entry, test results, metrics baseline
     ↓
 GitHub CI/CD runs pre-merge gates:
   • firmware: PlatformIO compile (0 warnings, <70% flash)
@@ -80,17 +80,17 @@ Developer (human) reviews PR in Conductor:
 ## 3. Issue Trackers & Project Mgmt (via MCP)
 
 ### Pattern
-Conductor agents fetch issue context from **Linear/Jira via MCP** and update status automatically.
+Conductor agents fetch task context from **Taskmaster via MCP** (file-backed) and update status automatically.
 
 ### K1.node1 Workflow
 ```
-Team creates Linear issue: "Improve Beat Tunnel performance"
+Team creates Taskmaster task: "Improve Beat Tunnel performance"
   • Issue ID: K1-42
   • Assignee: unassigned
   • Status: Backlog
     ↓
 Conductor scheduler triggers Feature Agent for K1-42
-  Agent fetches issue details via MCP:
+  Agent fetches task details via MCP (Taskmaster):
     {
       "id": "K1-42",
       "title": "Improve Beat Tunnel performance",
@@ -99,27 +99,27 @@ Conductor scheduler triggers Feature Agent for K1-42
     }
     ↓
 Agent creates workspace: feature/k1-42-perf
-  Reads criteria from Linear
+  Reads criteria from Taskmaster
     ↓
 Agent implements fix:
   • Optimizes pattern algorithm (firmware/src/generated_patterns.h)
   • Benchmarks locally (K1_TARGET=fw:build + profiling)
-  • Opens PR with metrics + Linear link
+  • Opens PR with metrics + Taskmaster link
     ↓
 PR title: "perf(beat-tunnel): reduce render time to <3ms (K1-42)"
-  MCP hook: POST to Linear → K1-42 status = "In Review", link PR
+  MCP hook: Update Taskmaster → status = "In Review", link PR
     ↓
 CI validates (performance gate: p95 render < 3ms)
-  If OK, merge; MCP updates Linear → "Done"
+  If OK, merge; MCP updates Taskmaster → "Done"
   If fail, agent retries with new approach
 ```
 
 ### MCP Servers Required
-- **Linear MCP**: read issues, update status, add comments
+- **Taskmaster MCP**: read/write tasks.json; update status, add comments
 - **GitHub API**: already covered by Conductor's PR support
 
 ### Security
-- Linear MCP uses API key stored in `$HOME/.conductor/config` (never in workspace)
+- Taskmaster MCP is file-scoped; no external API keys. Access restricted to `.taskmaster/` subtree.
 - Scope: read/write to K1 project only
 
 ---
@@ -303,7 +303,7 @@ Workspace 3 (Integration Test Agent):
 | Scenario | Tool | MCP Server | K1 Artifact |
 |----------|------|-----------|-------------|
 | Feature branching | Git + Conductor | — | worktree, branch |
-| Issue tracking | Linear/Jira | Linear MCP | K1-42 issue link in PR |
+| Task tracking | Taskmaster | Taskmaster MCP | Task link in PR |
 | CI/CD gating | GitHub Actions | GitHub MCP | pre-merge gates |
 | Device validation | HTTP REST API | — | device metrics, baseline JSON |
 | Knowledge capture | Notion/Confluence | Notion MCP | spec docs, research archives |

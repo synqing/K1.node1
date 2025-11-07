@@ -246,7 +246,7 @@ scrape_configs:
 
 ### API Quotas
 - **GitHub API**: 5,000 req/hour per token; monitor via rate limit headers
-- **Linear MCP**: No hard limit; respect ~100 req/sec; cache issue data locally
+- **Taskmaster MCP**: File-backed; cache parsed tasks.json in memory; watch file for changes
 - **Model API**: Distribute across 2–3 API keys; auto-switch on rate limit
 
 ### Example: Multi-Key Rotation

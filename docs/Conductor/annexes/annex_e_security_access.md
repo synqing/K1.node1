@@ -48,27 +48,26 @@ export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
 
 ---
 
-### Linear / Jira (Project Management)
+### Taskmaster (Project Management)
 
 | Scope | Allowed | Agent Roles | Use Case |
 |-------|---------|-----------|----------|
-| `issue:read` | ✅ | All agents | Fetch issue context |
-| `issue:write` | ✅ | Feature, Bugfix, Release | Update status, add comments |
+| `task:read` | ✅ | All agents | Fetch task context (from .taskmaster) |
+| `task:write` | ✅ | Feature, Bugfix, Release | Update status, add comments |
 | `admin` | ❌ | N/A | Dangerous; never grant |
 
 **Implementation**:
 ```yaml
 mcp_servers:
-  linear:
-    type: "linear_api"
-    auth: "key:$LINEAR_API_KEY"
-    workspace: "k1"  # K1 team only
-    scopes: ["issue:read", "issue:write"]
-    rate_limit: "500 req/min"
+  taskmaster:
+    type: "taskmaster_file"
+    root: ".taskmaster"
+    tasks_file: ".taskmaster/tasks/tasks.json"
+    scopes: ["task:read", "task:write"]
     audit_log: true
 ```
 
-**Workspace scoping**: Linear MCP restricted to K1 project/team; agents cannot access other teams' issues.
+**Workspace scoping**: Taskmaster MCP restricted to `.taskmaster/`; agents cannot access external trackers.
 
 ---
 
@@ -256,8 +255,8 @@ All commits attributed to single, traceable identity; PRs show agent origin.
   "timestamp": "2025-11-08T10:30:45Z",
   "agent": "Feature Agent",
   "workspace": "feature/k1-45-aurora",
-  "mcp_server": "linear",
-  "operation": "issue:write",
+  "mcp_server": "taskmaster",
+  "operation": "task:write",
   "resource": "K1-45",
   "status": "success",
   "details": "Updated status to 'In Review'"
@@ -273,7 +272,7 @@ Stored in `~/.conductor/audit.log` (centralized, not in workspace).
 ### Storage Hierarchy
 ```
 Host machine:
-  ~/.conductor/config          ← GITHUB_TOKEN, LINEAR_API_KEY, etc. (never committed)
+  ~/.conductor/config          ← GITHUB_TOKEN, SENTRY_READ_TOKEN, etc. (never committed)
   ~/.conductor/audit.log       ← MCP operation audit trail
   ~/.conductor/workspaces/ws-* ← Workspace copies (no secrets after archive)
 
@@ -286,7 +285,7 @@ Repository (checked in):
 ### Key Rotation Quarterly
 ```bash
 # ops/scripts/rotate_keys.sh
-# 1. Generate new keys (GitHub, Linear, Sentry, etc.)
+# 1. Generate new keys (GitHub, Sentry, etc.) — Taskmaster is file-scoped
 # 2. Test with limited scope first
 # 3. Update ~/.conductor/config
 # 4. Verify all agents can authenticate
@@ -299,7 +298,7 @@ Repository (checked in):
 
 ### Compromise Detected
 ```
-1. Revoke key immediately: Linear/GitHub/Sentry admin revokes token
+1. Revoke key immediately: GitHub/Sentry admin revokes token
 2. Audit logs: check $HOME/.conductor/audit.log for unusual operations
 3. Git audit: check git log for suspicious commits
 4. Workspace cleanup: archive all active workspaces (triggers cleanup)
@@ -325,7 +324,7 @@ Repository (checked in):
 | Server | Type | Scopes | Audit | Agent Roles |
 |--------|------|--------|-------|-----------|
 | GitHub | OAuth | `repo:read/write, actions:read` | ✅ | Feature, Bugfix, Release, Test |
-| Linear | API Key | `issue:read/write` | ✅ | Feature, Bugfix, Release, Research |
+| Taskmaster | file-scoped | `task:read/write` | ✅ | Feature, Bugfix, Release, Research |
 | K1 Device | HTTP API | `pattern:read/write, device:read` | ✅ | Feature, Test, Bugfix |
 | Sentry | API Key | `issues:read, performance:read` | ✅ | Bugfix, Optimization, Research |
 | Notion | OAuth | `page:read/write, database:read` | ✅ | Research, all agents (read) |

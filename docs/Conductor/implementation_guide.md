@@ -9,11 +9,11 @@
 
 ## Executive Summary
 
-This guide orchestrates the integration of **Conductor.build** as a multi-agent workspace orchestration platform for K1.node1. Conductor manages isolated Git worktrees for each agent, coordinates firmware + webapp development, and integrates external tools (GitHub, Linear, K1 device) via MCP.
+This guide orchestrates the integration of **Conductor.build** as a multi-agent workspace orchestration platform for K1.node1. Conductor manages isolated Git worktrees for each agent, coordinates firmware + webapp development, and integrates external tools (GitHub, Taskmaster, K1 device) via MCP.
 
 **Deliverables**:
 - ✅ `conductor.json` at repo root (setup, run, archive hooks)
-- ✅ MCP allowlists configured (GitHub, Linear, K1 device, Sentry, Notion)
+- ✅ MCP allowlists configured (GitHub, Taskmaster, K1 device, Sentry, Notion)
 - ✅ 6 documentation annexes (integration patterns, scalability, deployment, runbooks, security)
 - ⏳ **Phase 1**: Local Conductor setup + initial agent workspace test
 - ⏳ **Phase 2**: Production agent roles (Feature, Bugfix, Test, Release)
@@ -41,12 +41,14 @@ pio --version
 # Copy template
 cp .env.example .env
 
-# Edit .env and fill in API keys:
+# Edit .env and fill in credentials:
 #   GITHUB_TOKEN=ghp_xxxxxxxxxxxx
-#   LINEAR_API_KEY=lin_xxxxxxxxxxxx
 #   K1_DEVICE_API_KEY=sk-k1-device-xxxxx
 #   SENTRY_READ_TOKEN=xxxxx
 #   NOTION_API_KEY=ntn_xxxxxxxxxxxx
+# Taskmaster is file-backed; configure paths, not API keys:
+#   TASKMASTER_ROOT=.taskmaster
+#   TASKMASTER_TASKS_FILE=.taskmaster/tasks/tasks.json
 ```
 
 ### 3. Verify `conductor.json` is Present
@@ -328,7 +330,7 @@ pio device list  # see available ports
 ### Issue: MCP authentication fails
 ```bash
 # Verify API keys set
-echo $GITHUB_TOKEN $LINEAR_API_KEY $K1_DEVICE_API_KEY
+echo $GITHUB_TOKEN $K1_DEVICE_API_KEY
 
 # Test manually
 curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user
@@ -373,7 +375,7 @@ conductor create --branch BRANCH_NAME
 
 ### Immediate (This Week)
 1. ✅ Verify `conductor.json` is present + valid
-2. ✅ Provision API keys (GitHub, Linear, K1 device, Sentry, Notion)
+2. ✅ Provision API keys (GitHub, K1 device, Sentry, Notion); configure Taskmaster paths (.taskmaster/tasks/tasks.json)
 3. ✅ Install Conductor CLI; run `conductor init`
 4. ✅ Create test workspace; run setup hook
 5. ✅ Test one agent task (e.g., webapp dev server)

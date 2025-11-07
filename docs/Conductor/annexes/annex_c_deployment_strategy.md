@@ -72,7 +72,7 @@ Agents communicate via **Git commits to shared markdown files** in `ops/`:
 ```
 
 ### MCP Messaging
-- **Linear MCP**: Agent posts status updates to issue comments
+- **Taskmaster MCP**: Agent posts status updates to task entries (.taskmaster)
   ```
   Agent-FW: "✓ Tunnel Glow compiled successfully
   Device metrics: FPS=60, render=2.5ms
@@ -173,7 +173,7 @@ Human Review
 ```
 
 ### Failover
-- If Node 1 crashes, Node 2's agents take over via Linear/Linear issue reassignment
+- If Node 1 crashes, Node 2's agents take over; update Taskmaster tasks to reassign ownership
 - Workspaces rebuilt from latest Git commit (no state loss)
 - Manual orchestration via human supervisor (future: auto-failover)
 
