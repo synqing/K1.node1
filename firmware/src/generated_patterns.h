@@ -1204,8 +1204,8 @@ void draw_startup_intro(float time, const PatternParameters& params) {
 
     // position: center position of the glowing dot (-0.5 to +0.5, normalized)
     // custom_param_2 (flow): 0.0 = stays at center, 1.0 = full amplitude swing
-    float position_amplitude = 0.125f + (0.875f * params.custom_param_2);
-    float position = position_amplitude * sinf(startup_intro_angle) * 0.5f;
+    float position_amplitude = 0.25f + (0.75f * fmaxf(0.0f, fminf(1.0f, params.custom_param_2)));
+    float position = position_amplitude * sinf(startup_intro_angle);
 
     // ========================================================================
     // TRAIL PERSISTENCE (Motion Blur Effect)
