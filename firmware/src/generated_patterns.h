@@ -987,6 +987,11 @@ static CRGBF beat_tunnel_image[NUM_LEDS];
 static CRGBF beat_tunnel_image_prev[NUM_LEDS];
 static float beat_tunnel_angle = 0.0f;
 
+// Static buffers for startup_intro pattern (deterministic, non-audio-reactive)
+static CRGBF startup_intro_image[NUM_LEDS];
+static CRGBF startup_intro_image_prev[NUM_LEDS];
+static float startup_intro_angle = 0.0f;
+
 void draw_beat_tunnel(float time, const PatternParameters& params) {
 	PATTERN_AUDIO_START();
 
@@ -1147,6 +1152,118 @@ void draw_beat_tunnel_variant(float time, const PatternParameters& params) {
 	// Save current frame for next iteration's motion blur
 	for (int i = 0; i < NUM_LEDS; i++) {
         beat_tunnel_variant_image_prev[i] = beat_tunnel_variant_image[i];
+    }
+}
+
+// ============================================================================
+// STARTUP_INTRO PATTERN - Deterministic, non-audio-reactive intro animation
+// ============================================================================
+// Uses Beat Tunnel algorithm with full parameter tuning for startup sequence.
+// Parameters:
+//   - speed: animation rate (0.0-1.0)
+//   - softness: trail persistence/decay (0.0-1.0)
+//   - brightness: overall brightness (0.0-1.0)
+//   - color: palette hue (0.0-1.0)
+//   - custom_param_1: gaussian_width spread (0.0-1.0, default 0.5 = 0.08 sigma)
+//   - custom_param_2: position_amplitude flow (0.0-1.0, default 0.5 = balanced)
+//   - custom_param_3: [reserved for future use]
+//
+// Algorithm: Oscillating Gaussian "glowing dot" that drifts side-to-side
+// with configurable speed, flow, and trail persistence.
+
+void draw_startup_intro(float time, const PatternParameters& params) {
+    // Frame-rate independent delta time
+    static float last_time_si = 0.0f;
+    float dt_si = time - last_time_si;
+    if (dt_si < 0.0f) dt_si = 0.0f;
+    if (dt_si > 0.05f) dt_si = 0.05f; // clamp to avoid large jumps
+    last_time_si = time;
+
+    // Diagnostic logging (once per second)
+    static uint32_t last_diagnostic_si = 0;
+    uint32_t now = millis();
+    if (now - last_diagnostic_si > 1000) {
+        last_diagnostic_si = now;
+        LOG_DEBUG(TAG_GPU, "[STARTUP_INTRO] brightness=%.2f, speed=%.2f, flow=%.2f, width=%.2f",
+            params.brightness, params.speed, params.custom_param_2, params.custom_param_1);
+    }
+
+    // Clear frame buffer
+    for (int i = 0; i < NUM_LEDS; i++) {
+        startup_intro_image[i] = CRGBF(0.0f, 0.0f, 0.0f);
+    }
+
+    // ========================================================================
+    // ANIMATION PARAMETERS
+    // ========================================================================
+    // angle_speed: controls how fast the dot oscillates (rad/sec)
+    // Default: 0.12 rad/sec at speed=0.5 => one full oscillation ~52s
+    // Tunable range: speed 0.0-1.0 gives angle_speed 0.06-0.12 rad/sec
+    float angle_speed = 0.12f * (0.5f + params.speed * 0.5f);
+    startup_intro_angle += angle_speed * dt_si;
+
+    // position: center position of the glowing dot (-0.5 to +0.5, normalized)
+    // custom_param_2 (flow): 0.0 = stays at center, 1.0 = full amplitude swing
+    float position_amplitude = 0.125f + (0.875f * params.custom_param_2);
+    float position = position_amplitude * sinf(startup_intro_angle) * 0.5f;
+
+    // ========================================================================
+    // TRAIL PERSISTENCE (Motion Blur Effect)
+    // ========================================================================
+    // decay: controls how long the trailing glow persists
+    // softness 0.0 => decay=0.60 (sharp trails)
+    // softness 1.0 => decay=0.98 (long ghosting trails)
+    float decay = 0.6f + (0.38f * fmaxf(0.0f, fminf(1.0f, params.softness)));
+    draw_sprite(startup_intro_image, startup_intro_image_prev, NUM_LEDS, NUM_LEDS, position, decay);
+
+    // ========================================================================
+    // GAUSSIAN BRIGHTNESS (Glowing Dot Effect)
+    // ========================================================================
+    // custom_param_1 (width): controls Gaussian spread
+    // 0.0 => tight dot (sigma=0.02)
+    // 0.5 => balanced (sigma=0.08)
+    // 1.0 => wide bloom (sigma=0.14)
+    float gaussian_width = 0.02f + (0.12f * fmaxf(0.0f, fminf(1.0f, params.custom_param_1)));
+
+    for (int i = 0; i < NUM_LEDS; i++) {
+        float led_pos = LED_PROGRESS(i);
+        float distance = fabsf(led_pos - position);
+
+        // Gaussian envelope: exp(-(distance^2) / (2*sigma^2))
+        float brightness = expf(-(distance * distance) / (2.0f * gaussian_width * gaussian_width));
+        brightness = fmaxf(0.0f, fminf(1.0f, brightness));
+
+        // Use palette system for color
+        CRGBF color = color_from_palette(params.palette_id, led_pos, brightness * 0.5f);
+
+        startup_intro_image[i].r += color.r * brightness;
+        startup_intro_image[i].g += color.g * brightness;
+        startup_intro_image[i].b += color.b * brightness;
+    }
+
+    // Clamp values to [0, 1]
+    for (int i = 0; i < NUM_LEDS; i++) {
+        startup_intro_image[i].r = fmaxf(0.0f, fminf(1.0f, startup_intro_image[i].r));
+        startup_intro_image[i].g = fmaxf(0.0f, fminf(1.0f, startup_intro_image[i].g));
+        startup_intro_image[i].b = fmaxf(0.0f, fminf(1.0f, startup_intro_image[i].b));
+    }
+
+    // Apply mirror mode
+    apply_mirror_mode(startup_intro_image, true);
+
+    // Copy image to LED output and apply brightness
+    for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i].r = startup_intro_image[i].r * params.brightness;
+        leds[i].g = startup_intro_image[i].g * params.brightness;
+        leds[i].b = startup_intro_image[i].b * params.brightness;
+    }
+
+    // Apply uniform background overlay
+    apply_background_overlay(params);
+
+    // Save current frame for next iteration's motion blur
+    for (int i = 0; i < NUM_LEDS; i++) {
+        startup_intro_image_prev[i] = startup_intro_image[i];
     }
 }
 
@@ -1789,6 +1906,13 @@ const PatternInfo g_pattern_registry[] = {
 		"beat_tunnel_variant",
 		"Experimental beat tunnel using behavioral drift",
 		draw_beat_tunnel_variant,
+		true
+	},
+	{
+		"Startup Intro",
+		"startup_intro",
+		"Deterministic intro animation with full parameter tuning",
+		draw_startup_intro,
 		true
 	},
 	{
