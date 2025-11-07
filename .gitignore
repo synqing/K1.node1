@@ -13,6 +13,10 @@
 !docs/
 !docs/**
 
+# Track tools (utilities and fixtures)
+!tools/
+!tools/**
+
 # Track Mem0 local integration code, ignore local state
 !.mem0_local/
 !.mem0_local/README.md
