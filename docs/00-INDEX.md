@@ -14,6 +14,7 @@ Lean, numbered navigation for repository documentation. This index maps to exist
 - 01 Architecture → `docs/01-architecture/`
 - 02 ADRs → `docs/02-adr/`
 - 03 Guides → `docs/03-guides/`
+- Playbooks → `docs/Playbooks/`
 - 04 Planning → `docs/04-planning/`
 - 05 Analysis → `docs/05-analysis/`
 - 06 Reference → `docs/06-reference/`
@@ -87,6 +88,12 @@ Lean, numbered navigation for repository documentation. This index maps to exist
 - [View all references](./06-reference/)
   - [Modern CLI Toolkit Agent](./06-reference/modern-cli-toolkit-agent.md)
   - [Governance Tools](./06-reference/governance-tools.md)
+
+### Playbooks — Operational & Engineering Playbooks
+- **Firmware_Ops_Runbook.md** – Release flow, health gates, observability
+- **Engineering_Playbook.md** – Concurrency, invariants, and API design rules
+- **phase_a_security_and_phase0_readiness_playbook.md** ⭐ – Phase A execution runbook (security + Phase 0)
+  - Companion: `./06-reference/phase_a_security_fixes_reference.md` (copy-ready fixes/tests)
 
 ### 07-resources/ — Team Resources & Training
 - **governance_quick_ref.md** ⭐⭐ - One-page governance cheat sheet

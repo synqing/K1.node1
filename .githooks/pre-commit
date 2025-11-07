@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Non-blocking Hawk-Eye pre-commit check
+# Enable via: git config core.hooksPath .githooks
+# Make executable: chmod +x .githooks/pre-commit
+
+ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+if [[ -x "$ROOT_DIR/tools/hawk_eye_guard.sh" ]]; then
+  "$ROOT_DIR/tools/hawk_eye_guard.sh" "firmware.main/src" || true
+else
+  echo "[hawk-eye] tools/hawk_eye_guard.sh not executable or missing (skipping)" >&2
+fi
+
+# Always allow commit
+exit 0
+
