@@ -1,0 +1,3 @@
+firmware/platformio.ini merge=keepours
+firmware/src/led_driver.* merge=keepours
+firmware/src/audio/microphone.* merge=keepours
