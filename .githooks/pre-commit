@@ -5,11 +5,10 @@
 
 ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
 if [[ -x "$ROOT_DIR/tools/hawk_eye_guard.sh" ]]; then
-  "$ROOT_DIR/tools/hawk_eye_guard.sh" "firmware.main/src" || true
+  "$ROOT_DIR/tools/hawk_eye_guard.sh" "firmware/src" || true
 else
   echo "[hawk-eye] tools/hawk_eye_guard.sh not executable or missing (skipping)" >&2
 fi
 
 # Always allow commit
 exit 0
-

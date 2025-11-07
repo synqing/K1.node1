@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Hawk-Eye local guard: scan for std::mutex-style usage in hot paths (informational only)
 # Usage: ./tools/hawk_eye_guard.sh [scan_dir]
-# Default scan_dir: firmware.main/src
+# Default scan_dir: firmware/src
 
 set -euo pipefail
 
-SCAN_DIR="${1:-firmware.main/src}"
+SCAN_DIR="${1:-firmware/src}"
 if [[ ! -d "$SCAN_DIR" ]]; then
   echo "warn: scan dir not found: $SCAN_DIR" >&2
   exit 0
@@ -26,4 +26,3 @@ else
 fi
 
 exit 0
-
