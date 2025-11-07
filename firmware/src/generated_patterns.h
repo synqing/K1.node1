@@ -992,6 +992,11 @@ static CRGBF startup_intro_image[NUM_LEDS];
 static CRGBF startup_intro_image_prev[NUM_LEDS];
 static float startup_intro_angle = 0.0f;
 
+// Static buffers for tunnel_glow pattern (audio-reactive variant)
+static CRGBF tunnel_glow_image[NUM_LEDS];
+static CRGBF tunnel_glow_image_prev[NUM_LEDS];
+static float tunnel_glow_angle = 0.0f;
+
 void draw_beat_tunnel(float time, const PatternParameters& params) {
 	PATTERN_AUDIO_START();
 
@@ -1264,6 +1269,121 @@ void draw_startup_intro(float time, const PatternParameters& params) {
     // Save current frame for next iteration's motion blur
     for (int i = 0; i < NUM_LEDS; i++) {
         startup_intro_image_prev[i] = startup_intro_image[i];
+    }
+}
+
+// ============================================================================
+// TUNNEL_GLOW PATTERN - Audio-reactive tunnel with energy response
+// ============================================================================
+// Original Beat Tunnel behavior: responsive to audio spectrum and novelty.
+// Parameters:
+//   - speed: oscillation rate (0.0-1.0)
+//   - softness: trail persistence/decay (0.0-1.0)
+//   - brightness: overall brightness (0.0-1.0)
+//   - color: palette hue (0.0-1.0)
+//   - background: ambient background level (0.0-1.0)
+//
+// Algorithm: Oscillating Gaussian dot with audio-driven energy modulation
+// Creates a responsive tunnel visualization that pulses with music energy.
+
+void draw_tunnel_glow(float time, const PatternParameters& params) {
+    PATTERN_AUDIO_START();
+
+    // Frame-rate independent delta time
+    static float last_time_tg = 0.0f;
+    float dt_tg = time - last_time_tg;
+    if (dt_tg < 0.0f) dt_tg = 0.0f;
+    if (dt_tg > 0.05f) dt_tg = 0.05f; // clamp to avoid large jumps
+    last_time_tg = time;
+
+    // Diagnostic logging (once per second)
+    static uint32_t last_diagnostic_tg = 0;
+    uint32_t now = millis();
+    if (now - last_diagnostic_tg > 1000) {
+        last_diagnostic_tg = now;
+        LOG_DEBUG(TAG_GPU, "[TUNNEL_GLOW] audio_available=%d, brightness=%.2f, speed=%.2f, energy=%.2f",
+            (int)AUDIO_IS_AVAILABLE(), params.brightness, params.speed,
+            AUDIO_IS_AVAILABLE() ? fminf(1.0f, (AUDIO_VU * 0.8f) + (AUDIO_NOVELTY * 0.5f)) : 0.0f);
+    }
+
+    // Clear frame buffer
+    for (int i = 0; i < NUM_LEDS; i++) {
+        tunnel_glow_image[i] = CRGBF(0.0f, 0.0f, 0.0f);
+    }
+
+    // ========================================================================
+    // OSCILLATION ANIMATION
+    // ========================================================================
+    // speed: 0.0-1.0 maps to angular velocity
+    float speed = 0.0015f + 0.0065f * fmaxf(0.0f, fminf(1.0f, params.speed));
+    tunnel_glow_angle += speed * (dt_tg > 0.0f ? (dt_tg * 1000.0f) : 1.0f);
+    if (tunnel_glow_angle > static_cast<float>(2.0 * M_PI)) {
+        tunnel_glow_angle = fmodf(tunnel_glow_angle, static_cast<float>(2.0 * M_PI));
+    }
+
+    float position = (0.125f + 0.875f * fmaxf(0.0f, fminf(1.0f, params.speed))) * sinf(tunnel_glow_angle) * 0.5f;
+
+    // ========================================================================
+    // TRAIL PERSISTENCE (Motion Blur)
+    // ========================================================================
+    // softness: 0.0-1.0 controls decay rate (0.90-0.98)
+    float decay = 0.90f + (0.08f * fmaxf(0.0f, fminf(1.0f, params.softness)));
+    draw_sprite(tunnel_glow_image, tunnel_glow_image_prev, NUM_LEDS, NUM_LEDS, position, decay);
+
+    // ========================================================================
+    // RENDERING: AUDIO-DRIVEN ENERGY RESPONSE
+    // ========================================================================
+    if (!AUDIO_IS_AVAILABLE()) {
+        // Fallback: simple glow without audio reactivity
+        for (int i = 0; i < NUM_LEDS; i++) {
+            float led_pos = LED_PROGRESS(i);
+            float distance = fabsf(led_pos - (position * 0.5f + 0.5f));
+            float brightness = expf(-(distance * distance) / (2.0f * 0.08f * 0.08f));
+            brightness = fmaxf(0.0f, fminf(1.0f, brightness * fmaxf(0.0f, fminf(1.0f, params.background))));
+            CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
+            tunnel_glow_image[i].r += color.r * brightness;
+            tunnel_glow_image[i].g += color.g * brightness;
+            tunnel_glow_image[i].b += color.b * brightness;
+        }
+    } else {
+        // Audio reactive: energy drives spectrum-based coloring
+        float energy = fminf(1.0f, (AUDIO_VU * 0.8f) + (AUDIO_NOVELTY * 0.5f));
+        for (int i = 0; i < NUM_LEDS; i++) {
+            float led_pos = LED_PROGRESS(i);
+            float spectrum = AUDIO_SPECTRUM_INTERP(led_pos);
+            float brightness = powf(spectrum, 0.9f) * (0.3f + energy * 0.7f);
+            brightness = fmaxf(0.0f, fminf(1.0f, brightness));
+
+            CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
+            tunnel_glow_image[i].r += color.r * brightness;
+            tunnel_glow_image[i].g += color.g * brightness;
+            tunnel_glow_image[i].b += color.b * brightness;
+        }
+    }
+
+    // Clamp values to [0, 1]
+    for (int i = 0; i < NUM_LEDS; i++) {
+        tunnel_glow_image[i].r = fmaxf(0.0f, fminf(1.0f, tunnel_glow_image[i].r));
+        tunnel_glow_image[i].g = fmaxf(0.0f, fminf(1.0f, tunnel_glow_image[i].g));
+        tunnel_glow_image[i].b = fmaxf(0.0f, fminf(1.0f, tunnel_glow_image[i].b));
+    }
+
+    // Apply mirror mode
+    apply_mirror_mode(tunnel_glow_image, true);
+
+    // Copy image to LED output and apply brightness
+    for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i].r = tunnel_glow_image[i].r * params.brightness;
+        leds[i].g = tunnel_glow_image[i].g * params.brightness;
+        leds[i].b = tunnel_glow_image[i].b * params.brightness;
+    }
+
+    // Apply uniform background overlay
+    apply_background_overlay(params);
+
+    // Save current frame for next iteration's motion blur
+    for (int i = 0; i < NUM_LEDS; i++) {
+        tunnel_glow_image_prev[i] = tunnel_glow_image[i];
     }
 }
 
@@ -1913,6 +2033,13 @@ const PatternInfo g_pattern_registry[] = {
 		"startup_intro",
 		"Deterministic intro animation with full parameter tuning",
 		draw_startup_intro,
+		true
+	},
+	{
+		"Tunnel Glow",
+		"tunnel_glow",
+		"Audio-reactive tunnel with spectrum and energy response",
+		draw_tunnel_glow,
 		true
 	},
 	{

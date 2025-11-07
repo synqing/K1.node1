@@ -96,6 +96,12 @@ const REGISTRY: Record<string, ParamBinding[]> = {
     { def: { name: 'Trail', value: 25, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'softness', scale: 'percent' },
     { def: { name: 'Width', value: 50, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'custom_param_1', scale: 'percent' },
   ],
+  'Tunnel Glow': [
+    { def: { name: 'Speed', value: 50, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'speed', scale: 'percent' },
+    { def: { name: 'Trail', value: 50, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'softness', scale: 'percent' },
+    { def: { name: 'Glow Strength', value: 40, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'background', scale: 'percent' },
+    { def: { name: 'Energy Mix', value: 60, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'custom_param_1', scale: 'percent' },
+  ],
 };
 
 // Map common uppercase or alias names to canonical registry keys
