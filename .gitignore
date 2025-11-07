@@ -22,6 +22,8 @@
 !.github/**
 !.githooks/
 !.githooks/**
+!.taskmaster/
+!.taskmaster/**
 
 # Mem0 local workspace is ignored (ephemeral/local-only)
 .mem0_local/

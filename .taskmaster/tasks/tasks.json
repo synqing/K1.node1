@@ -1,0 +1,1640 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Remove WiFi Credentials from Firmware Source Code",
+        "description": "Eliminate hardcoded WiFi credentials from firmware codebase and implement secure certificate-based provisioning flow using existing NVS infrastructure and AP fallback mechanisms",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "details": "Critical security vulnerabilities identified in firmware/src/main.cpp:63-64 and wifi_monitor.cpp:20-25 with hardcoded WiFi credentials exposed in source code. The codebase already includes sophisticated provisioning infrastructure: 1) NVS-based credential storage (wifi_monitor_save_credentials_to_nvs/wifi_monitor_load_credentials_from_nvs), 2) AP fallback mode with K1-Setup-{MAC} SSID for provisioning, 3) Web API endpoints (/api/wifi/credentials, /api/wifi/scan) for credential management, 4) Advanced security modules (network_security_module.h, advanced_wifi_manager.h) supporting WPA3, 802.1X, certificate-based auth, and enterprise features. Implementation requires: 1) Remove hardcoded credentials from main.cpp (WIFI_SSID/WIFI_PASS) and wifi_monitor.cpp (primary_ssid/primary_pass, fallback_ssid/fallback_pass), 2) Implement certificate-based provisioning using existing SecurityConfig.enable_802_1x and CertificateManager infrastructure, 3) Enhance AP provisioning flow to use certificates for secure onboarding, 4) Integrate with existing NVS persistence patterns for secure credential storage, 5) Update connection flow to prioritize NVS-stored credentials over hardcoded values.",
+        "testStrategy": "Static analysis scan using grep/ripgrep to verify no hardcoded credentials remain in source, build verification without embedded secrets, functional testing of certificate-based provisioning flow via AP mode, security audit validation of NVS encryption, integration testing of web API credential management endpoints, validation of fallback mechanisms when certificates are invalid or expired",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Audit and remove all hardcoded WiFi credentials from source code",
+            "description": "Perform comprehensive scan and removal of hardcoded WiFi credentials found in main.cpp and wifi_monitor.cpp",
+            "dependencies": [],
+            "details": "Using grep/ripgrep analysis, identified critical hardcoded credentials: 1) firmware/src/main.cpp:63-64 contains #define WIFI_SSID \"VX220-013F\" and #define WIFI_PASS \"3232AA90E0F24\", 2) firmware/src/wifi_monitor.cpp:20-25 contains char primary_ssid[64] = \"VX220-013F\", char primary_pass[64] = \"3232AA90E0F24\", char fallback_ssid[64] = \"OPTUS_738CC0N\", char fallback_pass[64] = \"parrs45432vw\". Remove these hardcoded values and replace with empty initialization or NVS-loaded values. Update wifi_monitor_init() function to handle missing credentials gracefully by triggering AP fallback mode immediately.",
+            "status": "pending",
+            "testStrategy": "Static analysis using ripgrep patterns for credential strings, build verification that firmware compiles without hardcoded credentials, functional test that device enters AP provisioning mode on first boot"
+          },
+          {
+            "id": 2,
+            "title": "Implement certificate-based WiFi provisioning using existing infrastructure",
+            "description": "Leverage existing AdvancedWiFiManager and NetworkSecurityModule for certificate-based onboarding",
+            "dependencies": [
+              1
+            ],
+            "details": "Build upon existing enterprise authentication infrastructure in advanced_wifi_manager.h and network_security_module.h: 1) Implement configureCertificateAuth() method in AdvancedWiFiManager using CertificateManager, 2) Enable SecurityConfig.enable_802_1x mode for certificate-based authentication, 3) Create certificate provisioning workflow via AP mode web interface, 4) Integrate with existing NVS patterns (wifi_monitor_save_credentials_to_nvs) to store certificate data securely, 5) Implement certificate validation using SecurityUtils::parseCertificate and SecurityUtils::verifyCertificateChain, 6) Add certificate expiry monitoring and renewal workflows.",
+            "status": "pending",
+            "testStrategy": "Certificate validation testing with valid/invalid certificates, provisioning workflow testing via AP mode web interface, NVS storage verification for certificate data, expiry monitoring and renewal testing"
+          },
+          {
+            "id": 3,
+            "title": "Enhance AP provisioning mode for secure certificate onboarding",
+            "description": "Extend existing K1-Setup AP mode to support certificate upload and validation workflow",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Enhance existing AP fallback mechanism (wifi_monitor.cpp:enable_ap_fallback, K1-Setup-{MAC} SSID) with certificate provisioning: 1) Add new web API endpoints for certificate upload (/api/wifi/certificate/upload, /api/wifi/certificate/validate), 2) Implement certificate file upload handling with size limits and format validation, 3) Add certificate-based network configuration UI to existing web interface, 4) Integrate with existing rate limiting (webserver_rate_limiter.h) for security, 5) Implement secure certificate storage using NVS encryption, 6) Add certificate status monitoring and validation feedback via existing /api/wifi/status endpoint.",
+            "status": "pending",
+            "testStrategy": "Certificate upload functionality testing via AP mode web interface, file size and format validation testing, rate limiting verification for security endpoints, NVS encryption validation for certificate storage"
+          },
+          {
+            "id": 4,
+            "title": "Update connection flow to prioritize secure credential sources",
+            "description": "Modify wifi_monitor connection logic to prioritize NVS-stored certificates over legacy credential methods",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Update wifi_monitor.cpp connection state machine to implement secure credential hierarchy: 1) Primary: NVS-stored certificates with 802.1X authentication, 2) Secondary: NVS-stored PSK credentials (existing wifi_monitor_load_credentials_from_nvs), 3) Fallback: AP provisioning mode for initial setup, 4) Remove dependency on hardcoded credentials entirely, 5) Implement certificate expiry checking before connection attempts, 6) Add certificate renewal prompts via existing ConnectionState transitions, 7) Integrate with existing WifiLinkOptions for optimal security settings (force_bg_only, enable_pmf), 8) Update connection timeout and retry logic for certificate-based authentication.",
+            "status": "pending",
+            "testStrategy": "Connection hierarchy testing with various credential states, certificate expiry handling verification, timeout and retry logic testing for certificate authentication, integration testing with existing WifiLinkOptions and ConnectionState transitions"
+          },
+          {
+            "id": 5,
+            "title": "Security validation and penetration testing",
+            "description": "Comprehensive security audit of certificate-based provisioning implementation",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Perform thorough security validation using existing NetworkSecurityModule capabilities: 1) Static analysis scan for any remaining credential leaks in source code, memory dumps, or build artifacts, 2) Certificate validation testing including expired, revoked, and malformed certificates, 3) AP provisioning security testing including rate limiting, input validation, and session management, 4) NVS encryption verification for certificate and credential storage, 5) Network traffic analysis during provisioning and normal operation, 6) Penetration testing of certificate upload and validation endpoints, 7) Verify integration with existing security features (MAC filtering, intrusion detection, threat monitoring), 8) Validate emergency access procedures when certificates are compromised.",
+            "status": "pending",
+            "testStrategy": "Security scanner verification of zero hardcoded credentials, certificate validation testing with edge cases, penetration testing of provisioning endpoints, NVS encryption validation, network traffic analysis for credential leakage, emergency access procedure validation"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Fix I2S Audio Timeout Protection",
+        "description": "Implement timeout protection in I2S audio driver to prevent system hangs during audio processing failures",
+        "details": "Modify firmware/src/audio/microphone.cpp to add timeout protection for I2S operations. Implement error recovery mechanisms, proper error logging, and graceful degradation when audio hardware fails. Add watchdog timers and fallback modes.",
+        "testStrategy": "1000-iteration stress test with pattern changes, audio pipeline responsiveness under load, no timeout errors in logs, error injection testing",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Audit current I2S microphone timeout flow",
+            "description": "Review existing microphone driver code to map timeout and recovery gaps.",
+            "dependencies": [],
+            "details": "Inspect firmware/src/audio/microphone.cpp and related headers to document current i2s_channel_read usage, control flow, and error paths.",
+            "status": "pending",
+            "testStrategy": null
+          },
+          {
+            "id": 2,
+            "title": "Implement bounded I2S reads with recovery loop",
+            "description": "Replace blocking reads with bounded waits and add recovery logic.",
+            "dependencies": [
+              1
+            ],
+            "details": "Update microphone driver loop to use finite timeout parameters, track consecutive failures, trigger resets on timeout, and clear I2S buffers before retrying.",
+            "status": "pending",
+            "testStrategy": "Unit-level driver exercises with injected timeouts validating bounded wait and recovery."
+          },
+          {
+            "id": 3,
+            "title": "Integrate watchdog and silence fallback handling",
+            "description": "Add watchdog timers and graceful fallback when hardware stalls.",
+            "dependencies": [
+              2
+            ],
+            "details": "Hook watchdog to driver iteration, feed on successful captures, enter silence output when watchdog or timeout trips, and expose reset hooks for hardware restart.",
+            "status": "pending",
+            "testStrategy": "Watchdog simulation ensuring silence fallback engages and clears after hardware resumes."
+          },
+          {
+            "id": 4,
+            "title": "Enhance error logging and diagnostics rate limiting",
+            "description": "Refine logging to surface actionable timeout diagnostics without flooding.",
+            "dependencies": [
+              2
+            ],
+            "details": "Add structured log events with error codes, throttle repeat timeout messages, and ensure telemetry hooks receive concise status updates.",
+            "status": "pending",
+            "testStrategy": "Log capture verifying rate limiting and presence of new diagnostic fields under repeated faults."
+          },
+          {
+            "id": 5,
+            "title": "Extend timeout protection test coverage",
+            "description": "Update and add tests to validate new timeout behaviors and logging.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Modify firmware/test/test_fix2_i2s_timeout/test_i2s_timeout.cpp and related fixtures to cover bounded waits, silence fallback, watchdog reset, and logging expectations.",
+            "status": "pending",
+            "testStrategy": "Run existing timeout test suite plus new failure-injection cases to confirm watchdog, fallback, and log assertions."
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Implement WebServer Buffer Bounds Checking",
+        "description": "Add comprehensive bounds checking to all buffer operations in the web server to prevent overflow attacks",
+        "details": "Review firmware/src/webserver.cpp for buffer operations, implement bounds checking for all input vectors, add overflow protection, and ensure memory-safe operations. Use safe string handling functions and validate all HTTP request data.",
+        "testStrategy": "Fuzzing with 1000+ input patterns, edge case testing, memory profiler validation for heap corruption, security audit for buffer overflows",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Audit webserver buffer operations",
+            "description": "Review firmware/src/webserver.cpp to catalog every buffer and string manipulation site.",
+            "dependencies": [],
+            "details": "Systematically read firmware/src/webserver.cpp, logging buffer sizes, usage patterns, and unsafe calls (e.g., sprintf, memcpy) alongside associated request handlers.",
+            "status": "pending",
+            "testStrategy": null
+          },
+          {
+            "id": 2,
+            "title": "Assess request context and helper utilities",
+            "description": "Inspect RequestContext and shared helpers for unsafe buffer usage and validation gaps.",
+            "dependencies": [],
+            "details": "Analyze firmware/src/webserver_request_handler.h, related cpp implementations, and utility modules to note missing bounds checks, shared buffers, and input validation deficiencies.",
+            "status": "pending",
+            "testStrategy": null
+          },
+          {
+            "id": 3,
+            "title": "Define hardened buffer handling guidelines",
+            "description": "Create a plan for safe APIs, bounds policies, and replacement functions.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Draft a mapping of existing unsafe patterns to safer alternatives, including maximum lengths, wrapper helpers, and validation steps required for each request pathway.",
+            "status": "pending",
+            "testStrategy": null
+          },
+          {
+            "id": 4,
+            "title": "Implement bounds checks in webserver.cpp",
+            "description": "Apply the hardened strategy to all buffer operations in firmware/src/webserver.cpp.",
+            "dependencies": [
+              3
+            ],
+            "details": "Refactor handlers to use safe string utilities, enforce length checks before writes, and guard JSON parsing buffers against overflow while preserving functionality.",
+            "status": "pending",
+            "testStrategy": "Compile and run targeted handler tests to ensure no regressions after bounds enforcement."
+          },
+          {
+            "id": 5,
+            "title": "Update shared helpers for safe input handling",
+            "description": "Modify RequestContext and utilities to enforce validated buffer usage.",
+            "dependencies": [
+              3
+            ],
+            "details": "Introduce safe wrappers, adjust struct fields, and ensure all helper functions validate incoming data lengths before copying to internal buffers.",
+            "status": "pending",
+            "testStrategy": "Run unit or integration tests covering helper utilities and RequestContext flows for both nominal and overlong inputs."
+          },
+          {
+            "id": 6,
+            "title": "Add regression and fuzz testing for buffer safety",
+            "description": "Create automated tests to validate new bounds checks and detect overflows.",
+            "dependencies": [
+              4,
+              5
+            ],
+            "details": "Implement fuzz harnesses and edge-case regression suites targeting webserver routes, verifying memory safety with sanitizers or profilers where available.",
+            "status": "pending",
+            "testStrategy": "Execute fuzzing with 1000+ input patterns plus edge-case suites, monitoring for crashes or sanitizer violations."
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Create Comprehensive Error Code Registry",
+        "description": "Establish standardized error code system with telemetry reporting for firmware diagnostics",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "details": "Design comprehensive error code registry with 50+ standardized codes covering all K1 failure modes. Implement error reporting middleware that integrates with existing logging system in firmware/src/logging/ and network analytics engine in firmware/src/network_analytics_engine.h. Create shared error code design using NVS persistence patterns from wifi_monitor.h:34-44. Build error injection framework for comprehensive testing and validation. Integrate with device monitoring and telemetry collection via PerformanceAlert system from network_analytics_engine.h:132-163 for real-time error tracking and anomaly detection.",
+        "testStrategy": "Error injection testing with 100% code coverage across all failure modes, proper error code assignment validation for all subsystems, telemetry collection validation through NetworkAnalyticsEngine alerts, error handling consistency verification across firmware components, NVS persistence testing for error registry configuration, integration testing with existing Logger tag system in log_config.h:22-34",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Research Error Telemetry Patterns and Standards",
+            "description": "Analyze existing error telemetry patterns in embedded systems, research shared error code registry designs, and evaluate integration approaches with device monitoring systems",
+            "dependencies": [],
+            "details": "Research industry-standard error telemetry patterns for embedded systems, focusing on automotive and IoT device standards. Analyze shared error code registry designs including hierarchical numbering schemes, severity classification systems, and telemetry integration patterns. Study existing K1 codebase patterns in network_analytics_engine.h AlertType enum (lines 132-163) and Logger tag system in log_config.h (lines 22-34) to understand current error handling approaches. Evaluate device monitoring integration patterns and how error codes can feed into PerformanceAlert system for real-time error tracking and anomaly detection.",
+            "status": "pending",
+            "testStrategy": "Research validation through comprehensive documentation review, pattern analysis comparison matrix, integration feasibility assessment"
+          },
+          {
+            "id": 2,
+            "title": "Design Shared Error Code Registry Architecture",
+            "description": "Create comprehensive error code taxonomy and registry design that integrates with existing K1 logging and analytics infrastructure",
+            "dependencies": [
+              1
+            ],
+            "details": "Design hierarchical error code taxonomy covering all K1 subsystems: Audio (TAG_AUDIO 'A'), LED (TAG_LED 'L'), WiFi (TAG_WIFI 'W'), Web (TAG_WEB 'E'), Memory (TAG_MEMORY 'M'), and others from log_config.h:22-34. Create shared registry structure using NVS persistence patterns from wifi_monitor.h:34-44 for configuration storage. Design error severity classification system (Info/Warning/Critical) that maps to existing Logger severity levels in logger.h:22-44. Plan integration with NetworkAnalyticsEngine AlertType system for real-time error telemetry and device monitoring capabilities.",
+            "status": "pending",
+            "testStrategy": "Architecture review validation, registry completeness verification, integration point testing with existing logging and analytics systems"
+          },
+          {
+            "id": 3,
+            "title": "Implement Error Code Registry Data Structures",
+            "description": "Implement core error code registry data structures with NVS persistence and logging system integration",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement error code registry data structures in firmware/src/ following existing patterns. Create error code definitions header file with hierarchical numbering scheme and severity classifications. Implement NVS persistence functions using patterns from wifi_monitor.h:34-44 for registry configuration storage. Integrate with existing Logger system in firmware/src/logging/ by extending tag-based logging with error code support. Create error reporting middleware that bridges error codes with NetworkAnalyticsEngine PerformanceAlert system for telemetry collection.",
+            "status": "pending",
+            "testStrategy": "Unit testing for data structure validation, NVS persistence testing, Logger integration verification, memory usage validation"
+          },
+          {
+            "id": 4,
+            "title": "Build Error Injection Framework for Testing",
+            "description": "Create comprehensive error injection framework for validating error handling and telemetry collection across all subsystems",
+            "dependencies": [
+              3
+            ],
+            "details": "Build error injection framework that can trigger specific error codes across all K1 subsystems. Create test utilities that integrate with existing test infrastructure in firmware/test/. Implement error injection triggers for each subsystem (Audio, LED, WiFi, Web, Memory) using corresponding Logger tags. Build validation framework that verifies error codes are properly reported through NetworkAnalyticsEngine telemetry system and stored via NVS persistence. Create comprehensive test coverage matrix ensuring all 50+ error codes can be triggered and validated.",
+            "status": "pending",
+            "testStrategy": "Error injection validation with 100% error code coverage, telemetry collection verification, persistence testing, integration testing across all subsystems"
+          },
+          {
+            "id": 5,
+            "title": "Integrate with Device Monitoring and Analytics",
+            "description": "Complete integration with NetworkAnalyticsEngine for real-time error monitoring, alerting, and telemetry collection",
+            "dependencies": [
+              4
+            ],
+            "details": "Complete integration between error code registry and NetworkAnalyticsEngine in firmware/src/network_analytics_engine.h. Map error codes to appropriate AlertType values (lines 132-163) for real-time monitoring. Implement error telemetry collection that feeds into PerformanceAlert system for automated alerting and trend analysis. Create error analytics dashboard data that can be exported via existing JSON/CSV export functions (lines 334-337). Ensure error data is included in health scoring and predictive analysis capabilities.",
+            "status": "pending",
+            "testStrategy": "Real-time monitoring validation, alert generation testing, telemetry data verification, analytics integration testing, health scoring validation"
+          },
+          {
+            "id": 6,
+            "title": "Create API Documentation and Usage Guide",
+            "description": "Develop comprehensive API documentation and developer usage guide for error code registry system",
+            "dependencies": [
+              5
+            ],
+            "details": "Create comprehensive API documentation for error code registry system covering all public interfaces, error code definitions, and integration patterns. Document usage patterns for each subsystem showing how to properly report errors using the registry. Create developer guide explaining error code taxonomy, severity classifications, and telemetry integration. Document best practices for error handling, testing procedures using error injection framework, and monitoring setup using NetworkAnalyticsEngine integration. Provide examples for common error scenarios and troubleshooting procedures.",
+            "status": "pending",
+            "testStrategy": "Documentation completeness review, API reference accuracy validation, developer guide usability testing, example code compilation verification"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Create ADR for Code Generation Architecture",
+        "description": "Document architectural decision for code generation approach in formal ADR format",
+        "details": "Create ADR-0003 in docs/02-adr/ documenting the decision on code generation approach, alternatives considered, and consequences. Include technical rationale, performance implications, and maintenance considerations.",
+        "testStrategy": "Technical review consensus, ADR quality review, team approval process",
+        "priority": "medium",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Gather code generation decision inputs",
+            "description": "Collect existing analyses, ADR patterns, and team notes relevant to the code generation choice.",
+            "dependencies": [],
+            "details": "Review docs/01-architecture and existing docs/02-adr/ files to extract rationale, constraints, and terminology aligning ADR-0003 with numbering.",
+            "status": "pending",
+            "testStrategy": null
+          },
+          {
+            "id": 2,
+            "title": "Draft ADR-0003 code generation decision",
+            "description": "Author the structured ADR capturing context, decision, alternatives, rationale, and implications.",
+            "dependencies": [
+              1
+            ],
+            "details": "Use standard ADR template to document decision statement, enumerated alternatives, technical rationale, performance trade-offs, and maintenance consequences for code generation.",
+            "status": "pending",
+            "testStrategy": null
+          },
+          {
+            "id": 3,
+            "title": "Peer review and finalize ADR-0003",
+            "description": "Validate the draft ADR with reviewers and incorporate feedback before publishing.",
+            "dependencies": [
+              2
+            ],
+            "details": "Conduct review against ADR quality checklist, confirm accuracy with stakeholders, revise wording, and prepare final docs/02-adr/ADR-0003 entry.",
+            "status": "pending",
+            "testStrategy": null
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Design Graph System Architecture and Compiler",
+        "description": "Architect node graph system with 35-40 node types and C++ code generation pipeline",
+        "details": "Design node type system covering audio-reactive, visual effects, and utility nodes. Specify C++ codegen algorithm, state management approach, memory allocation strategy. Create architecture documentation and pseudocode for pattern-to-C++ compilation.",
+        "testStrategy": "Design review consensus, pseudocode walkthrough, viability assessment, team architecture approval",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Capture graph system scope, constraints, and personas",
+            "description": "Document functional goals, performance constraints, hardware limits, and stakeholders for the graph system.",
+            "dependencies": [],
+            "details": "Interview product notes and firmware limits to list user flows, latency budgets, memory ceilings, and concurrency assumptions before design work.",
+            "status": "pending",
+            "testStrategy": "Stakeholder review of captured requirements"
+          },
+          {
+            "id": 2,
+            "title": "Define node taxonomy and metadata schema",
+            "description": "Enumerate 35-40 node types across audio-reactive, visual, and utility domains with metadata.",
+            "dependencies": [
+              1
+            ],
+            "details": "Group nodes by function, record inputs/outputs, parameters, default behaviors, and validation rules in a reusable schema covering editor and compiler needs.",
+            "status": "pending",
+            "testStrategy": "Cross-check node list against requirements matrix"
+          },
+          {
+            "id": 3,
+            "title": "Design runtime state and scheduling model",
+            "description": "Specify execution graph data structures, state lifecycle, scheduling, and update cadence.",
+            "dependencies": [
+              2
+            ],
+            "details": "Model graph evaluation order, per-node state storage, event triggers, and synchronization rules ensuring deterministic visual/audio output.",
+            "status": "pending",
+            "testStrategy": "Scenario walkthroughs of representative patterns"
+          },
+          {
+            "id": 4,
+            "title": "Establish memory and resource management strategy",
+            "description": "Plan allocation approach, buffers, pooling, and resource lifetimes for runtime execution.",
+            "dependencies": [
+              3
+            ],
+            "details": "Quantify memory budgets, choose static vs dynamic allocations, define buffer reuse, and document failure handling for constrained MCU targets.",
+            "status": "pending",
+            "testStrategy": "Memory budget review against hardware specs"
+          },
+          {
+            "id": 5,
+            "title": "Specify end-to-end C++ code generation pipeline",
+            "description": "Outline compiler stages from graph definition through optimized C++ emission and integration hooks.",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Detail IR representation, transformation passes, template rendering, dependency resolution, and build integration for generated firmware code.",
+            "status": "pending",
+            "testStrategy": "Pseudocode dry-run on sample graph"
+          },
+          {
+            "id": 6,
+            "title": "Produce architecture documentation and pseudocode artifacts",
+            "description": "Consolidate design decisions into architecture doc, diagrams, and compilation pseudocode.",
+            "dependencies": [
+              5
+            ],
+            "details": "Author structured documentation covering node definitions, runtime model, memory plan, codegen flow, and provide pseudocode for key algorithms.",
+            "status": "pending",
+            "testStrategy": "Architecture review session with engineering leads"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Implement Bloom Pattern Graph Conversion PoC",
+        "description": "Convert existing Bloom pattern to graph representation and generate equivalent C++ code",
+        "status": "pending",
+        "dependencies": [
+          6
+        ],
+        "priority": "high",
+        "details": "Research hardcoded pattern representation in firmware/src/generated_patterns.h and develop minimal codegen architecture to convert to graph nodes. Build on existing Bloom pattern implementation (lines 516-564) which uses static buffers for persistence, DSPS acceleration, and center-origin mirroring. Create graph representation capturing: 1) Static trail buffer management with decay factors (0.92-0.98 range), 2) Audio-reactive energy injection using AUDIO_VU/AUDIO_NOVELTY gating, 3) Outward propagation using draw_sprite_float() with configurable spread_speed, 4) Palette-based color mapping with brightness modulation, 5) Center-origin symmetric rendering. Implement code generation pipeline to produce equivalent C++ that matches visual output and performance (target within 2% FPS budget). Establish code quality benchmarks including memory profiling (<1KB overhead), compilation validation (0 errors/warnings), and visual comparison testing against original pattern.",
+        "testStrategy": "Visual comparison original vs generated Bloom pattern on device using side-by-side rendering, FPS measurement against 60 FPS baseline with <2% degradation tolerance, memory profiling to validate per-node overhead <1KB, compilation verification with 0 errors/warnings, code quality scoring >80% using static analysis, graph node validation for completeness of pattern representation",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Analyze Bloom pattern hardcoded implementation structure",
+            "description": "Study the existing draw_bloom() function to understand its core components and data flow",
+            "dependencies": [],
+            "details": "Examine firmware/src/generated_patterns.h lines 516-564 to document: 1) Static buffer architecture (bloom_trail, bloom_trail_prev arrays), 2) DSPS acceleration usage (dsps_mulc_f32_inplace, dsps_memcpy_accel), 3) Audio reactivity patterns (AUDIO_VU, AUDIO_NOVELTY, energy gating), 4) Persistence/decay mechanisms (trail_decay 0.92-0.98 range), 5) Sprite-based propagation (draw_sprite_float parameters), 6) Center-origin rendering logic (half_leds mirroring), 7) Palette integration (color_from_palette calls), 8) Performance characteristics and memory usage patterns",
+            "status": "pending",
+            "testStrategy": "Code analysis documentation with line-by-line breakdown, performance profiling of current implementation, memory usage measurement baseline"
+          },
+          {
+            "id": 2,
+            "title": "Design minimal graph node architecture",
+            "description": "Create basic node type system for representing pattern components as graph elements",
+            "dependencies": [
+              1
+            ],
+            "details": "Design node architecture based on codebase analysis of webapp/src/components/views/GraphEditorView.tsx and graph components. Define core node types needed for Bloom pattern: 1) AudioInput nodes (VU, Novelty, energy gates), 2) Buffer nodes (trail storage with decay), 3) Processing nodes (spread, blend operations), 4) Palette nodes (color mapping), 5) Output nodes (LED array). Establish minimal node interface with inputs/outputs, parameter configuration, and C++ code generation hooks. Focus on representing data flow rather than complex UI - prioritize codegen capability over visual editor features",
+            "status": "pending",
+            "testStrategy": "Node type validation, basic graph connectivity testing, interface completeness check"
+          },
+          {
+            "id": 3,
+            "title": "Implement Bloom pattern graph representation",
+            "description": "Convert the analyzed Bloom pattern into a connected graph of nodes",
+            "dependencies": [
+              2
+            ],
+            "details": "Using the minimal node architecture, create a graph representation of the Bloom pattern capturing all identified components: 1) AudioInput nodes for AUDIO_VU and AUDIO_NOVELTY, 2) EnergyGate node combining audio inputs with boost parameters, 3) TrailBuffer nodes for bloom_trail management with decay configuration, 4) SpreadProcessor node implementing draw_sprite_float logic, 5) PaletteMapper node for color_from_palette integration, 6) CenterMirror node for symmetric output, 7) LEDOutput node for final rendering. Ensure graph preserves all audio reactivity, persistence behavior, and performance characteristics of original implementation",
+            "status": "pending",
+            "testStrategy": "Graph completeness validation, node connectivity verification, parameter mapping accuracy check"
+          },
+          {
+            "id": 4,
+            "title": "Develop code generation pipeline",
+            "description": "Create system to generate equivalent C++ code from the graph representation",
+            "dependencies": [
+              3
+            ],
+            "details": "Build codegen pipeline that traverses the graph representation and generates C++ code equivalent to draw_bloom(). Pipeline must: 1) Analyze node dependencies and generate correct execution order, 2) Generate appropriate variable declarations for buffers and state, 3) Emit DSPS acceleration calls where applicable, 4) Preserve audio macro usage (PATTERN_AUDIO_START, AUDIO_IS_AVAILABLE), 5) Generate proper parameter mapping and palette integration, 6) Include static buffer management and frame-to-frame persistence, 7) Output valid C++ function matching original performance and behavior. Include compilation validation and basic syntax checking",
+            "status": "pending",
+            "testStrategy": "Generated code compilation verification, syntax validation, parameter preservation check"
+          },
+          {
+            "id": 5,
+            "title": "Validate visual output and performance equivalence",
+            "description": "Test generated code against original to ensure identical behavior and performance",
+            "dependencies": [
+              4
+            ],
+            "details": "Comprehensive validation of generated Bloom pattern code: 1) Side-by-side visual comparison on actual K1 device, 2) Frame-by-frame pixel comparison for identical output, 3) FPS measurement comparison (target <2% difference), 4) Memory usage profiling (generated vs original), 5) Audio reactivity verification across different input scenarios, 6) Parameter responsiveness testing (speed, softness, custom_param_3), 7) Edge case handling (silence, loud audio, parameter extremes). Document any deviations and refine codegen pipeline to achieve pixel-perfect equivalence",
+            "status": "pending",
+            "testStrategy": "Device-based visual comparison, FPS benchmarking, memory profiling, audio reactivity validation, parameter response testing"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Implement Spectrum Pattern Graph Conversion PoC",
+        "description": "Convert existing Spectrum pattern to graph representation and validate code generation pipeline with focus on critical technical challenges for spectral analysis integration",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "details": "Build on Bloom pattern conversion to implement Spectrum pattern graph representation. Research indicates critical challenges include: 1) Frequency bin mapping to node graph (64-bin Goertzel spectrum to graph nodes), 2) Audio-reactive node types integration (spectrum_bin, spectrum_range, spectrum_interpolate from firmware/src/audio/PORT_COMPLETION_REPORT.md:171), 3) Real-time performance with spectral data processing, 4) Codegen enhancements for audio node types in graph editor. Existing Spectrum pattern in firmware/src/generated_patterns.h:381 provides reference implementation using AUDIO_SPECTRUM_INTERP() macro. Graph editor already has SpectrumAnalyzer node template in webapp/src/lib/graphMockData.ts:44 with parameters for bins and smoothing.",
+        "testStrategy": "Visual comparison with original draw_spectrum() pattern behavior, FPS measurement vs baseline (target 60fps), memory profiling validation with graph conversion overhead, audio reactivity testing using Goertzel spectrum data, validation of spectrum_bin/spectrum_range/spectrum_interpolate node functionality in graph editor",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Research spectrum-to-graph mapping architecture",
+            "description": "Analyze existing Spectrum pattern implementation and identify critical challenges for graph conversion",
+            "dependencies": [],
+            "details": "Examine firmware/src/generated_patterns.h draw_spectrum() function to understand frequency bin mapping, AUDIO_SPECTRUM_INTERP() usage, and center-origin geometry. Document how 64-bin Goertzel spectrum from firmware/src/audio/goertzel.h maps to graph nodes. Identify performance bottlenecks in real-time spectral processing and determine optimal node granularity for graph representation.",
+            "status": "pending",
+            "testStrategy": "Document analysis of spectrum data flow, frequency bin allocation, and performance characteristics"
+          },
+          {
+            "id": 2,
+            "title": "Design audio-reactive node types for spectrum analysis",
+            "description": "Create node type specifications for spectrum_bin, spectrum_range, and spectrum_interpolate operations",
+            "dependencies": [
+              1
+            ],
+            "details": "Design node interfaces based on firmware/src/audio/PORT_COMPLETION_REPORT.md requirements. Specify input/output connections for frequency bin access, range selection, and interpolation between bins. Define parameters for bin indexing (0-63), frequency ranges, and smoothing factors. Ensure compatibility with existing SpectrumAnalyzer node template in webapp/src/lib/graphMockData.ts:44.",
+            "status": "pending",
+            "testStrategy": "Node interface specification validation, parameter range testing, compatibility verification with existing graph editor"
+          },
+          {
+            "id": 3,
+            "title": "Implement spectrum node codegen enhancements",
+            "description": "Extend code generation system to support audio-reactive spectrum nodes",
+            "dependencies": [
+              2
+            ],
+            "details": "Add codegen support for spectrum_bin(index), spectrum_range(start, end), and spectrum_interpolate(position) node types. Generate C++ code that interfaces with AUDIO_SPECTRUM_INTERP() macro and accesses spectrogram data arrays. Ensure generated code maintains real-time performance requirements and memory constraints.",
+            "status": "pending",
+            "testStrategy": "Generated C++ code compilation, runtime performance validation, memory usage profiling, correctness verification against manual spectrum access"
+          },
+          {
+            "id": 4,
+            "title": "Convert Spectrum pattern to graph representation",
+            "description": "Transform existing draw_spectrum() pattern into equivalent graph node network",
+            "dependencies": [
+              3
+            ],
+            "details": "Create graph representation of firmware/src/generated_patterns.h:381 draw_spectrum() function using new audio-reactive node types. Maintain center-origin geometry, frequency-to-position mapping, and magnitude-driven color logic. Preserve blend between raw and smoothed spectrum data (params.smoothness control).",
+            "status": "pending",
+            "testStrategy": "Visual output comparison with original pattern, frequency response accuracy validation, color mapping correctness verification"
+          },
+          {
+            "id": 5,
+            "title": "Validate real-time performance and audio reactivity",
+            "description": "Test graph-generated Spectrum pattern performance and audio responsiveness",
+            "dependencies": [
+              4
+            ],
+            "details": "Measure FPS performance with graph-generated Spectrum pattern vs original implementation. Validate audio reactivity using test tones and music input. Ensure memory overhead from graph conversion stays within ESP32 constraints. Test with various spectrum data inputs and parameter combinations.",
+            "status": "pending",
+            "testStrategy": "FPS benchmarking (target 60fps), memory profiling (heap usage <85%), audio reactivity testing with frequency sweeps, visual validation of spectrum response"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Implement Stateful Node System",
+        "description": "Create stateful node types (beat detector, spectrum analyzer) with persistence and audio reactivity",
+        "status": "pending",
+        "dependencies": [
+          6
+        ],
+        "priority": "high",
+        "details": "Implement stateful nodes for beat detection, spectrum analysis, and other audio-reactive features based on codebase analysis. Key architectural patterns: 1) State container pattern using atomic structs similar to AudioDataSnapshot in goertzel.h:93-129 with sequence counters for lock-free synchronization. 2) Memory-efficient state persistence using circular buffers (spectrogram_average[8][64] pattern from goertzel.h:174-176). 3) NVS-based persistence following wifi_monitor.cpp patterns for state recovery across power cycles. 4) Audio-reactive integration via Goertzel frequency bins (NUM_FREQS=64) and tempo detection arrays (NUM_TEMPI=64). Memory constraints: <1KB per node state using packed structs, target 95% lock-free operations for real-time performance. Validation: >85% beat detection accuracy, <5ms state update latency, verify persistence across pattern switches.",
+        "testStrategy": "Audio input validation for beat detection accuracy >85% using Goertzel tempo bins, state persistence verification across pattern cycles, memory measurement with state overhead <1KB per node, visual validation of audio-reactive output, lock-free synchronization testing with sequence counters, NVS persistence validation for state recovery, real-time performance testing <5ms update latency",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Research and document stateful node architectural patterns",
+            "description": "Analyze existing codebase patterns for state management, persistence, and audio integration to establish architectural foundation",
+            "dependencies": [],
+            "details": "Study AudioDataSnapshot lock-free synchronization pattern (goertzel.h:93-129), analyze circular buffer patterns for state history (spectrogram_average, tempo_history), examine NVS persistence patterns from wifi_monitor.cpp for state recovery, document memory-efficient state container designs, research audio-reactive node integration with Goertzel frequency bins and tempo detection arrays",
+            "status": "pending",
+            "testStrategy": "Documentation completeness validation, architectural pattern feasibility analysis, memory footprint estimation"
+          },
+          {
+            "id": 2,
+            "title": "Design stateful node base class and state container",
+            "description": "Create base class architecture for stateful nodes with atomic state containers and memory management",
+            "dependencies": [
+              1
+            ],
+            "details": "Design StatefulNode base class inheriting from existing graph node system, implement atomic state container using sequence counter pattern from AudioDataSnapshot, design memory-efficient state struct packing <1KB per node, create state serialization interface for persistence, establish lock-free state update protocols",
+            "status": "pending",
+            "testStrategy": "Base class compilation verification, state container memory footprint measurement, atomic operation correctness testing"
+          },
+          {
+            "id": 3,
+            "title": "Implement beat detector stateful node",
+            "description": "Create beat detection node using Goertzel tempo analysis with persistent state",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement BeatDetectorNode using tempo bins (NUM_TEMPI=64) from goertzel.h, maintain beat phase and magnitude history using circular buffer pattern, implement persistence of beat detection parameters, integrate with existing tempo detection pipeline, ensure >85% accuracy target with configurable sensitivity",
+            "status": "pending",
+            "testStrategy": "Beat detection accuracy testing >85%, phase consistency validation, state persistence across pattern switches, audio reactivity verification"
+          },
+          {
+            "id": 4,
+            "title": "Implement spectrum analyzer stateful node",
+            "description": "Create spectrum analysis node with frequency bin state and smoothing persistence",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement SpectrumAnalyzerNode using Goertzel frequency bins (NUM_FREQS=64), maintain spectrogram history with smoothing state persistence, implement frequency range selection and analysis parameters, integrate with existing spectrogram pipeline from goertzel.h, optimize for real-time performance",
+            "status": "pending",
+            "testStrategy": "Spectrum analysis accuracy validation, frequency bin mapping correctness, smoothing state persistence verification, real-time performance measurement"
+          },
+          {
+            "id": 5,
+            "title": "Implement NVS-based state persistence system",
+            "description": "Create persistence layer for stateful node state recovery across power cycles",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement NVS persistence following wifi_monitor.cpp patterns, create state serialization/deserialization for node state containers, implement state versioning for compatibility, add state recovery validation on boot, optimize for minimal flash wear with batched writes",
+            "status": "pending",
+            "testStrategy": "State persistence verification across power cycles, serialization correctness testing, NVS storage efficiency measurement, state recovery validation"
+          },
+          {
+            "id": 6,
+            "title": "Validate memory constraints and performance targets",
+            "description": "Comprehensive testing of memory overhead and real-time performance requirements",
+            "dependencies": [
+              3,
+              4,
+              5
+            ],
+            "details": "Measure actual memory footprint per node instance <1KB target, validate lock-free operation percentage >95%, test state update latency <5ms requirement, verify audio processing pipeline integration without performance degradation, validate concurrent state access patterns",
+            "status": "pending",
+            "testStrategy": "Memory profiling with multiple node instances, real-time latency measurement, concurrent access stress testing, audio pipeline performance regression testing"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Conduct Graph System Memory and Performance Profiling",
+        "description": "Comprehensive performance analysis of graph system PoC to validate decision gate criteria",
+        "details": "Profile memory usage <5KB per node, compilation time <2 seconds, FPS impact <2%, device latency <10ms. Generate code quality report >80%. Use existing profiling tools and create detailed performance baseline.",
+        "testStrategy": "Heap memory measurement, build time capture, live device FPS measurement against 60 FPS baseline, frame timing analysis, complexity + readability scoring",
+        "priority": "high",
+        "dependencies": [
+          7,
+          8,
+          9
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Audit Current Profiling Assets",
+            "description": "Review existing profiling tools and prior reports for applicability to graph PoC.",
+            "dependencies": [],
+            "details": "Inventory profiler modules in firmware/src, verify compatibility with graph runtime, and map available hooks to required metrics.",
+            "status": "pending",
+            "testStrategy": null
+          },
+          {
+            "id": 2,
+            "title": "Extend Runtime Instrumentation Hooks",
+            "description": "Add or update instrumentation to capture graph node memory and timing data.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement lightweight counters and timers in graph runtime, integrating with firmware/src/profiler.cpp to log per-node memory and latency figures.",
+            "status": "pending",
+            "testStrategy": "Unit tests on instrumentation APIs to ensure metrics are recorded without exceeding overhead targets."
+          },
+          {
+            "id": 3,
+            "title": "Automate Build and Compile Time Capture",
+            "description": "Create repeatable process to measure compile times under target conditions.",
+            "dependencies": [
+              2
+            ],
+            "details": "Script build pipeline to collect compile duration samples, ensuring tooling resets cache and records results for different graph sizes.",
+            "status": "pending",
+            "testStrategy": "Run scripted builds thrice and compare logged durations for consistency within 5% variance."
+          },
+          {
+            "id": 4,
+            "title": "Execute Device Performance Measurements",
+            "description": "Measure FPS impact and device latency using updated instrumentation.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Deploy instrumented firmware to test device, stream workload graphs, and record FPS deltas, latency per frame, and node memory consumption.",
+            "status": "pending",
+            "testStrategy": "Cross-validate live device logs with profiler outputs and confirm results within decision thresholds."
+          },
+          {
+            "id": 5,
+            "title": "Analyze Metrics Against Decision Gates",
+            "description": "Compare collected measurements to all threshold requirements.",
+            "dependencies": [
+              4
+            ],
+            "details": "Aggregate memory, compile time, FPS, and latency data; compute compliance margins; flag deviations and root causes.",
+            "status": "pending",
+            "testStrategy": "Peer review calculations and rerun sampling on any outliers to confirm repeatability."
+          },
+          {
+            "id": 6,
+            "title": "Produce Performance Baseline and Code Quality Report",
+            "description": "Document profiling findings and generate code quality assessment.",
+            "dependencies": [
+              5
+            ],
+            "details": "Compile narrative report with charts, include automated quality score >80%, and store baseline metrics for future regressions.",
+            "status": "pending",
+            "testStrategy": "Review report for completeness, verify metrics traceability, and confirm quality tooling outputs archived."
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Conduct Hardware Validation Testing",
+        "description": "Comprehensive hardware stability testing to validate production readiness",
+        "details": "Execute 100 cold boot cycles with 0 hangs, monitor memory usage with 5% margin over 24 hours, ensure no crashes in continuous operation. Test all hardware interfaces and edge cases.",
+        "testStrategy": "100x boot cycle test, 24-hour memory monitoring, error logging review for 0 critical errors, hardware-specific edge case testing",
+        "priority": "high",
+        "dependencies": [
+          1,
+          3
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Prepare Hardware Testbed Configuration",
+            "description": "Assemble and validate the hardware test environment.",
+            "dependencies": [],
+            "details": "Inventory DUT units, connect power cycling relay, verify firmware build, and stage debug consoles for data capture.",
+            "status": "pending",
+            "testStrategy": "Dry-run power cycle to confirm rig readiness"
+          },
+          {
+            "id": 2,
+            "title": "Calibrate Boot Cycle Automation Scripts",
+            "description": "Create and validate automation for 100-cycle cold boot testing.",
+            "dependencies": [
+              1
+            ],
+            "details": "Adapt existing stress suite runners to control relay, enforce cool-down intervals, and log boot telemetry to centralized storage.",
+            "status": "pending",
+            "testStrategy": "Simulate 5 boot cycles to ensure script logs and timing are correct"
+          },
+          {
+            "id": 3,
+            "title": "Execute 100 Cold Boot Cycle Campaign",
+            "description": "Run the full cold boot test campaign and capture stability metrics.",
+            "dependencies": [
+              2
+            ],
+            "details": "Trigger automation for 100 cold boots, monitor for hangs, capture boot duration per cycle, and flag any anomalies in boot logs.",
+            "status": "pending",
+            "testStrategy": "Track pass/fail per cycle and review automation alerts continuously"
+          },
+          {
+            "id": 4,
+            "title": "Perform 24-Hour Runtime Monitoring",
+            "description": "Monitor memory usage and runtime stability over 24 hours.",
+            "dependencies": [
+              3
+            ],
+            "details": "Enable continuous telemetry collection for memory, CPU, and error logs while exercising interfaces and edge cases to uncover regressions.",
+            "status": "pending",
+            "testStrategy": "Use rolling telemetry dashboards and alert thresholds for >5% variance"
+          },
+          {
+            "id": 5,
+            "title": "Consolidate Findings and Publish Validation Report",
+            "description": "Analyze collected data and deliver final validation report.",
+            "dependencies": [
+              4
+            ],
+            "details": "Aggregate boot and runtime metrics, document incidents, validate criteria compliance, and circulate approval-ready report with remediation items if needed.",
+            "status": "pending",
+            "testStrategy": "Peer review report checklist and validate metrics against acceptance criteria"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Execute Stress Testing and Stability Validation",
+        "description": "Perform comprehensive stress testing of all firmware systems under load",
+        "details": "Test 1000+ pattern changes without crashes, validate all 15 hardcoded patterns, test WiFi reconnection cycles (10x), monitor temperature stability. Use existing test framework in firmware/test/.",
+        "testStrategy": "Automated pattern cycling 1000 iterations, WiFi reconnect testing 10x, temperature monitoring, memory leak detection, error log analysis for 0 crashes",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Review existing stress tests and define coverage plan",
+            "description": "Assess current firmware stress tests and outline coverage gaps for pattern, WiFi, and thermal scenarios.",
+            "dependencies": [],
+            "details": "Inspect firmware/test/test_hardware_stress and supporting harness files to document current behaviors, identify missing automation for 1000 pattern cycles, WiFi retries, and temperature logging, and draft the update plan.",
+            "status": "pending",
+            "testStrategy": "Internal walkthrough of documented plan with QA to confirm coverage expectations."
+          },
+          {
+            "id": 2,
+            "title": "Extend pattern stress harness for 1000+ iterations",
+            "description": "Update the test framework to automate 1000+ pattern swaps across all 15 hardcoded patterns.",
+            "dependencies": [
+              1
+            ],
+            "details": "Modify or add modules under firmware/test/ to drive pattern_registry through every hardcoded pattern, loop 1000+ iterations, and ensure crash detection hooks and memory usage checks are triggered.",
+            "status": "pending",
+            "testStrategy": "Run enhanced pattern stress test locally and confirm completion without crashes while logging iteration count."
+          },
+          {
+            "id": 3,
+            "title": "Automate WiFi reconnection cycle testing",
+            "description": "Implement scripted WiFi disconnect/reconnect cycles to run 10 times during stress testing.",
+            "dependencies": [
+              1
+            ],
+            "details": "Leverage wifi_monitor utilities to force disconnects and reconnections, integrate with stress harness timing so pattern cycling continues, and ensure outcomes are logged with timestamps for each cycle.",
+            "status": "pending",
+            "testStrategy": "Execute isolated WiFi cycle test to verify 10 successful reconnects with no unhandled errors in logs."
+          },
+          {
+            "id": 4,
+            "title": "Integrate temperature monitoring and logging",
+            "description": "Add thermal data capture to the stress framework for continuous monitoring.",
+            "dependencies": [
+              1
+            ],
+            "details": "Hook into existing temperature sensor interfaces, configure periodic sampling during stress execution, and write readings plus threshold alerts to consolidated logs for later analysis.",
+            "status": "pending",
+            "testStrategy": "Simulate thermal sampling to confirm logs record expected intervals and thresholds trigger alerts."
+          },
+          {
+            "id": 5,
+            "title": "Run full-system stress suite and collect artifacts",
+            "description": "Execute the combined pattern, WiFi, and thermal stress run and gather output logs.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Launch the integrated stress scenario overnight or for required duration, ensure log aggregation covers pattern iterations, WiFi events, and temperature data, and archive results with timestamps.",
+            "status": "pending",
+            "testStrategy": "Verify run completion scripts check exit codes, confirm log files exist, and spot-check for missing segments."
+          },
+          {
+            "id": 6,
+            "title": "Analyze stress results and document stability findings",
+            "description": "Review collected data, identify failures, and summarize stability metrics.",
+            "dependencies": [
+              5
+            ],
+            "details": "Parse logs for crashes, WiFi recovery issues, and thermal anomalies, correlate with iteration counts, create summary report with defect tickets or confirmations, and recommend follow-up actions.",
+            "status": "pending",
+            "testStrategy": "Manual review paired with automated log parsing scripts to ensure all events are accounted for before sign-off."
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Perform Code Quality and Coverage Review",
+        "description": "Comprehensive quality audit ensuring production-ready code standards for embedded C++ firmware and React webapp with research-enhanced coverage strategies",
+        "status": "pending",
+        "dependencies": [
+          1,
+          2,
+          3,
+          4,
+          10
+        ],
+        "priority": "medium",
+        "details": "Achieve >=95% test coverage for both firmware (PlatformIO/Unity) and webapp (Jest/Vitest), eliminate high-severity static analysis warnings using C++ tools (clang-tidy, cppcheck) and TypeScript/React linting, conduct code review consensus, validate ADR documentation completeness in docs/02-adr/. Research includes C++ coverage strategies (gcov integration with PlatformIO), static analysis automation (CI/CD integration), and documentation validation frameworks. Use existing testing infrastructure: firmware/test/ with Unity framework, webapp Jest/Vitest setup, and comprehensive ADR structure in docs/02-adr/.",
+        "testStrategy": "Firmware: PlatformIO test coverage with gcov integration, Unity test results analysis (37 automated tests documented in TEST_EXECUTION_GUIDE.md), static analysis with clang-tidy/cppcheck integration. Webapp: Jest coverage reporting (npm run test:coverage), Vitest UI coverage analysis, TypeScript strict checking. Documentation: ADR completeness audit against 15+ existing ADRs in docs/02-adr/, cross-reference validation, governance compliance review using established documentation standards.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Research and implement C++ code coverage strategies with gcov/PlatformIO integration",
+            "description": "Research optimal C++ coverage measurement approaches for embedded systems and integrate with existing PlatformIO Unity test framework",
+            "dependencies": [],
+            "details": "Research gcov integration with PlatformIO, investigate coverage reporting for ESP32-S3 embedded environment, analyze existing 37 test cases in firmware/test/ for coverage gaps, implement coverage measurement for main firmware source files in firmware/src/, establish baseline coverage metrics from current 37 automated tests documented in TEST_EXECUTION_GUIDE.md",
+            "status": "pending",
+            "testStrategy": "Coverage integration testing with existing Unity framework, baseline measurement against 37 existing tests, gcov report generation validation"
+          },
+          {
+            "id": 2,
+            "title": "Implement static analysis automation for C++ codebase with clang-tidy and cppcheck",
+            "description": "Set up automated static analysis tools for firmware codebase to identify security vulnerabilities and code quality issues",
+            "dependencies": [],
+            "details": "Configure clang-tidy for ESP32-S3 Arduino framework compatibility, integrate cppcheck with PlatformIO build system, create static analysis CI/CD pipeline, establish severity thresholds and exclusion rules, analyze existing firmware/src/ codebase for immediate issues, document static analysis workflow in development process",
+            "status": "pending",
+            "testStrategy": "Static analysis tool validation on existing codebase, false positive filtering verification, CI/CD pipeline integration testing"
+          },
+          {
+            "id": 3,
+            "title": "Measure and optimize webapp test coverage using Jest and Vitest",
+            "description": "Analyze current webapp test coverage and implement strategies to achieve >=95% coverage target",
+            "dependencies": [],
+            "details": "Run existing Jest test suite with coverage reporting (npm run test:coverage), analyze coverage gaps in webapp/src/ components and utilities, implement missing test cases for uncovered code paths, leverage existing @testing-library/react setup and Vitest configuration, focus on critical paths: device management, parameter controls, analysis components",
+            "status": "pending",
+            "testStrategy": "Jest coverage report analysis, line and branch coverage measurement, test case implementation for uncovered paths, coverage threshold enforcement"
+          },
+          {
+            "id": 4,
+            "title": "Validate ADR documentation completeness and cross-reference integrity",
+            "description": "Audit existing ADR documentation structure for completeness and validate cross-reference accuracy",
+            "dependencies": [],
+            "details": "Audit 15+ existing ADRs in docs/02-adr/ for structural completeness, validate decision rationale documentation, check cross-references between ADRs and implementation code, verify ADR template compliance, assess decision tracking accuracy, ensure architectural decisions align with current codebase state, validate governance compliance per established documentation standards",
+            "status": "pending",
+            "testStrategy": "ADR structural validation against template, cross-reference link verification, decision-to-implementation traceability audit, governance compliance checklist"
+          },
+          {
+            "id": 5,
+            "title": "Establish quality gates and integrate coverage reporting into CI/CD pipeline",
+            "description": "Create automated quality gates with coverage thresholds and static analysis integration for continuous quality assurance",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Configure quality gates with >=95% coverage threshold for both firmware and webapp, integrate static analysis results into CI/CD decisions, establish automated reporting dashboard, create quality metrics tracking, implement failure notifications for coverage or quality regressions, document quality assurance workflow for development team",
+            "status": "pending",
+            "testStrategy": "Quality gate threshold testing, CI/CD pipeline integration validation, automated reporting verification, regression detection testing"
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Decision Gate Validation and Path Selection",
+        "description": "Validate all decision gate criteria and determine execution path (Graph System vs C++ SDK)",
+        "details": "Validate 6 criteria: Phase 2D1 complete, FPS impact <2%, memory <5KB/node, 24h stability, code quality >95%, compile <5s. Make go/no-go decision for Graph System (Path A) vs C++ SDK (Path B).",
+        "testStrategy": "Criteria validation checklist, decision documentation, stakeholder approval process, path activation planning",
+        "priority": "high",
+        "dependencies": [
+          4,
+          10,
+          11,
+          12,
+          13
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Aggregate gate evidence from upstream tasks",
+            "description": "Collect all reports, metrics, and approvals supporting the six decision criteria.",
+            "dependencies": [],
+            "details": "Pull profiling outputs, QA summaries, stability logs, and compile metrics from tasks 4, 10-13 into a single evidence repository.",
+            "status": "pending",
+            "testStrategy": "Verify each required artifact is present and timestamped within the last sprint."
+          },
+          {
+            "id": 2,
+            "title": "Verify quantitative performance thresholds",
+            "description": "Validate FPS, memory per node, and compile time metrics meet gate tolerances.",
+            "dependencies": [
+              1
+            ],
+            "details": "Cross-reference profiling data with threshold targets (<2% FPS impact, <5KB/node memory, <5s compile) and document pass/fail status with supporting calculations.",
+            "status": "pending",
+            "testStrategy": "Recompute metrics from source measurements and confirm reproducibility against tooling outputs."
+          },
+          {
+            "id": 3,
+            "title": "Confirm qualitative readiness criteria",
+            "description": "Check Phase 2D1 completion, code quality, and 24h soak stability requirements.",
+            "dependencies": [
+              1
+            ],
+            "details": "Review milestone closure evidence, code quality reports (>95%), and 24h stability logs to certify readiness and log any gaps.",
+            "status": "pending",
+            "testStrategy": "Audit milestones in PM system and rerun spot checks on code quality and stability logs."
+          },
+          {
+            "id": 4,
+            "title": "Draft decision matrix for Path A vs Path B",
+            "description": "Synthesize criterion outcomes into a comparative decision package.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Create a decision matrix summarizing each criterion’s status, risk assessment, and recommendation for Graph System (Path A) versus C++ SDK (Path B).",
+            "status": "pending",
+            "testStrategy": "Peer review the matrix for completeness and alignment with recorded evidence."
+          },
+          {
+            "id": 5,
+            "title": "Conduct stakeholder alignment and sign-off",
+            "description": "Facilitate decision review meeting and capture final approval.",
+            "dependencies": [
+              4
+            ],
+            "details": "Share the decision package with stakeholders, run a review session, record questions, and log the final go/no-go decision.",
+            "status": "pending",
+            "testStrategy": "Record meeting minutes and obtain written sign-off from designated approvers."
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Extend Code Generation for Full Node Type Support",
+        "description": "Scale code generation system to support 35-40 node types for production graph editor. Research indicates the optimal approach requires a systematic multi-phase architecture with performance optimizations, modular node type system, and comprehensive validation pipeline.",
+        "status": "pending",
+        "dependencies": [
+          14
+        ],
+        "priority": "high",
+        "details": "Based on codebase analysis and research into optimal scaling approaches:\n\n**Current State Analysis:**\n- Node graph system exists with basic GraphNode interface in webapp/src/lib/types.ts\n- Pattern system has 17 existing patterns in firmware/src/generated_patterns.h\n- Pattern registry supports function pointer architecture for zero-cost switching\n- Basic node categories: input, effect, math, color, output with compute cost levels\n- NodePort system with scalar, field, color, output types\n\n**Optimal Scaling Architecture (Research-Based):**\n\n1. **Modular Node Type System:**\n   - Expand from 5 categories to 8: input, audio-reactive, visual-effects, utility, math, color, control, output\n   - Implement node type inheritance hierarchy for code reuse\n   - Create node validation framework with dependency checking\n   - Add performance profiling per node type (memory, CPU cycles)\n\n2. **Code Generation Pipeline:**\n   - Template-based C++ generation from JSON graph definitions\n   - Incremental compilation: only regenerate changed subgraphs\n   - Memory pool allocation strategy for real-time performance\n   - Optimization passes: dead code elimination, constant folding, loop unrolling\n\n3. **Performance Bottleneck Mitigation:**\n   - Node compilation cache to avoid redundant generation\n   - Lazy evaluation graph traversal\n   - SIMD vectorization for mathematical operations\n   - Memory-mapped buffers for large datasets\n   - Target: <1KB per node, <2s total generation time\n\n4. **Validation & Testing Framework:**\n   - Automated unit tests for each node type\n   - Integration tests for common node combinations\n   - Performance regression testing\n   - Visual validation against reference patterns\n   - Compilation success verification across all combinations\n\n**Implementation Priority:**\n- Phase 1: Core node type expansion (audio-reactive, visual effects)\n- Phase 2: Code generation templates and optimization passes\n- Phase 3: Validation framework and performance testing\n- Phase 4: Advanced features (stateful nodes, custom parameters)\n\n**Key Integration Points:**\n- Extends pattern_registry.h function pointer system\n- Integrates with existing webapp GraphEditorView\n- Builds on PatternParameters interface\n- Leverages audio analysis from pattern_audio_interface.h",
+        "testStrategy": "Multi-layered testing approach:\n\n1. **Node Type Validation:**\n   - Unit tests for each of 35-40 node types\n   - Parameter validation and bounds checking\n   - Port connectivity verification\n   - Compute cost accuracy measurement\n\n2. **Code Generation Testing:**\n   - Template rendering accuracy for all node combinations\n   - C++ compilation success rate >99.5%\n   - Generated code performance benchmarks\n   - Memory usage validation <1KB per node average\n   - Generation speed <2s for full 40-node library\n\n3. **Integration Testing:**\n   - End-to-end graph compilation pipeline\n   - Pattern registry integration verification\n   - Audio-reactive node synchronization testing\n   - Visual effects rendering validation\n\n4. **Performance Testing:**\n   - Real-time execution at 120+ FPS\n   - Memory footprint monitoring\n   - CPU usage profiling\n   - Regression testing against existing 17 patterns\n\n5. **Visual Validation:**\n   - Screenshot comparison against reference implementations\n   - Audio-reactive response accuracy >95%\n   - Color accuracy within 1% tolerance\n   - Pattern continuity across transitions",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Audit existing node graph and codegen systems",
+            "description": "Review current graph nodes, pattern registry, and generation flow to establish baseline gaps.",
+            "dependencies": [],
+            "details": "Analyze webapp GraphNode interfaces, firmware pattern registry, and current generation scripts to capture capabilities and limitations.",
+            "status": "pending",
+            "testStrategy": "Document findings and review with team lead for completeness."
+          },
+          {
+            "id": 2,
+            "title": "Design expanded node taxonomy and inheritance model",
+            "description": "Define the 8-category node taxonomy and propose inheritance structures for shared behaviors.",
+            "dependencies": [
+              1
+            ],
+            "details": "Produce specifications for node classes, shared traits, validation hooks, and performance metadata fields covering all 35-40 node types.",
+            "status": "pending",
+            "testStrategy": "Peer review of design doc focusing on coverage, extensibility, and compatibility."
+          },
+          {
+            "id": 3,
+            "title": "Implement modular node type framework",
+            "description": "Add code changes to realize the new node taxonomy and registration APIs in firmware and web app.",
+            "dependencies": [
+              2
+            ],
+            "details": "Extend node definitions, registries, and serialization formats to support new categories, metadata, and reuse patterns.",
+            "status": "pending",
+            "testStrategy": "Unit tests for node registration and serialization across representative node categories."
+          },
+          {
+            "id": 4,
+            "title": "Extend code generation templates and incremental pipeline",
+            "description": "Upgrade template system to produce C++ for expanded node set and support incremental regeneration.",
+            "dependencies": [
+              3
+            ],
+            "details": "Create template modules per category, add dependency tracking for subgraph regeneration, and update build tooling.",
+            "status": "pending",
+            "testStrategy": "Golden-file tests for generated C++ and incremental rebuild smoke tests."
+          },
+          {
+            "id": 5,
+            "title": "Add optimization passes to codegen backend",
+            "description": "Implement dead code elimination, constant folding, loop unrolling, and memory pooling strategies.",
+            "dependencies": [
+              4
+            ],
+            "details": "Integrate optimization passes into generation pipeline with configurable stages and profiling hooks.",
+            "status": "pending",
+            "testStrategy": "Benchmark comparisons before/after optimizations and targeted unit tests for each pass."
+          },
+          {
+            "id": 6,
+            "title": "Introduce performance monitoring and caching infrastructure",
+            "description": "Provide profiling, caching, and lazy evaluation features to meet performance targets.",
+            "dependencies": [
+              5
+            ],
+            "details": "Implement node compilation cache, lazy traversal options, SIMD math paths, and memory-mapped buffer support.",
+            "status": "pending",
+            "testStrategy": "Performance regression suite validating cache hit rate, generation time, and memory budgets."
+          },
+          {
+            "id": 7,
+            "title": "Build validation and automated testing framework",
+            "description": "Create validation rules, unit tests, integration tests, and visual checks for new node system.",
+            "dependencies": [
+              6
+            ],
+            "details": "Develop validators for ports and parameters, test harnesses for node combinations, and visual comparison tooling.",
+            "status": "pending",
+            "testStrategy": "Continuous test pipeline covering unit, integration, visual, and compilation scenarios."
+          },
+          {
+            "id": 8,
+            "title": "Document tooling updates and developer workflows",
+            "description": "Produce documentation and tooling guidance for engineers adopting the new system.",
+            "dependencies": [
+              7
+            ],
+            "details": "Write developer guides, update ADRs, and script helper tooling to streamline node authoring and review.",
+            "status": "pending",
+            "testStrategy": "Documentation review plus onboarding dry-run with another engineer."
+          }
+        ]
+      },
+      {
+        "id": 16,
+        "title": "Migrate High-Value Patterns to Graph System",
+        "description": "Convert 8-10 existing hardcoded patterns to graph representation for production use with comprehensive validation and regression testing automation",
+        "status": "pending",
+        "dependencies": [
+          15
+        ],
+        "priority": "high",
+        "details": "Migrate patterns from firmware/src/generated_patterns.h to graph format. Ensure visual fidelity, maintain performance characteristics, validate audio reactivity. Priority patterns: Bloom, Spectrum, Beat, Pulse, Ripple, Spiral, Matrix, Waveform. Based on codebase analysis, the existing hardcoded patterns (17 total in generated_patterns.h) are well-documented with clear center-origin architecture, PATTERN_AUDIO_START() macros, and established performance characteristics (120+ FPS). The graph editor infrastructure exists in webapp/src/components/views/GraphEditorView.tsx with node creation, connections, and import/export capabilities. Test framework in firmware/test/ provides pattern for validation harnesses including pattern snapshots, I2S timeout handling, and hardware stress testing.",
+        "testStrategy": "Visual output matching hardcoded versions, FPS impact <2% for all patterns, audio reactivity preservation, pattern library completeness. Implement automated regression testing using existing test framework patterns (firmware/test/TEST_EXECUTION_GUIDE.md) with visual snapshot comparisons and performance benchmarking. Create validation harness based on test_fix1_pattern_snapshots.cpp structure for atomic pattern comparison and corruption detection.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Research pattern migration strategy and establish baseline metrics",
+            "description": "Analyze existing hardcoded patterns in generated_patterns.h to understand implementation patterns, performance characteristics, and migration complexity",
+            "dependencies": [],
+            "details": "Study the 17 existing patterns in firmware/src/generated_patterns.h to document: 1) Center-origin architecture patterns, 2) Audio reactive integration points (PATTERN_AUDIO_START, AUDIO_VU, AUDIO_SPECTRUM, etc.), 3) Performance characteristics and optimization techniques (DSPS acceleration, static buffers, mirroring), 4) Color palette system integration, 5) Parameter mapping (brightness, speed, softness, custom params). Extract baseline metrics including FPS targets (120+), memory usage patterns, and audio latency requirements. Create migration complexity matrix ranking patterns by implementation complexity, audio dependencies, and performance sensitivity.",
+            "status": "pending",
+            "testStrategy": "Documentation completeness review, baseline metric extraction validation, complexity ranking accuracy assessment"
+          },
+          {
+            "id": 2,
+            "title": "Design validation harness architecture for pattern equivalence testing",
+            "description": "Create automated testing framework to validate graph-generated patterns match hardcoded originals",
+            "dependencies": [
+              1
+            ],
+            "details": "Design validation harness based on firmware/test/test_fix1_pattern_snapshots.cpp pattern that can: 1) Capture frame-by-frame LED output from both hardcoded and graph-generated patterns, 2) Compare outputs with tolerance for floating-point precision differences, 3) Measure performance metrics (FPS, memory usage, CPU utilization), 4) Validate audio reactivity preservation across different audio scenarios, 5) Generate visual diff reports highlighting discrepancies. Integrate with existing PlatformIO test framework and extend TEST_EXECUTION_GUIDE.md methodology. Include mock audio data generation for reproducible testing scenarios.",
+            "status": "pending",
+            "testStrategy": "Harness can detect visual differences >1% pixel variance, performance regression detection <2% FPS impact, audio reactivity validation across 5+ test scenarios"
+          },
+          {
+            "id": 3,
+            "title": "Implement regression testing automation framework",
+            "description": "Build automated CI/CD pipeline for continuous validation of pattern migrations",
+            "dependencies": [
+              2
+            ],
+            "details": "Create automated regression testing framework that: 1) Runs validation harness on each pattern migration commit, 2) Generates before/after comparison reports with visual diffs, 3) Tracks performance regression metrics over time, 4) Integrates with existing firmware build pipeline, 5) Provides automated pass/fail criteria based on established thresholds. Extend firmware/test/ infrastructure to include pattern regression tests alongside existing I2S timeout and mutex tests. Create dashboard for tracking migration progress and quality metrics.",
+            "status": "pending",
+            "testStrategy": "Automation runs successfully on simulated migrations, generates accurate reports, integrates with build pipeline without performance impact"
+          },
+          {
+            "id": 4,
+            "title": "Migrate first 3 high-priority patterns (Bloom, Spectrum, Pulse)",
+            "description": "Convert the most critical audio-reactive patterns to graph representation with full validation",
+            "dependencies": [
+              3
+            ],
+            "details": "Migrate patterns from firmware/src/generated_patterns.h:516-880 (draw_bloom, draw_spectrum, draw_pulse) to graph representation using webapp GraphEditorView. These patterns represent core audio-reactive functionality with established performance baselines (60+ FPS) and well-documented center-origin architecture. Focus on: 1) Preserving static buffer management and DSPS acceleration, 2) Maintaining audio gating and energy injection logic, 3) Ensuring center-origin mirroring compliance, 4) Validating palette system integration. Run full validation harness and regression testing before proceeding to next batch.",
+            "status": "pending",
+            "testStrategy": "All 3 patterns pass validation harness with <1% visual difference, maintain original FPS performance within 2%, preserve audio reactivity characteristics"
+          },
+          {
+            "id": 5,
+            "title": "Migrate remaining 5-7 patterns with progressive validation",
+            "description": "Complete migration of remaining high-value patterns with incremental testing and optimization",
+            "dependencies": [
+              4
+            ],
+            "details": "Migrate remaining patterns (Beat Tunnel, Tempiscope, Waveform Spectrum, Snapwave, and selected static patterns like Departure/Lava) following established migration methodology. Apply lessons learned from first 3 patterns to optimize graph representation efficiency. Focus on: 1) Complex animation patterns (Beat Tunnel variants with sprite persistence), 2) Procedural patterns (Perlin noise), 3) Static intentional patterns for baseline validation. Validate each migration against performance thresholds and visual fidelity requirements. Document migration patterns and best practices for future pattern development.",
+            "status": "pending",
+            "testStrategy": "Progressive validation of each pattern, cumulative performance impact <2% total, visual fidelity preservation, complete pattern library functional equivalence"
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "title": "Implement Webapp Graph Editor UI",
+        "description": "Build production-ready graph editor interface in React webapp with real-time validation, enhanced with research-driven node connection patterns and robust serialization architecture",
+        "status": "pending",
+        "dependencies": [
+          15,
+          16
+        ],
+        "priority": "high",
+        "details": "Integrate canvas editor with 50+ nodes into webapp/src/components/graph/, implement graph-to-JSON serialization, create node palette with 35-40 types, add real-time validation feedback. Build on existing UI component library (shadcn/ui components). Research indicates need for: 1) React graph UI patterns (custom canvas vs react-flow vs d3-force approaches), 2) Node connection validation system with type safety and cycle detection, 3) Serialization architecture supporting bidirectional graph-to-JSON conversion with schema validation. Current codebase analysis shows webapp/src/components/graph/ contains basic Canvas.tsx, Node.tsx, ErrorPanel.tsx, and ImportExport.tsx with custom implementation using HTML5 canvas patterns. Node system supports 4 port types (scalar/field/color/output) with 5 categories (input/effect/math/color/output). Performance optimization patterns already established using React.memo, useCallback, useMemo across 46+ components.",
+        "testStrategy": "Canvas editor functionality with 50+ nodes, graph serialization working with bidirectional conversion validation, node palette completeness with all 35-40 types, real-time validation feedback for type mismatches and cycles, UI responsiveness testing with large graphs (100+ nodes), connection validation accuracy testing, schema-based serialization integrity verification",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Research React graph UI patterns and connection architectures",
+            "description": "Investigate modern React graph editor patterns, node connection validation systems, and serialization architectures for production-grade graph interfaces",
+            "dependencies": [],
+            "details": "Research 3 key areas: 1) React graph UI patterns - compare custom canvas approach (current implementation) vs react-flow vs d3-force for 50+ node performance, 2) Node connection validation - analyze type safety patterns, cycle detection algorithms, and real-time validation feedback systems, 3) Serialization architecture - design bidirectional graph-to-JSON conversion with schema validation and version compatibility. Analyze existing codebase patterns in webapp/src/components/graph/ (Canvas.tsx custom implementation, Node.tsx with 4 port types, ErrorPanel.tsx validation system) and performance optimization patterns across 46+ components using React.memo/useCallback/useMemo.",
+            "status": "pending",
+            "testStrategy": "Compare performance benchmarks of different graph UI approaches with 100+ nodes, validate connection type safety and cycle detection accuracy, test serialization integrity with complex graph structures"
+          },
+          {
+            "id": 2,
+            "title": "Enhance node connection validation system",
+            "description": "Implement robust type-safe node connection validation with real-time feedback and cycle detection",
+            "dependencies": [
+              1
+            ],
+            "details": "Build on existing ErrorPanel.tsx and 4 port types (scalar/field/color/output) to create comprehensive validation: 1) Type compatibility matrix for all port type combinations, 2) Real-time cycle detection using DFS algorithm, 3) Connection constraint validation (1-to-many vs many-to-1 patterns), 4) Visual feedback system for invalid connections with error highlighting, 5) Integration with existing GraphError interface and error reporting. Extend current validation patterns to support complex graph topologies while maintaining 60fps performance.",
+            "status": "pending",
+            "testStrategy": "Validate type safety with all port combinations, test cycle detection with complex graph structures, verify real-time feedback performance with large graphs, validate error reporting accuracy"
+          },
+          {
+            "id": 3,
+            "title": "Design robust graph serialization architecture",
+            "description": "Create bidirectional graph-to-JSON serialization system with schema validation and version compatibility",
+            "dependencies": [
+              1
+            ],
+            "details": "Enhance existing ImportExport.tsx JSON serialization with: 1) Schema-based validation using JSON Schema or Zod for GraphState structure, 2) Version compatibility system supporting migration between schema versions, 3) Bidirectional conversion ensuring graph -> JSON -> graph identity preservation, 4) Error handling for malformed imports with detailed validation messages, 5) Compression optimization for large graphs with 100+ nodes, 6) Integration with existing toast notification system. Build on current JSON.stringify/parse implementation to support production reliability requirements.",
+            "status": "pending",
+            "testStrategy": "Test serialization round-trip accuracy with complex graphs, validate schema enforcement with invalid data, verify version migration compatibility, test compression performance with large graphs"
+          },
+          {
+            "id": 4,
+            "title": "Optimize canvas performance for 50+ nodes",
+            "description": "Implement performance optimizations for large graph rendering using React virtualization and canvas optimization techniques",
+            "dependencies": [
+              2
+            ],
+            "details": "Enhance existing Canvas.tsx custom implementation with: 1) Viewport culling to render only visible nodes during pan/zoom, 2) Connection rendering optimization using SVG or canvas for complex connection paths, 3) Node virtualization for graphs exceeding 100+ nodes, 4) Debounced pan/zoom updates to maintain 60fps, 5) Memory optimization for large GraphState objects, 6) Integration with existing React.memo/useCallback patterns across component tree. Build on current transform-based rendering (translate/scale) to support production-scale graphs.",
+            "status": "pending",
+            "testStrategy": "Performance testing with 100+ nodes measuring FPS and memory usage, validate viewport culling accuracy, test connection rendering performance with complex topologies, verify memory optimization effectiveness"
+          },
+          {
+            "id": 5,
+            "title": "Expand node palette to 35-40 types with categorization",
+            "description": "Create comprehensive node palette with full range of effect, math, color, and utility node types organized by category",
+            "dependencies": [
+              3
+            ],
+            "details": "Expand existing 5 categories (input/effect/math/color/output) in NodePaletteModal.tsx to support 35-40 node types: 1) Effect nodes (15+ types: blur, distortion, transition effects), 2) Math nodes (10+ types: arithmetic, trigonometric, interpolation), 3) Color nodes (8+ types: HSV conversion, palette mapping, gradients), 4) Utility nodes (5+ types: delay, switch, combine), 5) Audio-reactive nodes (spectrum_bin, beat_detect from firmware integration). Implement search/filter functionality and drag-drop node creation. Build on existing NodePort interface and computeCost system.",
+            "status": "pending",
+            "testStrategy": "Validate all 35-40 node types render correctly, test node creation workflow, verify category organization and search functionality, validate audio-reactive node integration"
+          },
+          {
+            "id": 6,
+            "title": "Implement real-time graph validation feedback system",
+            "description": "Create comprehensive real-time validation with visual feedback for graph errors, warnings, and optimization suggestions",
+            "dependencies": [
+              2,
+              4
+            ],
+            "details": "Enhance existing ErrorPanel.tsx with comprehensive validation system: 1) Real-time error detection (type mismatches, cycles, disconnected outputs), 2) Warning system for performance issues (high compute cost chains, inefficient topologies), 3) Optimization suggestions (node consolidation, compute cost reduction), 4) Visual feedback with node highlighting, connection error indicators, and performance heatmaps, 5) Integration with existing GraphError interface and toast notifications, 6) Validation state persistence across graph modifications. Build on current error/warning severity system.",
+            "status": "pending",
+            "testStrategy": "Test real-time validation accuracy with all error types, verify visual feedback responsiveness, validate optimization suggestion quality, test validation performance impact on large graphs"
+          }
+        ]
+      },
+      {
+        "id": 18,
+        "title": "Execute Graph System Integration Testing",
+        "description": "End-to-end testing of complete graph system from UI to device deployment with comprehensive E2E patterns, device communication validation, and performance regression detection",
+        "status": "pending",
+        "dependencies": [
+          16,
+          17
+        ],
+        "priority": "high",
+        "details": "Test complete workflow: graph creation → JSON serialization → compilation → device deployment. Create 100+ test patterns, validate no regressions vs hardcoded versions, confirm performance targets met. Implement comprehensive E2E testing patterns following firmware/test/ architecture, device communication validation using WiFi/serial protocols, and automated performance regression detection against baseline metrics from webserver.cpp performance endpoints.",
+        "testStrategy": "End-to-end graph creation to device deployment, 100+ test patterns created and validated, no regressions vs hardcoded versions, performance targets verification, E2E test framework implementation, device communication protocol validation, automated regression detection system",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Research and implement E2E testing patterns for firmware",
+            "description": "Study existing firmware test architecture in firmware/test/ and design E2E testing framework for graph system",
+            "dependencies": [],
+            "details": "Analyze existing test patterns in firmware/test/ (test_pattern_snapshots.cpp, test_hardware_stress.cpp, etc.) to understand testing architecture. Design E2E test framework that follows same patterns for: 1) Test setup/teardown using Unity framework, 2) Memory snapshot validation using MemorySnapshot::capture(), 3) Timing measurements with TestTimer, 4) Multi-core task testing patterns, 5) Hardware stress testing patterns for 30+ minute runtime validation. Create test structure that validates complete graph workflow from JSON input to device LED output.",
+            "status": "pending",
+            "testStrategy": "Unity framework integration, memory leak detection, timing validation, multi-core synchronization testing, hardware stress patterns"
+          },
+          {
+            "id": 2,
+            "title": "Implement device communication validation framework",
+            "description": "Create comprehensive device communication testing using WiFi, serial, and OTA protocols",
+            "dependencies": [
+              1
+            ],
+            "details": "Build device communication validation framework using existing patterns from firmware/src/webserver.cpp and wifi_monitor.cpp. Implement: 1) WiFi connectivity validation during graph deployment, 2) Serial communication testing for graph upload/status reporting, 3) OTA update testing during active graph rendering (test_wifi_ota_during_rendering pattern), 4) WebSocket real-time communication validation, 5) HTTP API endpoint testing for /api/device/performance metrics, 6) Device status monitoring and error reporting validation. Use existing communication infrastructure and extend with comprehensive test coverage.",
+            "status": "pending",
+            "testStrategy": "WiFi reconnection testing (10x cycles), serial protocol validation, OTA deployment testing, WebSocket communication verification, HTTP API testing"
+          },
+          {
+            "id": 3,
+            "title": "Create performance regression detection system",
+            "description": "Implement automated performance regression detection comparing graph system vs hardcoded patterns",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Build performance regression detection system using existing profiler.h metrics and webserver.cpp performance endpoints. Implement: 1) Baseline performance capture for all 15 hardcoded patterns using FPS_CPU, frame timing, render/quantize/RMT timing metrics, 2) Automated performance comparison between hardcoded and graph-generated patterns, 3) Regression detection thresholds: FPS <2% degradation, frame_time_us <10% increase, memory usage <5KB increase per node, 4) Performance report generation with detailed timing breakdowns, 5) Integration with existing test framework using TestResults::instance() patterns, 6) Automated alerts for performance regressions exceeding thresholds.",
+            "status": "pending",
+            "testStrategy": "Baseline performance measurement, automated comparison framework, regression threshold validation, performance report generation, alert system integration"
+          },
+          {
+            "id": 4,
+            "title": "Develop 100+ test pattern validation suite",
+            "description": "Create comprehensive test pattern suite covering all node types and graph complexities",
+            "dependencies": [
+              1
+            ],
+            "details": "Generate 100+ test patterns covering: 1) All 35-40 node types from graph system architecture, 2) Various graph complexities: simple linear chains, complex branching networks, maximum node count stress tests, 3) Audio-reactive pattern validation using existing goertzel.h patterns and AudioDataSnapshot validation, 4) Stateful node testing with beat detection and spectrum analysis validation, 5) Memory efficiency validation <5KB per node using MemorySnapshot comparisons, 6) Compilation time validation <2 seconds per pattern, 7) Visual output validation comparing against reference hardcoded patterns, 8) Edge case testing: empty graphs, circular dependencies, invalid node configurations.",
+            "status": "pending",
+            "testStrategy": "Comprehensive node type coverage, complexity variation testing, audio-reactive validation, memory efficiency verification, compilation performance testing, visual output comparison"
+          },
+          {
+            "id": 5,
+            "title": "Implement end-to-end workflow automation",
+            "description": "Create automated E2E test execution from webapp graph creation to device deployment verification",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Build complete E2E workflow automation: 1) Webapp integration using existing React test patterns (src/__tests__/ structure), 2) Graph creation simulation in webapp using existing components (PatternSelector, RealTimeParameterControls), 3) JSON serialization validation using analysisClient.ts patterns, 4) Automated firmware compilation and deployment using existing build system, 5) Device deployment verification using communication framework from subtask 2, 6) Visual output validation using LED pattern comparison, 7) Performance monitoring during complete workflow execution, 8) Automated test reporting with pass/fail status for entire E2E pipeline.",
+            "status": "pending",
+            "testStrategy": "Webapp automation, JSON serialization testing, firmware compilation automation, deployment verification, visual validation, performance monitoring, automated reporting"
+          },
+          {
+            "id": 6,
+            "title": "Execute comprehensive integration test suite",
+            "description": "Run complete integration test suite with all 100+ patterns and generate final validation report",
+            "dependencies": [
+              5
+            ],
+            "details": "Execute final integration testing phase: 1) Run complete test suite with all 100+ generated patterns, 2) Execute 1000+ pattern change stress testing following test_hardware_stress.cpp patterns, 3) Validate WiFi reconnection cycles (10x) during graph deployment, 4) Monitor temperature stability and memory leak detection over 30+ minute runtime, 5) Generate comprehensive test report with: pattern success rates, performance metrics comparison, regression analysis, device communication reliability, memory usage analysis, 6) Validate all success criteria: 0 crashes, performance targets met, no regressions vs hardcoded patterns, device communication 100% reliable, 7) Document any failures with detailed root cause analysis and mitigation strategies.",
+            "status": "pending",
+            "testStrategy": "Complete test suite execution, stress testing validation, comprehensive reporting, success criteria verification, failure analysis documentation"
+          }
+        ]
+      },
+      {
+        "id": 19,
+        "title": "Create SDK Documentation and Templates",
+        "description": "Comprehensive SDK documentation for external developers with examples and integration guide",
+        "details": "Create complete API reference documentation, 5+ well-documented example patterns, integration guide for external developers, parameter schema documentation. Build on existing pattern infrastructure.",
+        "testStrategy": "Documentation completeness review, example pattern compilation and testing, developer integration guide validation, API reference accuracy",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Audit existing SDK assets and API sources",
+            "description": "Inventory current documentation, source files, and governance notes relevant to the SDK.",
+            "dependencies": [],
+            "details": "Catalog pattern registry, parameter schemas, and governance materials to determine coverage gaps.",
+            "status": "pending",
+            "testStrategy": "Cross-check collected sources against repo documentation index."
+          },
+          {
+            "id": 2,
+            "title": "Draft comprehensive API reference documentation",
+            "description": "Transform audited API data into a structured reference covering endpoints, parameters, and behaviors.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create outline, include endpoint descriptions, parameter types, default values, and cross-links to supporting modules.",
+            "status": "pending",
+            "testStrategy": "Peer review of API entries for accuracy and completeness."
+          },
+          {
+            "id": 3,
+            "title": "Develop and document 5+ executable example patterns",
+            "description": "Author runnable SDK samples that demonstrate key integration scenarios and annotate usage steps.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement pattern examples leveraging registry and parameter schemas with step-by-step explanations and annotations.",
+            "status": "pending",
+            "testStrategy": "Run each example to confirm execution and alignment with documented steps."
+          },
+          {
+            "id": 4,
+            "title": "Write external developer integration guide",
+            "description": "Produce a narrative walkthrough for onboarding, setup, and end-to-end SDK usage.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Include environment setup, authentication, deployment workflow, and references to API docs and examples.",
+            "status": "pending",
+            "testStrategy": "Developer walkthrough validation to ensure guide enables successful integration."
+          },
+          {
+            "id": 5,
+            "title": "Conduct holistic documentation review and packaging",
+            "description": "Validate completeness, resolve feedback, and prepare final SDK documentation bundle for release.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Run editorial review, align formatting, incorporate feedback, and publish consolidated documentation package.",
+            "status": "pending",
+            "testStrategy": "Checklist-based documentation completeness review across all deliverables."
+          }
+        ]
+      },
+      {
+        "id": 20,
+        "title": "Implement Parameter Editor for SDK Patterns",
+        "description": "Build intuitive parameter editing interface for non-technical users to customize SDK patterns with real-time preview and validation",
+        "status": "pending",
+        "dependencies": [
+          19
+        ],
+        "priority": "medium",
+        "details": "Research analysis reveals existing parameter infrastructure in webapp/src/components/control/RealTimeParameterControls.tsx and ParamSlider.tsx with comprehensive validation patterns. Build parameter editor leveraging existing UIParams interface (brightness, speed, saturation, warmth, softness, background), PARAM_METADATA validation system, and GraphNode parameter architecture. Key components: 1) Parameter discovery from SDK patterns using GraphNode.parameters and EffectParameter types from webapp/src/lib/types.ts:5-13, 2) Real-time preview architecture using existing useCoalescedParams hook with 80ms coalescing and parameter transport layer, 3) Constraint validation system extending clampParam utility from parameters.ts with min/max bounds, step validation, and type-specific rules for scalar/field/color/output parameter types, 4) Non-technical UX patterns inspired by existing ParamSlider with icon metadata, percentage readouts, reset buttons, and drag indicators. Integrate with existing control panel infrastructure and LED visualization system.",
+        "testStrategy": "Parameter discovery validation with GraphNode schema compliance, real-time preview functionality testing with <100ms response time target, constraint validation for all EffectParameter types (scalar/field/color/output), user experience validation with non-technical users using existing ParamSlider patterns, integration testing with RealTimeParameterControls transport layer",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Research parameter editing UX patterns and best practices",
+            "description": "Analyze parameter editor UX patterns from design tools, game engines, and creative software to identify intuitive patterns for non-technical users",
+            "dependencies": [],
+            "details": "Research parameter editing interfaces from tools like Figma, Unity, Blender, and mobile creative apps. Focus on: 1) Progressive disclosure patterns (basic vs advanced parameters), 2) Real-time feedback mechanisms (live preview, validation indicators), 3) Constraint visualization (valid ranges, interdependent parameters), 4) Non-technical affordances (visual parameter types, preset systems, undo/redo). Document findings in parameter editor UX research report with specific recommendations for SDK pattern customization.",
+            "status": "pending",
+            "testStrategy": "UX pattern documentation with annotated screenshots, usability heuristic evaluation against Jakob Nielsen's principles, applicability assessment for SDK pattern parameter types"
+          },
+          {
+            "id": 2,
+            "title": "Design real-time preview architecture for parameter changes",
+            "description": "Design system architecture for real-time parameter preview leveraging existing coalescing and transport infrastructure",
+            "dependencies": [
+              1
+            ],
+            "details": "Build on existing useCoalescedParams (80ms coalescing) and useParameterTransport infrastructure from RealTimeParameterControls.tsx. Design preview architecture with: 1) Parameter change detection and validation pipeline, 2) Preview state management separate from committed values, 3) Real-time LED visualization updates using existing LedVisualization component, 4) Performance optimization for rapid parameter changes (<100ms response time), 5) Fallback handling for preview failures. Integrate with GraphNode parameter system and EffectParameter validation constraints.",
+            "status": "pending",
+            "testStrategy": "Preview latency measurement <100ms target, parameter validation accuracy testing, LED visualization update performance, fallback behavior verification under network constraints"
+          },
+          {
+            "id": 3,
+            "title": "Implement constraint validation system for parameter types",
+            "description": "Extend existing parameter validation to support comprehensive constraint checking for all SDK parameter types",
+            "dependencies": [
+              2
+            ],
+            "details": "Extend clampParam utility and PARAM_METADATA validation system to support EffectParameter constraint types from types.ts:5-13. Implement validation for: 1) Scalar parameters (min/max bounds, step validation, precision handling), 2) Field parameters (array bounds, element validation), 3) Color parameters (RGB/HSV ranges, format validation), 4) Output parameters (resolution constraints, format validation), 5) Cross-parameter dependencies and mutual exclusions. Build validation feedback system with clear error messaging and visual indicators compatible with existing ParamSlider UI patterns.",
+            "status": "pending",
+            "testStrategy": "Constraint validation accuracy testing for all parameter types, edge case handling verification, validation performance benchmarking, user feedback clarity assessment"
+          },
+          {
+            "id": 4,
+            "title": "Build parameter discovery system for SDK patterns",
+            "description": "Create system to automatically discover and categorize parameters from SDK pattern definitions",
+            "dependencies": [
+              3
+            ],
+            "details": "Build parameter discovery system using GraphNode.parameters and EffectParameter schema from existing graph editor infrastructure. Implement: 1) Pattern metadata parsing for parameter definitions, 2) Parameter categorization system (essential vs advanced, parameter groups), 3) Dynamic UI generation based on parameter types and constraints, 4) Parameter metadata enrichment (descriptions, icons, default values), 5) Integration with existing pattern loading system. Support both individual node parameters and pattern-level composite parameters.",
+            "status": "pending",
+            "testStrategy": "Parameter discovery accuracy for various SDK pattern types, metadata parsing validation, dynamic UI generation testing, integration with existing pattern system"
+          },
+          {
+            "id": 5,
+            "title": "Develop intuitive parameter editor interface",
+            "description": "Create user-friendly parameter editing interface leveraging existing ParamSlider patterns and design system",
+            "dependencies": [
+              4
+            ],
+            "details": "Build parameter editor UI extending existing ParamSlider component patterns from webapp/src/components/control/ParamSlider.tsx. Implement: 1) Progressive disclosure interface (basic/advanced parameter groups), 2) Parameter type-specific controls (sliders for scalars, color pickers for colors, array editors for fields), 3) Real-time preview integration with validation feedback, 4) Preset system for common parameter configurations, 5) Responsive layout compatible with existing control panel design. Follow established accessibility patterns with ARIA labels and keyboard navigation.",
+            "status": "pending",
+            "testStrategy": "Interface usability testing with non-technical users, accessibility compliance verification, responsive design validation, integration testing with existing control panel"
+          },
+          {
+            "id": 6,
+            "title": "Integrate parameter editor with existing control panel infrastructure",
+            "description": "Integrate completed parameter editor with RealTimeParameterControls and existing webapp control systems",
+            "dependencies": [
+              5
+            ],
+            "details": "Integrate parameter editor with existing control panel infrastructure from ControlPanelView.tsx and RealTimeParameterControls.tsx. Implement: 1) Seamless navigation between standard controls and SDK parameter editor, 2) Shared state management for parameter persistence and transport, 3) Consistent performance monitoring and error handling, 4) Pattern-specific parameter loading and saving, 5) Integration with existing device connection and transport layer. Ensure compatibility with current parameter coalescing and validation systems.",
+            "status": "pending",
+            "testStrategy": "End-to-end parameter editing workflow testing, state management consistency verification, performance benchmarking with existing controls, device connectivity integration testing"
+          }
+        ]
+      },
+      {
+        "id": 21,
+        "title": "Firmware Enhancements",
+        "description": "Ad-hoc high-value firmware features that can be implemented if resources permit",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Auto-Color Changing Feature",
+            "description": "Research and implement intelligent color-changing feature based on music parameters. Analyze which audio metrics (bass frequency energy, midrange energy, treble energy, overall intensity, beat detection) should trigger color transitions. Design the color transition algorithm and implementation strategy.",
+            "details": "Deliverables: Research document identifying optimal audio parameters for color mapping, C++ implementation with configurable thresholds, testing with various audio inputs. Success criteria: Feature responds to music changes within 100ms, smooth color transitions, handles edge cases (silence, clipping, sudden changes).",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 2,
+            "title": "Auto-Lightshow Mode Changing Feature",
+            "description": "Implement intelligent lightshow mode selection based on triggering parameters. Design mode transition logic that analyzes song tempo, genre characteristics, energy levels, and beat patterns to automatically switch between available lightshow modes (Bloom, Spectrum, Gradient, etc.).",
+            "details": "Deliverables: Mode selection algorithm specification, C++ implementation with state machine for transitions, configuration file for mode parameters, safety constraints to prevent rapid mode switching. Success criteria: Mode changes feel natural and enhance visual experience, transitions are smooth, safety thresholds prevent jitter.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 3,
+            "title": "Define RenderChannel struct with CRGBF + packed buffers",
+            "description": "Create the core RenderChannel struct that encapsulates a single LED channel's rendering state. Struct must include:\n- CRGBF color array (float-based for precision)\n- Packed hardware buffer (uint32_t for RMT DMA)\n- Channel index and GPIO pin mapping\n- Frame timing state (frame count, FPS tracking)\n\nThis establishes the abstraction layer that allows both channels to share the same rendering logic while maintaining separate state.",
+            "details": "**Location**: firmware/src/rendering/render_channel.h (new file)\n\n**Implementation Steps**:\n1. Define CRGBF struct if not already present (RGB floats 0.0-1.0)\n2. Define RenderChannel struct with fields:\n   - uint8_t channel_id (0 or 1)\n   - uint8_t gpio_pin (4 or 5)\n   - CRGBF* color_buffer (for pattern calculations)\n   - uint32_t* packed_buffer (for RMT hardware)\n   - uint16_t led_count\n   - uint32_t frame_count\n   - float measured_fps\n   - bool enabled\n3. Add inline accessors for buffer address, size, and metadata\n4. Add validation macros for channel bounds checking\n5. Place struct behind FEATURE_DUAL_CHANNEL_SYSTEM flag\n\n**Files to Modify**:\n- firmware/src/rendering/render_channel.h (create)\n- firmware/src/rendering/CMakeLists.txt (add new source)\n\n**Success Criteria**:\n- Struct compiles without warnings\n- All 8 fields are present and properly aligned\n- Inline accessors work correctly\n- Feature flag gates compilation properly\n\n**Testing**:\n- Compile with flag enabled/disabled\n- Verify sizeof(RenderChannel) is reasonable (< 256 bytes)\n- Static assertion on field alignment\n\n**Effort**: 2 hours",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 4,
+            "title": "Implement VisualScheduler skeleton, single-channel parity",
+            "description": "Create VisualScheduler class that manages the dual-channel rendering loop with single-channel fallback mode. Under feature flag, scheduler operates identically to current single-channel system but with channel abstraction.\n\nKey goal: Achieve 100% code path parity with existing single-channel loop to ensure zero regressions when feature flag is enabled.",
+            "details": "**Location**: firmware/src/visual/visual_scheduler.h/cpp (new files)\n\n**Implementation Steps**:\n1. Define VisualScheduler class with:\n   - RenderChannel channels[2]\n   - uint32_t active_channels (bitmask: bit 0=ch0, bit 1=ch1)\n   - FPS counter and timing state\n   - Pattern instance pointers\n2. Implement init_single_channel() for feature-flag mode (only channel 0 active)\n3. Implement render() loop that iterates over active channels\n4. Implement fps_update() to measure actual throughput\n5. Add getter methods for telemetry (FPS, frame count per channel)\n6. Initially route all RMT writes to channel 0 only\n\n**Files to Modify**:\n- firmware/src/visual/visual_scheduler.h (create)\n- firmware/src/visual/visual_scheduler.cpp (create)\n- firmware/src/visual/pattern_runner.cpp (integrate scheduler)\n- firmware/CMakeLists.txt (add new sources)\n\n**Success Criteria**:\n- Single-channel mode produces identical output as baseline (no visual artifacts)\n- FPS counter matches existing measurements (within 0.5%)\n- No memory bloat vs single-channel (< 512 bytes overhead)\n- Feature flag off → zero code penalty (dead code elimination)\n\n**Testing**:\n- Unit tests for scheduler init and fps calculation\n- Visual regression test: compare baseline vs single-channel mode\n- Profiling baseline: measure FPS with flag enabled vs disabled\n\n**Effort**: 3 hours",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 5,
+            "title": "Initialize dual RMT channels (GPIO 4 & 5)",
+            "description": "Configure ESP32-S3 RMT peripheral to output on two independent channels simultaneously:\n- GPIO 4: LED channel 0 (primary, matches current setup)\n- GPIO 5: LED channel 1 (new)\n\nBoth channels operate at identical bit rate and timing parameters but with independent DMA buffers and interrupt handlers.",
+            "details": "**Location**: firmware/src/hardware/rmt_dual_channel.h/cpp (new files)\n\n**Implementation Steps**:\n1. Define RMT_CHANNEL_0 = RMT_CHANNEL_0 (GPIO 4) [existing]\n2. Define RMT_CHANNEL_1 = RMT_CHANNEL_1 (GPIO 5) [new]\n3. Create init_rmt_dual_channel() function that:\n   - Configures RMT_CHANNEL_0 as current setup (WS2812B timing)\n   - Configures RMT_CHANNEL_1 with identical timing\n   - Allocates separate DMA buffers for each channel\n   - Registers interrupt handlers for both (or shared handler with channel routing)\n4. Implement get_rmt_channel_handle(channel_id) accessor\n5. Add validation function to verify both channels configured\n6. Implement dual-channel start/stop control\n\n**Files to Modify**:\n- firmware/src/hardware/rmt_dual_channel.h (create)\n- firmware/src/hardware/rmt_dual_channel.cpp (create)\n- firmware/src/hardware/rmt_config.h (add RMT_CHANNEL_1 definition)\n- firmware/src/hardware/led_driver.cpp (integrate dual init)\n- firmware/CMakeLists.txt (add new sources)\n\n**Success Criteria**:\n- Both RMT channels initialize without errors\n- GPIO 4 & 5 are idle and ready for data\n- RMT interrupt handlers route correctly\n- Hardware validation passes without hung channels\n\n**Testing**:\n- Hardware test: measure GPIO 4 & 5 with oscilloscope (timing should match)\n- Verify no RMT buffer overruns or underruns\n- Test independent enable/disable per channel\n- Stress test: toggle both simultaneously 1000x\n\n**Effort**: 2.5 hours",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 6,
+            "title": "Create dual-channel scheduler loop, hardware validation",
+            "description": "Extend VisualScheduler to actively drive both RMT channels in parallel. Implement:\n- Dual-channel render() loop that processes both channels in single iteration\n- Lock-free buffer handoff to RMT hardware\n- Per-channel timing and sync validation\n- Telemetry for dropped frames, channel desync, RMT saturation\n\nTarget: maintain 100+ FPS on both channels simultaneously with zero dropped frames.",
+            "details": "**Location**: firmware/src/visual/visual_scheduler.cpp (extend from 21.2)\n\n**Implementation Steps**:\n1. Modify render() loop to:\n   - Iterate over both active channels (channels[0] and channels[1])\n   - For each channel: pack color buffer → RMT buffer\n   - Invoke rmt_transmit() for both channels with independent DMA descriptors\n   - Wait for both transfers to complete (or timeout with telemetry)\n2. Implement dual-channel sync validation:\n   - Track frame_count per channel\n   - Alert if channels desync by > 1 frame\n   - Log timing deltas between RMT completions\n3. Add performance counters:\n   - dropped_frames per channel\n   - max_render_time_us\n   - rmt_saturation_percent\n4. Implement graceful degradation if one channel fails\n\n**Files to Modify**:\n- firmware/src/visual/visual_scheduler.cpp (extend)\n- firmware/src/rendering/rmt_packer.cpp (support dual-channel packing)\n- firmware/src/hardware/rmt_dual_channel.cpp (add transmit helpers)\n\n**Success Criteria**:\n- Both channels render at stable 100+ FPS (measured)\n- Zero frame drops in 10-second sustained test\n- Channel sync variance < 1 millisecond\n- Render loop iteration time < 10ms (leaves 90ms slack)\n- Telemetry accessible via debug interface\n\n**Testing**:\n- Profiling test: measure FPS per channel over 60 seconds (must be > 100, constant)\n- Sync test: compare frame_count delta (must be 0 or 1)\n- Stress test: run patterns for 5 minutes, count any dropped frames\n- Timing test: measure RMT completion latency (should be deterministic)\n\n**Effort**: 4 hours",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 7,
+            "title": "Dualize pattern statics [2][...] arrays",
+            "description": "Refactor global pattern state from single-channel to dual-channel arrays. Convert static arrays that hold per-pattern state (animators, parameters, frame counters) to [2] dimension to support independent state per channel.\n\nThis is the critical juncture where patterns become truly dual-channel aware.",
+            "details": "**Location**: firmware/src/patterns/ (all pattern files)\n\n**Implementation Steps**:\n1. Identify all static pattern state (grep for 'static' in pattern files):\n   - Animator instances\n   - Frame counters\n   - Parameter accumulators\n   - Timing state\n2. For each, convert from single array to [2][...]:\n   - Example: `static Animator animator;` → `static Animator animator[2];`\n   - Example: `static uint32_t frame_count;` → `static uint32_t frame_count[2];`\n3. Update all pattern render() calls to pass channel_id\n4. Add bounds checking macros for [0..1] access\n5. Ensure no cross-channel state pollution (each channel independent)\n\n**Files to Modify**:\n- firmware/src/patterns/*.cpp (all pattern implementations)\n- firmware/src/patterns/animator.h (add channel parameter to step())\n- firmware/src/patterns/pattern_registry.cpp (route channel to renderer)\n\n**Success Criteria**:\n- All pattern state is indexed by [channel_id]\n- No global state shared between channels\n- Patterns compile without warnings\n- Each channel can run different patterns or same pattern independently\n\n**Testing**:\n- Dual-pattern test: run Pattern A on channel 0, Pattern B on channel 1 (should not interfere)\n- Cross-channel independence test: verify frame counters are independent\n- Memory test: verify no bloat (each pattern < 2x original memory)\n- Visual test: confirm both patterns render correctly\n\n**Effort**: 3.5 hours",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 8,
+            "title": "Implement per-channel parameter routing + REST API",
+            "description": "Extend REST API and WebApp to support independent parameter control per LED channel. Enable users to:\n- Select channel (0, 1, or both)\n- Configure pattern per channel independently\n- Adjust color, speed, intensity per channel\n- Sync or unsync channels dynamically\n\nWebApp UI should show dual channel control with visual feedback.",
+            "details": "**Location**: firmware/src/api/ and webapp/src/\n\n**Implementation Steps (Firmware)**:\n1. Extend REST endpoints:\n   - GET /api/channels → list both channels, their state\n   - GET /api/channels/{id} → single channel state\n   - POST /api/channels/{id}/pattern → set pattern for specific channel\n   - POST /api/channels/{id}/params → update color/speed/intensity\n   - POST /api/channels/sync → toggle sync mode\n2. Create ChannelController class that routes parameter changes to correct channel\n3. Add validation: prevent invalid channel IDs, validate parameter ranges\n4. Implement sync mode: when enabled, both channels mirror parameter changes\n\n**Implementation Steps (WebApp)**:\n1. Add dual-channel control UI (toggle between Channel 0, 1, Both)\n2. Show FPS and frame count per channel in debug panel\n3. Add pattern selector per channel with visual preview\n4. Implement parameter sliders that target selected channel\n5. Add sync checkbox to link channels\n6. Real-time telemetry display (dropped frames, latency)\n\n**Files to Modify (Firmware)**:\n- firmware/src/api/rest_api.cpp (add channel endpoints)\n- firmware/src/api/channel_controller.h/cpp (new - routing layer)\n- firmware/src/visual/visual_scheduler.cpp (expose parameter methods)\n\n**Files to Modify (WebApp)**:\n- webapp/src/components/ChannelControl.vue (new - dual channel UI)\n- webapp/src/api/client.ts (add channel endpoints)\n- webapp/src/stores/channelStore.ts (new - channel state management)\n- webapp/src/views/Control.vue (integrate channel control)\n\n**Success Criteria**:\n- All REST endpoints respond correctly\n- Parameters are routed to correct channel\n- Sync mode mirrors changes correctly\n- WebApp UI is intuitive and responsive\n- No cross-channel parameter pollution\n\n**Testing**:\n- API test: set different patterns on each channel, verify isolation\n- WebApp test: toggle between channel selections, verify UI updates\n- Sync test: enable sync, change param on ch0, verify ch1 follows\n- Stress test: rapid parameter changes (100+ per second) maintain stability\n\n**Effort**: 4 hours",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 9,
+            "title": "Profiling + stress testing (100+ FPS target)",
+            "description": "Aggressive profiling and stress testing to validate 100+ FPS unconstrained target on dual channels. Measure:\n- FPS per channel (sustained, peak, variance)\n- CPU utilization (ISR time, render time)\n- Memory footprint (heap fragmentation, peak usage)\n- Thermal behavior (continuous 100+ FPS)\n- Dropped frame count and RMT saturation\n\nGenerate detailed profiling report with performance bottleneck analysis.",
+            "details": "**Location**: firmware/src/profiling/ and tests/profiling_dual_channel/\n\n**Implementation Steps**:\n1. Add profiling instrumentation:\n   - Cycle counter for render loop iteration time\n   - RMT completion latency (clock from submit to ISR callback)\n   - Per-pattern execution time\n   - Buffer packing time (color → hardware)\n2. Create stress test scenarios:\n   - Scenario A: Max FPS, both channels, complex pattern (e.g., Kaleidoscope)\n   - Scenario B: Max FPS, independent patterns per channel\n   - Scenario C: Rapid parameter changes (100+ updates/sec) + 100 FPS\n   - Scenario D: Thermal soak (run for 30+ minutes continuously)\n3. Implement profiling data collection:\n   - Log FPS every 100ms (moving average)\n   - Collect CPU cycle counts (ISR, render, buffer pack)\n   - Monitor heap fragmentation\n   - Capture any frame drops or RMT timeouts\n4. Generate report with:\n   - FPS histogram (mean, std dev, min/max)\n   - CPU utilization breakdown (%)\n   - Memory usage trend\n   - Bottleneck identification\n   - Thermal curve\n\n**Files to Modify**:\n- firmware/src/profiling/profiler.h (create - profiling API)\n- firmware/src/profiling/profiler.cpp (create - implementation)\n- firmware/src/visual/visual_scheduler.cpp (integrate profiling hooks)\n- tests/profiling_dual_channel/test_stress.cpp (create - stress scenarios)\n- docs/09-reports/dual_channel_profiling_report.md (create - results)\n\n**Success Criteria**:\n- FPS sustained > 100 on both channels\n- FPS variance < 5% (stable)\n- CPU utilization < 70% (leaves headroom)\n- Memory peak < 256KB for dual-channel overhead\n- Zero RMT timeouts or dropped frames in 30-min soak test\n- Thermal steady-state < 70°C (safe margin)\n\n**Testing**:\n- Run profiling suite (all 4 scenarios) → capture logs\n- Generate FPS histograms per scenario\n- Identify any FPS variance or anomalies\n- Validate thermal behavior\n- Compare to single-channel baseline (dual should be ≤ 2x single cost)\n\n**Effort**: 6 hours",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 10,
+            "title": "Complete documentation + feature flag removal",
+            "description": "Finalize all dual-channel documentation, remove feature flag from codebase (make dual-channel the default), and update all related guides. Create comprehensive architecture documentation for future maintainers.\n\nThis is the \"ship it\" phase: dual-channel system is now production-ready and default.",
+            "details": "**Location**: docs/09-implementation/ and firmware/\n\n**Implementation Steps**:\n1. Remove FEATURE_DUAL_CHANNEL_SYSTEM flag from all conditional compilation:\n   - Delete #ifdef guards around dual-channel code\n   - Make dual-channel codepaths unconditional\n   - Verify no code bloat in single-channel fallback scenarios\n2. Create/update documentation:\n   - docs/09-implementation/dual_channel_operation_runbook.md (how to use/troubleshoot)\n   - docs/01-architecture/dual_channel_system_architecture.md (system design overview)\n   - docs/06-reference/rest_api_dual_channel_endpoints.md (API reference)\n   - docs/07-resources/dual_channel_patterns_guide.md (pattern development guide)\n3. Update existing docs to reference dual-channel:\n   - docs/00-INDEX.md (add new dual-channel docs)\n   - firmware/README.md (update build/run instructions)\n   - webapp/README.md (update control UI docs)\n4. Create deployment checklist:\n   - Hardware setup (GPIO 4 & 5 configuration)\n   - Firmware build steps\n   - WebApp deployment\n   - Initial calibration (brightness per channel)\n5. Publish profiling results (from 21.7):\n   - Embed FPS histograms in operational runbook\n   - Document thermal behavior and limits\n   - Provide troubleshooting guide for performance issues\n\n**Files to Modify**:\n- firmware/** (remove FEATURE_DUAL_CHANNEL_SYSTEM guards)\n- firmware/CMakeLists.txt (remove feature flag option)\n- docs/09-implementation/dual_channel_operation_runbook.md (create)\n- docs/01-architecture/dual_channel_system_architecture.md (create)\n- docs/06-reference/rest_api_dual_channel_endpoints.md (create)\n- docs/07-resources/dual_channel_patterns_guide.md (create)\n- docs/00-INDEX.md (update)\n- firmware/README.md (update)\n- webapp/README.md (update)\n\n**Success Criteria**:\n- All feature flag guards removed (compile-time checks pass)\n- No code bloat vs expected dual-channel overhead\n- All documentation is present, accurate, and cross-linked\n- Deployment checklist is clear and testable\n- Profiling results are published and integrated into ops docs\n\n**Testing**:\n- Compilation test: verify no feature flag conditional compilation\n- Documentation test: verify all links are valid (internal and external)\n- Deployment test: follow deployment checklist on test hardware\n- Validation test: verify dual-channel system works as documented\n\n**Effort**: 3 hours",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 11,
+            "title": "Diagnose and Document Tempo Detection Reliability Issues",
+            "description": "Comprehensive diagnosis of the tempo detection system's reliability problem. Current system shows `tempo_confidence` values oscillating between 0.13-0.17 (effectively random walk across 64 tempo bins), indicating the Goertzel algorithm is not detecting coherent beat patterns. Investigate root causes: novelty curve signal quality, normalization assumptions, silence detection accuracy, and microphone input integrity.",
+            "details": "**PROBLEM STATEMENT**\n- Tempo confidence ranges 0.13-0.17 (should be 0.3+ for valid beat detection)\n- No clear beat pattern emerging from audio even with strong music playing\n- Emotiscope reference (K1.reinvented) uses identical algorithm but with better signal processing\n- Current implementation copies core Goertzel math but differs in novelty detection pipeline\n\n**ROOT CAUSE ANALYSIS REQUIRED**\n\n1. **Novelty Curve Population** (Primary Suspect)\n   - Location: firmware/src/audio/tempo.cpp:280-308 (update_novelty function)\n   - Issue: Novelty signal depends on `spectrogram_smooth[]` magnitude deltas\n   - Check: Are frequency bins being updated every frame? Verify spectrogram_smooth is not stale\n   - Measure: Log raw novelty values before/after normalization across 1000 frames\n   - Reference emotiscope: Uses explicit spectral flux calculation per-frame (line 366-373 in emotiscope.bak/tempo.h)\n\n2. **Normalization Assumptions**\n   - Location: firmware/src/audio/tempo.cpp:201-218 (normalize_novelty_curve function)\n   - Current: Linear scaling with max_val tracking\n   - Emotiscope: Uses log1p() compression before Goertzel (line 304 in emotiscope.bak/tempo.h)\n   - Test: Apply log compression and measure if confidence increases 3-5x\n\n3. **Silence Detection Accuracy**\n   - Location: firmware/src/audio/tempo.cpp:256-278 (check_silence function)\n   - Current: History reduction when contrast < 0.5\n   - Emotiscope: Separate silence gate with history hard-reset\n   - Test: With strong audio, silence_detected should stay false; log silence_level values\n\n4. **Microphone Input Quality**\n   - Location: firmware/src/audio/vu.cpp and goertzel initialization\n   - Verify: AUDIO_VU values are > 0.3 (moderate level) during music playback\n   - Check: Audio sample rate (16000 Hz?), sample history length, PDM-to-PCM conversion\n   - Test: Capture raw audio samples and analyze FFT to confirm frequency content\n\n5. **Data Flow Staleness**\n   - Symptom: tempo_confidence from webserver might lag actual audio updates\n   - Check: Get /api/audio/tempo and /api/audio/arrays both show current timestamp\n   - Verify: Audio snapshot mutex not timing out (1ms timeout in pattern_audio_interface.h)\n\n**DELIVERABLES**\n1. forensic_analysis_tempo_detection.md in docs/05-analysis/\n   - Detailed findings from root cause investigation\n   - Before/after novelty values (raw + normalized)\n   - Silence detection logs (contrast, levels)\n   - Microphone input quality assessment\n   - Comparison table: Emotiscope vs K1.node1 signal paths\n\n2. tempo_detection_bottleneck_matrix.md in docs/05-analysis/\n   - Ranked list of identified issues (impact vs effort)\n   - Proposed fixes with complexity estimates\n   - Decision tree: quick wins vs long-term hardening\n\n3. Root cause validation script: firmware/test/test_tempo_diagnostics.cpp\n   - Unit test comparing novelty before/after log compression\n   - Integration test exercising full pipeline with known audio (440Hz sine wave)\n   - Profiling to measure novelty curve population latency\n\n**TESTING APPROACH**\n- Play test audio: 1) Silence (should yield 0.0 confidence), 2) 120 BPM kick drum (should yield 0.5+ confidence), 3) Mixed music (should vary 0.3-0.8)\n- Log novelty_curve[] + novelty_curve_normalized[] for all tests\n- Compare histograms: emotiscope on same test audio vs K1.node1\n- Measure silence_detection accuracy (should trigger in <2 seconds of silence, release in <1 second of sound)\n\n**ACCEPTANCE CRITERIA**\n- Root cause identified with >80% confidence\n- Forensic analysis document includes evidence (logs, waveforms, comparison data)\n- Proposed fix path is clear (either disable or harden with specific implementation steps)\n- All tests pass (diagnostics compile, run without errors)\n\n**EFFORT**: 4-5 hours\n**BLOCKER FOR**: 21.12 (Tempo Fix Decision)",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 12,
+            "title": "Tempo Fix Decision: Disable vs Harden Implementation Path",
+            "description": "Decision gate task: Based on findings from 21.11 diagnostics, choose implementation path. Option A (DISABLE): Remove tempo detection from patterns, keep architecture intact for future. Option B (HARDEN): Implement spectral flux novelty detection with log compression. Decision should be based on: effort estimate (A: 2 hours, B: 8-12 hours), strategic value (A: none immediate, B: high for audio reactivity), and resource constraints.",
+            "details": "**DECISION FRAMEWORK**\n\nThis is a go/no-go gate task. After 21.11 analysis is complete, evaluate:\n\n**OPTION A: DISABLE TEMPO (Recommended - Conservative)**\n- Remove AUDIO_TEMPO_* macros from pattern rendering\n- Patterns degrade to non-audio-reactive fallback gracefully\n- Keep tempo.cpp/.h intact for future reference (archive to docs/)\n- Pros: \n  - Ships honest functionality (no broken feature)\n  - 2 hours of work\n  - Patterns still beautiful without audio\n  - Zero performance impact\n- Cons:\n  - Tempo-dependent patterns can't exist\n  - Emotiscope-style polyrhythmic effects blocked\n\n**OPTION B: HARDEN TEMPO (Ambitious - Performance Path)**\nRequires:\n1. Spectral flux novelty: Per-frame magnitude delta calculation (not history-based)\n2. Log compression: Apply log1p() before Goertzel analysis\n3. Silence gate: Hard reset on silence (not gradual fade)\n4. Auto-ranging: Better normalization for variable audio levels\n- Pros:\n  - Full tempo/beat detection capability\n  - Unlocks polyrhythmic patterns\n  - Production-quality beat synchronization\n- Cons:\n  - 8-12 hour implementation\n  - Requires profiling and tuning\n  - Audio system must be stable (prerequisite)\n  - Need test suite with reference audio\n\n**DECISION CRITERIA**\n- IF (diagnostics show stale/incomplete novelty data): Choose DISABLE (quick win)\n- IF (diagnostics show silence detection broken): Choose DISABLE (tempo unreliable)\n- IF (diagnostics show minor normalization issue): Choose HARDEN (quick fix path)\n- IF (diagnostics show signal quality is excellent): Choose HARDEN (leverage good signal)\n\n**DECISION DOCUMENT**\nCreate docs/04-planning/tempo_detection_fix_decision.md with:\n1. Executive summary of 21.11 findings\n2. Root cause confirmed: [specific issue from diagnostics]\n3. Impact analysis: How does issue affect patterns? User experience?\n4. Chosen path: DISABLE or HARDEN with rationale\n5. Next steps and dependencies\n6. Timeline estimate\n\n**ACCEPTANCE CRITERIA**\n- Decision clearly documented in decision.md\n- Rationale is based on 21.11 forensic analysis (not opinion)\n- Next steps are unambiguous (21.12a or 21.12b)\n- Team/stakeholder agreement obtained\n- No ambiguity about chosen path\n\n**EFFORT**: 1 hour (decision + documentation)\n**UNBLOCKS**: 21.12a (DISABLE path) OR 21.12b (HARDEN path)\n**DEPENDS ON**: 21.11 (Diagnosis)",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 13,
+            "title": "DISABLE PATH: Remove Tempo Detection from Production Patterns",
+            "description": "Implementation path A: Cleanly disable tempo detection throughout codebase. Replace all AUDIO_TEMPO_* macro calls with safe fallbacks. Remove tempo-dependent pattern features while preserving patterns themselves. Archive tempo implementation for future reference. This is the \"fail gracefully\" path for unreliable tempo detection.",
+            "details": "**SCOPE**\nRemove tempo dependency from production while preserving system architecture for future hardening.\n\n**IMPLEMENTATION STEPS**\n\n1. **Modify Pattern Audio Interface Macros** (firmware/src/pattern_audio_interface.h)\n   - Replace AUDIO_TEMPO_CONFIDENCE macro with constant 0.0f\n   - Replace AUDIO_TEMPO_MAGNITUDE(bin) with inline function returning 0.0f\n   - Replace AUDIO_TEMPO_PHASE(bin) with inline function returning 0.0f\n   - Replace AUDIO_TEMPO_BEAT(bin) with inline function returning 0.0f\n   - Add deprecation comment: \"Tempo detection disabled due to reliability issues (21.11). See docs/05-analysis/forensic_analysis_tempo_detection.md\"\n   - Keep tempo initialization code intact (no-op safety)\n\n2. **Audit Pattern Implementations** (firmware/src/patterns/*.cpp)\n   - Search for all AUDIO_TEMPO_ usages\n   - For each pattern using tempo:\n     - If tempo is optional (secondary feature): Remove tempo code, keep pattern working\n     - If tempo is core (beat_tunnel, metronome): Convert to time-based fallback or disable pattern\n   - Examples:\n     - Spectrum: Remove beat_strength calculation, keep spectrum visualization\n     - Beat Tunnel: Remove beat sync, use time-based pulsing instead\n     - Metronome: Disable (tempo-dependent only) OR convert to simple blink pattern\n     - Octave: Remove tempo-gated rendering, always render\n\n3. **Pattern Registry Update** (firmware/src/patterns/pattern_registry.cpp)\n   - Mark tempo-dependent patterns as \"disabled\" status (add status enum: ENABLED, DISABLED, DEPRECATED)\n   - Log on startup: \"Pattern [name] disabled: requires tempo detection\"\n   - Patterns still present in binary (no deletions) but skipped in rotation\n\n4. **Webserver Cleanup** (firmware/src/webserver.cpp)\n   - GetAudioTempoHandler: Return {\"error\": \"tempo_detection_disabled\", \"reason\": \"See docs/05-analysis/forensic_analysis_tempo_detection.md\"}\n   - Keep endpoint active (API stability) but return 503 Service Unavailable or honest error\n\n5. **Documentation Archive** (docs/05-analysis/)\n   - Create tempo_detection_disabled_rationale.md:\n     - Summary of reliability issues\n     - Link to forensic analysis\n     - Explanation of chosen path\n     - Future enablement roadmap\n   - Move old tempo docs to docs/archive/tempo_detection_v1/\n\n6. **Firmware Startup Log** (firmware/src/main.cpp)\n   - Add to setup() output: \"Tempo detection: DISABLED (see docs/05-analysis/)\"\n   - No error, just informational\n\n**FILES TO MODIFY**\n- firmware/src/pattern_audio_interface.h (macro stub replacements)\n- firmware/src/patterns/*.cpp (remove tempo dependencies)\n- firmware/src/patterns/pattern_registry.cpp (add status, skip disabled patterns)\n- firmware/src/webserver.cpp (tempo endpoint returns error)\n- firmware/src/main.cpp (startup message)\n- docs/05-analysis/tempo_detection_disabled_rationale.md (create - explanation)\n\n**FILES TO PRESERVE (NO DELETION)**\n- firmware/src/audio/tempo.cpp\n- firmware/src/audio/tempo.h\n- firmware/src/audio/goertzel.cpp\n- firmware/src/audio/goertzel.h\n(These remain for future hardening or reference)\n\n**COMPILATION & TESTING**\n- Compile firmware: `pio run`\n- Verify no compiler errors/warnings\n- Check binary size (should be slightly smaller due to removed code)\n- Upload to device\n- Verify all non-tempo patterns still render correctly\n- Confirm startup log shows \"Tempo detection: DISABLED\"\n- Test /api/audio/tempo endpoint (should return error)\n\n**VALIDATION CHECKLIST**\n- [ ] Compile successful, no warnings\n- [ ] All patterns in registry still present\n- [ ] Tempo-independent patterns render beautifully\n- [ ] Startup log shows correct message\n- [ ] Webserver tempo endpoint graceful error\n- [ ] No memory regression vs baseline\n\n**ACCEPTANCE CRITERIA**\n- Firmware compiles and runs without errors\n- All non-tempo patterns work identically to before\n- Tempo macros return safe defaults (0.0f)\n- Documentation clearly explains why tempo is disabled\n- No broken patterns or undefined behavior\n- Clean binary (no dead code warnings)\n\n**EFFORT**: 2-3 hours\n**DEPENDS ON**: 21.12 (Decision chosen: DISABLE)\n**UNBLOCKS**: Firmware release (patterns are reliable)",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          },
+          {
+            "id": 14,
+            "title": "HARDEN PATH: Implement Production-Grade Tempo Detection with Spectral Flux",
+            "description": "Implementation path B: Harden tempo detection to production quality by implementing spectral flux novelty detection (per-frame magnitude deltas), logarithmic compression, and robust silence gating. This path requires 8-12 hours of work but unlocks full beat-synchronized visuals and polyrhythmic pattern support. Requires successful diagnostics from 21.11 showing fixable root causes.",
+            "details": "**SCOPE**\nTransform tempo detection from unreliable (confidence 0.13-0.17) to production-grade (confidence 0.3-0.8 on valid beats) by implementing emotiscope-compatible signal processing.\n\n**PHASE 1: NOVELTY DETECTION OVERHAUL (2 hours)**\n\n1. **Implement True Spectral Flux** (firmware/src/audio/tempo.cpp:280-308)\n   - Replace history-based novelty with per-frame magnitude delta calculation\n   - For each frequency bin: `novelty[i] = max(0, spectrogram_smooth[i] - spectrogram_smooth_last[i])`\n   - Sum across all bins: `current_novelty = sum(novelty[0..63]) / NUM_FREQS`\n   - Store frequency magnitudes every frame for next-frame delta calculation\n   - Log novelty values before normalization (for diagnostics)\n   - Reference: emotiscope_src.bak/tempo.h lines 366-373\n\n2. **Apply Logarithmic Compression** (firmware/src/audio/tempo.cpp:304-305)\n   - Replace: `log_novelty(logf(1.0f + current_novelty));`\n   - This compresses large dynamic range (10x values → 2.3x after log1p)\n   - Prevents weak beats from being drowned out by sudden peaks\n   - Essential for consistent confidence across quiet and loud music\n\n3. **Add Novelty Diagnostic Logging** (firmware/src/audio/tempo.cpp:237-308)\n   - Create circular buffer: `float novelty_raw[1024]` to store pre-normalized values\n   - Store index and timestamp for each sample\n   - Expose via new webserver endpoint: GET /api/audio/diagnostics/novelty\n   - Returns last 256 novelty values with timestamps for analysis\n\n**ACCEPTANCE**: Novelty values should show clear peaks at onsets; log-compressed values should be in 0.0-3.0 range\n\n---\n\n**PHASE 2: NORMALIZATION & SILENCE GATE (1.5 hours)**\n\n1. **Improve Normalization** (firmware/src/audio/tempo.cpp:201-218)\n   - Current: Static max_val with exponential decay (99%)\n   - Better: Dual tracking (max_val for peaks, mean_val for baseline)\n   - Implement: `max_val = max(max_val * 0.99, current_novelty)`\n   - And: `mean_val = mean_val * 0.95 + current_novelty * 0.05`\n   - Auto-scale: `scale = 1.0 / max(max_val, mean_val * 3.0)`\n   - This prevents silence from amplifying to misleading values\n\n2. **Silence Gate (Hard Reset)** (firmware/src/audio/tempo.cpp:256-278)\n   - Change from gradual reduction to hard gate\n   - Detect silence: `novelty_contrast < threshold` (e.g., 0.2)\n   - When silent: Reset novelty_curve[] to zeros (hard stop)\n   - When non-silent: Resume normal operation\n   - Benefits: Prevents lingering ghost beats from silence periods\n   - Reference: emotiscope lines 335-346\n\n3. **Silence Detection Validation** (firmware/src/audio/tempo.cpp:256-278)\n   - Log silence_detected state and silence_level every 100ms\n   - Create endpoint: GET /api/audio/diagnostics/silence\n   - Returns: {silence_detected, silence_level, last_transition_ms, novelty_contrast}\n   - Acceptance: silence_detected should toggle within 500ms of audio change\n\n**ACCEPTANCE**: Silence gate activates/deactivates smoothly; no ghost beats after silence\n\n---\n\n**PHASE 3: TEMPO BIN MAGNITUDE IMPROVEMENTS (2 hours)**\n\n1. **Tuned Auto-Ranging** (firmware/src/audio/tempo.cpp:163-199)\n   - Emotiscope uses: `max_val < 0.02 → set to 0.02` (floor prevents noise amplification)\n   - Current K1: uses 0.04 (might be too aggressive)\n   - Adjust: Use 0.02 for better sensitivity to quiet beats\n   - Apply cubic scaling: `tempi[i].magnitude = scaled_mag^3` (instead of x^2)\n   - This accentuates high-confidence bins while suppressing noise\n\n2. **Tempo Bin Smoothing** (firmware/src/audio/tempo.cpp:323-342)\n   - Current: `tempi_smooth[i] = tempi_smooth[i] * 0.92 + magnitude * 0.08` (8% blend)\n   - Emotiscope: Uses 2.5% blend (97.5% history retention)\n   - Test both and measure which gives better tempo_confidence on test audio\n   - Slower smoothing = more stable but slower response to tempo changes\n   - Faster smoothing = responsive but noisier\n\n3. **Add Confidence Validation** (firmware/src/audio/tempo.cpp:335-342)\n   - Calculate max_contribution (already done)\n   - Add second metric: `entropy = -sum(contribution[i] * log(contribution[i]))`\n   - High entropy = many bins contributing equally (ambiguous beat) → reduce confidence\n   - Low entropy = one dominant bin (clear beat) → boost confidence\n   - Blend: `tempo_confidence = max_contribution * entropy_dampening`\n\n**ACCEPTANCE**: Tempo confidence reaches 0.5+ on clear beats; tempo_confidence entropy metric shows separation between beat and noise\n\n---\n\n**PHASE 4: PROFILING & TUNING (2 hours)**\n\n1. **Create Test Audio Suite** (firmware/test/audio_samples/)\n   - 120 BPM kick drum (16 bars) → should lock to bin ~20\n   - 90 BPM snare pattern → should lock to bin ~15\n   - Mixed music (rock, electronic, pop) → should vary 0.3-0.8 confidence\n   - Silence (5 seconds) → should show 0.0 confidence\n   - Save as 16-bit PCM WAV files (can be fed via mock audio interface)\n\n2. **Measurement Harness** (firmware/test/test_tempo_tuning.cpp)\n   - Unit test: Feed test audio samples through tempo pipeline\n   - Measure: tempo_confidence histogram per test case\n   - Measure: Latency from onset to confidence peak\n   - Measure: Bin accuracy (does strongest bin match expected tempo?)\n   - Compare: Before/after metrics (should improve 2-5x on confidence)\n\n3. **Parameter Sweep** (firmware/test/test_tempo_tuning.cpp)\n   - Sweep smoothing factor: [0.02, 0.05, 0.08, 0.10, 0.15]\n   - Sweep cubic exponent: [2.0, 2.5, 3.0]\n   - Sweep silence threshold: [0.15, 0.20, 0.25]\n   - Identify best parameters for stable beat detection\n   - Document as tuning guide in docs/\n\n**ACCEPTANCE**: Test harness compiles; all test audio cases show confidence 0.3+; metrics before/after show improvement\n\n---\n\n**PHASE 5: PATTERN INTEGRATION & VALIDATION (1.5 hours)**\n\n1. **Restore Tempo-Dependent Patterns**\n   - Re-enable: beat_tunnel, metronome, spectrum (beat strength)\n   - Verify each pattern responds to tempo changes\n   - Visual inspection: Patterns should pulse to beat, not flicker\n\n2. **Integration Tests** (firmware/test/test_tempo_patterns.cpp)\n   - Load 120 BPM test audio\n   - Render beat_tunnel for 10 seconds\n   - Verify: Beat timing stays within 100ms of expected (120 BPM = 500ms per beat)\n   - Verify: No visual artifacts or jitter\n\n3. **Profiling: Performance Impact**\n   - Measure CPU cost of hardened tempo detection\n   - Expected: <5% of loop time (was <2% with broken novelty)\n   - Ensure FPS doesn't drop below 100\n\n**ACCEPTANCE**: All patterns compile; beat_tunnel renders beat-locked visuals; FPS >= 100\n\n---\n\n**PHASE 6: DOCUMENTATION & DEPLOYMENT (1 hour)**\n\n1. **Create Implementation Guide**\n   - docs/09-implementation/tempo_detection_hardening_guide.md\n   - Explains spectral flux, log compression, silence gating\n   - Tuning parameters and how to adjust them\n   - Troubleshooting guide\n\n2. **Update Diagnostics Documentation**\n   - docs/06-reference/audio_diagnostics_endpoints.md\n   - Document /api/audio/diagnostics/novelty and /silence endpoints\n   - Example outputs and interpretation\n\n3. **Architecture Update**\n   - docs/01-architecture/tempo_detection_architecture.md\n   - Signal flow diagram (audio → spectral flux → novelty → normalization → Goertzel bins → confidence)\n   - Comparison with emotiscope approach\n\n---\n\n**FILES TO MODIFY**\n- firmware/src/audio/tempo.cpp (all phases: novelty, normalization, magnitude, confidence)\n- firmware/src/audio/tempo.h (add diagnostic constants/extern)\n- firmware/src/webserver.cpp (add /api/audio/diagnostics/* endpoints)\n- firmware/test/test_tempo_tuning.cpp (create - profiling harness)\n- firmware/test/test_tempo_patterns.cpp (create - integration tests)\n- firmware/test/audio_samples/ (create - test audio WAV files)\n- docs/09-implementation/tempo_detection_hardening_guide.md (create)\n- docs/06-reference/audio_diagnostics_endpoints.md (create)\n- docs/01-architecture/tempo_detection_architecture.md (create)\n\n---\n\n**COMPILATION & TESTING**\n- Compile with test harness: `pio test`\n- Run profiling: `./test_tempo_tuning` with test audio\n- Verify confidence improves 2-5x from baseline\n- Visual test: Beat patterns pulse to tempo on real music\n- Stress test: 30-minute continuous operation, FPS >= 100\n\n---\n\n**VALIDATION CHECKLIST**\n- [ ] Spectral flux novelty implemented and logging correctly\n- [ ] Log compression applied and showing 2-3x confidence improvement\n- [ ] Silence gate hard-resets on silence, resumes on sound\n- [ ] Auto-ranging tuned (floor = 0.02, cubic scaling working)\n- [ ] Test harness compiles and runs on test audio\n- [ ] Confidence reaches 0.5+ on clear beats\n- [ ] Beat patterns render beat-locked without jitter\n- [ ] FPS >= 100 sustained, no dropped frames\n- [ ] Documentation complete and accurate\n\n---\n\n**ACCEPTANCE CRITERIA**\n- Tempo confidence reaches 0.5+ on test audio (vs 0.13-0.17 baseline)\n- tempo_confidence varies 0.3-0.8 across music range\n- silence_detected toggles correctly on silence/sound transitions\n- Beat patterns (beat_tunnel) render beat-locked and stable\n- FPS maintained >= 100 with dual channels\n- All tests pass (unit + integration + profiling)\n- Documentation is complete\n\n---\n\n**EFFORT**: 8-12 hours (across multiple sessions)\n**DEPENDS ON**: \n- 21.12 (Decision chosen: HARDEN)\n- 21.11 showing fixable root causes (not fundamental algorithm issues)\n- Audio system being stable (microphone, sample buffering working)\n\n**UNBLOCKS**: \n- Full audio-reactive pattern library (polyrhythmic effects)\n- Beat-synchronized animation\n- Production-quality light show experience\n\n**RISK FACTORS**\n- If audio system has deeper issues (sample rate wrong, PDM conversion broken), this won't help\n- If microphone noise dominates, will need noise gate preprocessing\n- Tuning parameters are music-dependent (may need user adjustment)\n\n**MITIGATION**\n- 21.11 diagnostics must confirm signal quality is good\n- Test harness validates on diverse audio (rock, pop, electronic, acoustic)\n- Make tuning parameters configurable (not hard-coded) for future adjustment",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 21
+          }
+        ]
+      },
+      {
+        "id": 22,
+        "title": "Webapp Fixes",
+        "description": "Bug fixes and UI/UX improvements to prevent scope creep while resolving existing issues",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Fix Preset Palette Button Selectors",
+            "description": "Fix the broken Preset Palettes button selectors in the webapp. The preset color buttons are showing mismatched names and swatches due to incorrect internal mappings. Known issues: 'Fire' and 'Lava' are swapped, 'Lavender' points to the wrong palette. Additionally, a safety check sometimes changes the requested palette number, silently applying a different palette than the one tapped.",
+            "details": "Deliverables: Corrected palette mapping configuration, fixed safety check logic, updated UI to reflect accurate palette selections, visual regression testing to verify all palette buttons work correctly. Success criteria: All palette buttons map correctly to their swatches and names, safety check only triggers for truly out-of-range values and provides user feedback, no silent palette changes. Implementation guidance: 1) Mapping corrections in webapp/src/lib/paletteMapping.ts — set Fire → 24 (firmware name: Fire) and Lava → 23 (firmware name: Lava); revisit Lavender mapping with candidates 27 (Pink Purple) or 15 (GR65 Hult) based on visual similarity and document rationale. 2) Selection logic update in webapp/src/components/ControlPanelView.tsx — remove range-based clamping by list length; validate selected palette_id exists in current palettes IDs; send exact ID if present; otherwise display a non-blocking warning and avoid remapping. 3) Acceptance criteria — clicking Fire sends palette_id=24 and its swatch matches; Lava sends palette_id=23 and matches; Lavender maps to the chosen candidate and is visually consistent; no silent remapping occurs for valid IDs; disconnected mode uses consistent fallback swatches. 4) References — firmware/src/palettes.h (palette_names[]; NUM_PALETTES=33) confirms index order (e.g., Fire=24, Lava=23).",
+            "testStrategy": "Unit tests verifying UI preset names map to expected firmware IDs (e.g., Fire→24, Lava→23). Integration tests ensuring selection sends the exact palette_id when connected and does not clamp/remap valid IDs. Visual regression checks confirming swatch-name consistency in connected and disconnected modes. Negative tests validating out-of-range IDs produce user feedback and do not silently change selections.",
+            "status": "pending",
+            "dependencies": [],
+            "parentTaskId": 22
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-11-05T03:30:13.949Z",
+      "updated": "2025-11-05T05:00:53.497Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

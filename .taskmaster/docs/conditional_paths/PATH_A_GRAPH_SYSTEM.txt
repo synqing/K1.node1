@@ -1,0 +1,286 @@
+# PATH A: GRAPH SYSTEM FULL IMPLEMENTATION
+
+**Activation Trigger:** Decision Gate PASS (Nov 13, Graph PoC validated)
+**Timeline:** Weeks 3-8 (Nov 14 - Jan 8)
+**Ship Date:** January 15, 2026
+**Resource:** 4 engineers (A: Firmware, B: Graph, C: QA, D: Integration)
+**Status:** CONDITIONAL (parse only if PoC passes)
+
+---
+
+## PHASE C: NODE GRAPH EDITOR (WEEKS 3-8)
+
+### Phase C.1: Extend Codegen for Stateful Nodes
+**Assigned To:** Agent B (Graph System Architect)
+**Duration:** 24 hours (3 days, 2-3 weeks calendar)
+**Timeline:** Weeks 3-4
+**Dependencies:**
+- B.5 (Graph PoC architecture complete)
+- Decision gate passed
+**Parallel With:** D.2 (Agent D can start webapp prep)
+**Blocks:**
+- D.3 (Webapp UI integration needs this)
+- D.4 (Pattern migration needs working codegen)
+**Success Criteria:**
+- Codegen supports all 35-40 node types
+- Stateful nodes (beat detector, spectrum analyzer, tempo tracker) compile correctly
+- State serialization/deserialization working
+- Generated C++ code memory efficient (< 1KB overhead per node)
+- Compilation time < 2 seconds for 20-node graphs
+- Code quality review approved (team consensus)
+**Test Strategy:**
+- Unit tests: codegen for each node type (40 tests)
+- Integration: PoC patterns should still work
+- Performance: benchmark codegen speed
+- Regression: original 2 PoC patterns still valid
+- Code review: static analysis clean
+**Related Context:** See .taskmaster/docs/appendices/agent_b_graph_context.md
+
+### Phase C.2: Migrate 8-10 High-Value Patterns to Graphs
+**Assigned To:** Agent B (Graph System Architect)
+**Duration:** 40 hours (1 week)
+**Timeline:** Weeks 4-6
+**Dependencies:**
+- D.1 (Codegen complete)
+- Pattern analysis from PoC (Bloom, Spectrum)
+**Sequential With:**
+- Pattern 1 (Bloom) → Pattern 2 (Spectrum) → Patterns 3-10 (others)
+- Each pattern depends on previous to allow learning/refinement
+**Blocks:**
+- D.3 (UI needs working pattern graphs)
+- D.4 (Testing needs patterns)
+**Success Criteria:**
+- 8-10 patterns converted (Bloom, Spectrum, Pulse, Wave, Rainbow, Fire, etc.)
+- All patterns compile without warnings
+- Visual output on device matches original hardcoded version
+- FPS impact < 2% for all patterns
+- Pattern graph JSON files saved to library
+- No performance regressions vs hardcoded
+**Test Strategy:**
+- Visual comparison: original vs generated (diff checking)
+- FPS measurement: baseline vs generated (target 60 FPS)
+- Memory profile: per-pattern footprint
+- Device testing: 24h continuous run with migrated patterns
+- Code quality: complexity analysis per pattern
+**Related Context:** See .taskmaster/docs/appendices/agent_b_graph_context.md
+
+### Phase C.3: Webapp Graph Canvas & Node Editor UI
+**Assigned To:** Agent D (Integration Engineer)
+**Duration:** 16 hours (2 days)
+**Timeline:** Weeks 5-6
+**Dependencies:**
+- D.1 (Codegen architecture finalized)
+- D.2 (Pattern graphs available for testing)
+**Parallel With:** D.4 (QA can test simultaneously)
+**Blocks:**
+- D.4 (Integration testing needs UI)
+- PF-5 integration (UI is prerequisite)
+**Success Criteria:**
+- Canvas renders at 60 FPS with 50+ nodes
+- Node drag-and-drop working smoothly
+- Connection validation real-time (type-checking visual feedback)
+- Node palette complete (35-40 node types organized)
+- Save/load graph → JSON working perfectly
+- Undo/redo stack functional
+- Zoom/pan controls responsive
+- Visual design polished (4/5+ internal feedback)
+**Test Strategy:**
+- Component tests: each node type renders
+- Integration: 50-node canvas performance
+- Interaction: drag/drop/zoom/pan smooth
+- Serialization: save/load preserves graphs exactly
+- Accessibility: WCAG 2.1 AA compliance
+- Browser compatibility: Chrome, Safari, Firefox
+**Related Context:** See .taskmaster/docs/appendices/agent_d_integration_context.md
+
+### Phase C.4: End-to-End Graph System Integration & Testing
+**Assigned To:** Agent C (QA/Validation Engineer)
+**Duration:** 16 hours (2 days)
+**Timeline:** Weeks 6-8
+**Dependencies:**
+- D.1 (Codegen)
+- D.2 (Migrated patterns)
+- D.3 (UI complete)
+**Parallel With:** None (final testing phase)
+**Blocks:**
+- Phase 2 completion (gates release)
+**Success Criteria:**
+- End-to-end workflow: create graph → save → device load → run pattern
+- 100+ test patterns created and validated
+- Device receives + executes graph correctly
+- Visual output matches expectations
+- No regressions vs original hardcoded patterns
+- FPS baseline maintained (< 2% impact)
+- Memory usage stable
+- Error handling covers edge cases
+- Documentation complete for users
+**Test Strategy:**
+- E2E tests: 100 pattern creation/load/run cycles
+- Regression: all 15 original patterns still work
+- Performance: continuous monitoring (FPS, memory, latency)
+- Stress: rapid graph switching (1000 cycles)
+- Edge cases: corrupted JSON, missing nodes, etc.
+- User acceptance: team testing (manual)
+**Related Context:** See .taskmaster/docs/appendices/agent_c_testing_context.md
+
+---
+
+## PHASE 2D1 PARALLEL: FIRMWARE OPTIMIZATION (WEEKS 3-6)
+
+While Phase C is building graph infrastructure, Agent A continues firmware optimization:
+
+### Phase C.5: I2S Audio Pipeline Optimization
+**Assigned To:** Agent A (Firmware Security Engineer)
+**Duration:** 12 hours
+**Timeline:** Weeks 3-4
+**Dependencies:** None (parallel with Phase C)
+**Blocks:** Graph system audio integration
+**Success Criteria:**
+- Audio latency < 50ms (end-to-end)
+- No buffer overruns under load
+- Frequency response accurate
+- Stress tested (1000+ pattern changes)
+
+### Phase C.6: WiFi Stability Hardening
+**Assigned To:** Agent A (Firmware Security Engineer)
+**Duration:** 8 hours
+**Timeline:** Weeks 4-5
+**Dependencies:** None (parallel)
+**Blocks:** OTA update capability
+**Success Criteria:**
+- WiFi reconnection < 5 seconds
+- Zero disconnects in 24h test
+- RSSI monitoring working
+- Fallback mechanisms tested
+
+---
+
+## PF-5: AI-POWERED FEATURES (WEEKS 7-20+, PARALLEL TO PHASE C)
+
+### PF-5.1: Audio Reactivity (Weeks 7-10)
+**Assigned To:** Agent B + new engineer (ML specialist)
+**Duration:** 120 hours
+**Timeline:** Weeks 7-10 (parallel to Phase C.4)
+**Dependencies:**
+- Phase C.1 (node types must include beat detector)
+**Blocks:**
+- PF-5.2 (personalization needs audio baseline)
+**Success Criteria:**
+- Beat detection > 85% accuracy
+- Frequency analysis working
+- Audio-reactive node types functional
+- Web Audio API integration
+**Test Strategy:**
+- Beat detection validation (10+ genres)
+- Frequency response accuracy
+- Latency < 100ms
+- Device testing with live audio
+
+### PF-5.2: Color Intelligence (Weeks 8-13)
+**Assigned To:** New engineer (ML/Python specialist)
+**Duration:** 160 hours
+**Timeline:** Weeks 8-13
+**Dependencies:**
+- PF-5.1 baseline established
+**Blocks:**
+- PF-5.3 (language model needs color context)
+**Success Criteria:**
+- Model inference < 50ms
+- Generated palettes rated > 4/5
+- Color node types functional
+- Works with images/video/webcam
+**Test Strategy:**
+- Model accuracy validation
+- Aesthetic quality voting
+- Performance benchmarking
+- Device integration testing
+
+### PF-5.3: Natural Language Control (Weeks 11-18)
+**Assigned To:** New engineer (NLP specialist)
+**Duration:** 200 hours
+**Timeline:** Weeks 11-18
+**Dependencies:**
+- PF-5.1, PF-5.2 (context enrichment)
+**Blocks:**
+- PF-5.4 (personalization refinement)
+**Success Criteria:**
+- Intent classification > 90% accuracy
+- Text-to-graph generation working
+- Voice input functional
+- Fallback patterns for unknown intents
+**Test Strategy:**
+- Intent classification validation (500+ samples)
+- Graph generation quality
+- Voice recognition accuracy
+- User feedback integration
+
+### PF-5.4: Personalization & Learning (Weeks 19-28)
+**Assigned To:** Data analyst + backend engineer
+**Duration:** 240 hours
+**Timeline:** Weeks 19-28
+**Dependencies:**
+- All PF-5.1-5.3 complete
+**Blocks:**
+- PF-5.5 (analytics needed for safety)
+**Success Criteria:**
+- Recommendation CTR > 60%
+- A/B testing framework live
+- Analytics pipeline collecting metrics
+- User preference learning working
+**Test Strategy:**
+- Recommendation validation (user cohorts)
+- A/B test statistical significance
+- Analytics accuracy validation
+- Personalization improvement measurement
+
+### PF-5.5: Safety & Release (Weeks 29-30)
+**Assigned To:** Agent C + security consultant
+**Duration:** 80 hours
+**Timeline:** Weeks 29-30
+**Dependencies:**
+- All PF-5.1-5.4 complete
+**Blocks:**
+- Production release
+**Success Criteria:**
+- Photosensitivity analysis complete
+- WCAG 2.1 AA compliance verified
+- Security audit passed
+- Load testing validated (1000 users)
+**Test Strategy:**
+- Photosensitivity detection validation
+- Accessibility compliance testing
+- Penetration testing
+- Load & performance testing
+
+---
+
+## TIMELINE SUMMARY: PATH A (8 WEEKS TO JAN 15)
+
+```
+Week 3-4 (Nov 14-27):   Phase C.1 + PF-5.1 start
+Week 5-6 (Nov 28-Dec 11): Phase C.2 & C.3 + PF-5.1-5.2
+Week 6-8 (Dec 12-Jan 8):  Phase C.4 integration + PF-5.2-5.3
+Weeks 9-20 (Jan 9-30):    PF-5.4-5.5 + marketplace + release
+
+SHIP DATE: January 15, 2026
+```
+
+---
+
+## SUCCESS DEFINITION: PATH A
+
+**Phase 2 Complete when:**
+- ✅ Phase C: Graph Editor production-ready (all 4 phases complete)
+- ✅ All 8-10 patterns migrated to graphs, validated on device
+- ✅ PF-5: All 5 features integrated and tested (audio, color, language, personalization, safety)
+- ✅ Webapp: Graph UI + PF-5 features fully functional
+- ✅ Performance: FPS < 2% impact, latency < 100ms p95
+- ✅ Quality: 95%+ test coverage, WCAG AA compliant, 0 critical bugs
+- ✅ Marketplace: 100+ patterns published, 50+ artists onboarded
+- ✅ Revenue: $10K+ GMV validated
+- ✅ Ship date: January 15, 2026 achieved
+
+---
+
+**Document Status:** CONDITIONAL (parse if Graph PoC passes)
+**Last Updated:** 2025-11-05
