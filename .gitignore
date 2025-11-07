@@ -29,9 +29,15 @@
 # Typical build/caches to ignore inside tracked trees
 firmware/.pio/
 firmware/.pio_home/
+firmware/.platformio/
+firmware/.platformio/**
 webapp/node_modules/
 webapp/dist/
 webapp/.vite/
+
+# OS cruft
+*.DS_Store
+docs/.DS_Store
 
 .config/
 !README.md
