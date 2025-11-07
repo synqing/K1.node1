@@ -17,6 +17,12 @@
 !tools/
 !tools/**
 
+# Track GitHub workflows and local hooks
+!.github/
+!.github/**
+!.githooks/
+!.githooks/**
+
 # Track Mem0 local integration code, ignore local state
 !.mem0_local/
 !.mem0_local/README.md
