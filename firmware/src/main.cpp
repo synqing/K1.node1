@@ -468,6 +468,14 @@ void setup() {
     // Initialize LED TX rolling buffer (retain ~5-10s history)
     led_tx_events_init(256);
 
+
+    // Print keyboard controls help
+    Serial.println("========== KEYBOARD CONTROLS ==========");
+    Serial.println("  SPACEBAR - Cycle to next pattern");
+    Serial.println("  D/d      - Toggle audio debug mode");
+    Serial.println("  H/h      - Dump heartbeat logs");
+    Serial.println("=======================================\n");
+
     // Initialize UART for s3z daisy chain sync (gated)
 #if ENABLE_UART_SYNC
     Serial.println("Initializing UART daisy chain sync...");
@@ -641,6 +649,17 @@ void loop() {
             Serial.printf("DEBUG: audio_debug_enabled = %s\n", audio_debug_enabled ? "true" : "false");
         } else if (ch == 'h' || ch == 'H') {
             heartbeat_logger_dump_recent(Serial);
+        } else if (ch == ' ') {  // SPACEBAR - cycle to next pattern
+            // Increment pattern index and wrap around
+            g_current_pattern_index = (g_current_pattern_index + 1) % g_num_patterns;
+
+            // Log the pattern change
+            const PatternInfo& pattern = g_pattern_registry[g_current_pattern_index];
+            Serial.printf("PATTERN CHANGED: [%d] %s - %s\n",
+                         g_current_pattern_index,
+                         pattern.name,
+                         pattern.description);
+            LOG_INFO(TAG_CORE1, "Pattern changed via spacebar to: %s", pattern.name);
         }
     }
 

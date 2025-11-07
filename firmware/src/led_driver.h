@@ -374,9 +374,16 @@ IRAM_ATTR static inline void transmit_leds() {
     v1_items[idx].duration1 = RESET_TICKS; v1_items[idx].level1 = 0;
     ++idx;
 
-    // Transmit non-blocking to avoid blocking render loop
-    // Previous frame's transmission will have completed by time we get here
+    // Transmit to PRIMARY channel (GPIO 5)
     rmt_write_items(v1_rmt_channel, v1_items, idx, false);
+
+    // Copy items to secondary buffer (same data for mirroring)
+    extern rmt_channel_t v1_rmt_channel_2;
+    extern rmt_item32_t v1_items_2[];
+    memcpy(v1_items_2, v1_items, idx * sizeof(rmt_item32_t));
+
+    // Transmit to SECONDARY channel (GPIO 4)
+    rmt_write_items(v1_rmt_channel_2, v1_items_2, idx, false);
 #else
     // RMT not available at all; yield briefly to allow system tasks to run
     vTaskDelay(pdMS_TO_TICKS(1));

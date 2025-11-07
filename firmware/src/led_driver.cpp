@@ -210,7 +210,14 @@ void init_rmt_driver() {
 rmt_channel_t v1_rmt_channel = RMT_CHANNEL_0;
 rmt_item32_t v1_items[NUM_LEDS * 24 + 64];
 
+// Add secondary channel support for RMT v1
+rmt_channel_t v1_rmt_channel_2 = RMT_CHANNEL_1;  // Secondary on channel 1
+rmt_item32_t v1_items_2[NUM_LEDS * 24 + 64];     // Secondary buffer
+
 void init_rmt_driver() {
+    printf("USING LEGACY RMT V1 - ADDING DUAL CHANNEL SUPPORT\n");
+
+    // PRIMARY CHANNEL (GPIO 5, RMT Channel 0)
     rmt_config_t config = {};
     config.rmt_mode = RMT_MODE_TX;
     config.channel = v1_rmt_channel;
@@ -224,13 +231,40 @@ void init_rmt_driver() {
 
     esp_err_t err = rmt_config(&config);
     if (err != ESP_OK) {
-        printf("rmt_config failed: %d\n", (int)err);
+        printf("Primary rmt_config failed: %d\n", (int)err);
         return;
     }
 
     err = rmt_driver_install(config.channel, 0, 0);
     if (err != ESP_OK) {
-        printf("rmt_driver_install failed: %d\n", (int)err);
+        printf("Primary rmt_driver_install failed: %d\n", (int)err);
+    } else {
+        printf("Primary channel (GPIO %d) initialized OK\n", LED_DATA_PIN);
+    }
+
+    // SECONDARY CHANNEL (GPIO 4, RMT Channel 1)
+    rmt_config_t config2 = {};
+    config2.rmt_mode = RMT_MODE_TX;
+    config2.channel = v1_rmt_channel_2;
+    config2.gpio_num = (gpio_num_t)LED_DATA_PIN_2;
+    config2.mem_block_num = 4;
+    config2.clk_div = 2;  // Same timing as primary
+    config2.tx_config.loop_en = false;
+    config2.tx_config.carrier_en = false;
+    config2.tx_config.idle_level = RMT_IDLE_LEVEL_LOW;
+    config2.tx_config.idle_output_en = true;
+
+    err = rmt_config(&config2);
+    if (err != ESP_OK) {
+        printf("Secondary rmt_config failed: %d\n", (int)err);
+        return;
+    }
+
+    err = rmt_driver_install(config2.channel, 0, 0);
+    if (err != ESP_OK) {
+        printf("Secondary rmt_driver_install failed: %d\n", (int)err);
+    } else {
+        printf("Secondary channel (GPIO %d) initialized OK\n", LED_DATA_PIN_2);
     }
 }
 #else
