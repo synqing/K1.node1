@@ -1,0 +1,125 @@
+name: Phase A CI
+
+on:
+  pull_request:
+    paths:
+      - 'firmware/**'
+      - 'tools/**'
+      - 'docs/Playbooks/phase_a_security_and_phase0_readiness_playbook.md'
+      - 'docs/06-reference/phase_a_security_fixes_reference.md'
+      - 'docs/09-reports/security_fix_validation.md'
+  push:
+    branches: [ main ]
+    paths:
+      - 'firmware/**'
+      - 'tools/**'
+  workflow_dispatch:
+    inputs:
+      run_validation:
+        description: 'Run optional validation (seqlock stress, metronome)'
+        required: false
+        default: 'false'
+      stress_attempts:
+        description: 'Attempts for seqlock stress'
+        required: false
+        default: '10000000'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_unit:
+    name: Build + Unit Tests (fast lane)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: firmware
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('firmware/platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+
+      - name: Build (debug/release)
+        run: |
+          pio run -e esp32-s3-devkitc-1
+          pio run -e esp32-s3-devkitc-1-debug
+
+      - name: Run Unit Tests (Phase A set)
+        run: |
+          set -o pipefail
+          pio test -e esp32-s3-devkitc-1 --without-building --filter test_phase_a* 2>&1 | tee unit_test_output.txt
+
+      - name: Upload Unit Test Log
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-logs
+          path: firmware/unit_test_output.txt
+          if-no-files-found: warn
+
+      - name: Hawk-Eye Hot Path Guard (non-blocking)
+        run: |
+          echo "Scanning for std::mutex/locks in hot paths (informational only)..."
+          MATCHES=$(grep -RIn --include='*.c' --include='*.cc' --include='*.cpp' --include='*.h' --include='*.hpp' --include='*.ino' -E 'std::(mutex|lock_guard|unique_lock|condition_variable)' src || true)
+          if [ -n "$MATCHES" ]; then
+            echo "$MATCHES" | while IFS= read -r line; do
+              f=$(echo "$line" | cut -d: -f1); l=$(echo "$line" | cut -d: -f2)
+              echo "::warning file=$f,line=$l::Potential std::mutex usage in hot path (prefer seqlock + atomics)"
+            done
+          else
+            echo "No std::mutex-style usage detected in src/."
+          fi
+
+  optional_validation:
+    name: Optional Validation (stress + fixtures)
+    runs-on: ubuntu-latest
+    needs: build_and_unit
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' && inputs.run_validation == 'true' }}
+      || ${{ github.event_name == 'pull_request' && contains(join(fromJSON('['''${{ toJSON(github.event.pull_request.labels.*.name) }}'''])), 'run-validation') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build seqlock_stress
+        run: |
+          g++ -O3 -std=c++17 -pthread tools/seqlock_stress.cpp -o seqlock_stress
+
+      - name: Run seqlock_stress
+        run: |
+          ./seqlock_stress --attempts ${{ inputs.stress_attempts || '10000000' }} --readers 2 --bins 64 --writer-hz 200 --out stress.csv
+
+      - name: Generate metronome (120 BPM)
+        run: |
+          python tools/metronome.py --bpm 120 --seconds 60 --outfile metronome_120bpm.wav
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-a-validation
+          path: |
+            stress.csv
+            metronome_120bpm.wav
+          if-no-files-found: warn

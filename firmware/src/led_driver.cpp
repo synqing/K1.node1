@@ -13,27 +13,33 @@
 // Mutable brightness control (0.0 = off, 1.0 = full brightness)
 float global_brightness = 0.3f;  // Start at 30% to avoid retina damage
 
-// 8-bit color output buffer (540 bytes for 180 LEDs × 3 channels)
+// 8-bit color output buffer (480 bytes for 160 LEDs × 3 channels)
 // Must be accessible from inline transmit_leds() function in header
+uint8_t rgb8_data[NUM_LEDS * 3];
 uint8_t raw_led_data[NUM_LEDS * 3];
-
-// RMT peripheral handles
-rmt_channel_handle_t tx_chan = NULL;   // alias to A for legacy
-rmt_channel_handle_t tx_chan_a = NULL;
-rmt_channel_handle_t tx_chan_b = NULL;
-rmt_encoder_handle_t led_encoder = NULL;
-
-// RMT encoder instance
-rmt_led_strip_encoder_t strip_encoder;
-
-// RMT transmission configuration
-rmt_transmit_config_t tx_config = {
-	.loop_count = 0,  // no transfer loop
-	.flags = { .eot_level = 0, .queue_nonblocking = 0 }
-};
+uint8_t raw_led_data_ch2[NUM_LEDS * 3];
 
 // Logging tag
 static const char *TAG = "led_encoder";
+
+// RMT globals (shared declarations so header externs stay valid)
+// Dual output: GPIO 5 (primary) and GPIO 4 (secondary)
+rmt_channel_handle_t tx_chan = NULL;
+rmt_channel_handle_t tx_chan_2 = NULL;
+rmt_encoder_handle_t led_encoder = NULL;
+rmt_encoder_handle_t led_encoder_2 = NULL;
+rmt_led_strip_encoder_t strip_encoder{};
+rmt_led_strip_encoder_t strip_encoder_2{};
+rmt_transmit_config_t tx_config = {
+    .loop_count = 0,
+    .flags = { .eot_level = 0, .queue_nonblocking = 0 }
+};
+
+// Default channel configs: GRB order (WS2812), full length, no offset
+LedChannelConfig g_ch1_config = { {1,0,2}, NUM_LEDS, 0 };
+LedChannelConfig g_ch2_config = { {1,0,2}, NUM_LEDS, 0 };
+
+#if __has_include(<driver/rmt_tx.h>)
 
 // ============================================================================
 // STATIC HELPER FUNCTIONS
@@ -88,77 +94,201 @@ esp_err_t rmt_new_led_strip_encoder(const led_strip_encoder_config_t *config, rm
 }
 
 // ============================================================================
+// RMT ENCODER CREATION (Secondary Channel)
+// ============================================================================
+
+esp_err_t rmt_new_led_strip_encoder_2(const led_strip_encoder_config_t *config, rmt_encoder_handle_t *ret_encoder) {
+	esp_err_t ret = ESP_OK;
+
+	printf("DEBUG: Assigning encoder functions for secondary channel\n");
+	printf("  &strip_encoder_2 = %p\n", &strip_encoder_2);
+	printf("  &strip_encoder_2.base = %p\n", &strip_encoder_2.base);
+
+	strip_encoder_2.base.encode = rmt_encode_led_strip_2;
+	printf("  Assigned encode function = %p\n", (void*)strip_encoder_2.base.encode);
+	strip_encoder_2.base.del    = rmt_del_led_strip_encoder;
+	strip_encoder_2.base.reset  = rmt_led_strip_encoder_reset;
+
+    // WS2812B timing @ 20 MHz resolution (50 ns per tick)
+    // Same timing as primary channel for synchronized output
+    rmt_bytes_encoder_config_t bytes_encoder_config = {
+        .bit0 = { 7, 1, 18, 0 },  // ~0.35us high, ~0.90us low (1.25us total)
+        .bit1 = { 14, 1, 11, 0 }, // ~0.70us high, ~0.55us low (1.25us total)
+        .flags = { .msb_first = 1 }
+    };
+
+	rmt_new_bytes_encoder(&bytes_encoder_config, &strip_encoder_2.bytes_encoder);
+	rmt_copy_encoder_config_t copy_encoder_config = {};
+	rmt_new_copy_encoder(&copy_encoder_config, &strip_encoder_2.copy_encoder);
+
+    // Reset: ≥50us low. At 20 MHz, 50us = 1000 ticks. Double to ensure latch.
+    strip_encoder_2.reset_code = (rmt_symbol_word_t) { 1000, 0, 1000, 0 };
+
+	*ret_encoder = &strip_encoder_2.base;
+	return ESP_OK;
+}
+
+// ============================================================================
 // RMT DRIVER INITIALIZATION
 // ============================================================================
 
 void init_rmt_driver() {
+    printf("init_rmt_driver\n");
 #if __has_include(<driver/rmt_tx.h>)
-    // ESP-IDF v5 dual-channel mode with new API
-    printf("init_rmt_driver (dual-channel, v5 API)\n");
-
-    // Create encoder once (shared across channels)
-    if (!led_encoder) {
-        ESP_LOGI(TAG, "Install led strip encoder");
-        led_strip_encoder_config_t encoder_config = {
-            .resolution = 20000000,
-        };
-        printf("rmt_new_led_strip_encoder\n");
-        ESP_ERROR_CHECK(rmt_new_led_strip_encoder(&encoder_config, &led_encoder));
-    }
-
-    // Configure TX channel A (LED_DATA_PIN_A)
-    if (!tx_chan_a) {
-        rmt_tx_channel_config_t tx_chan_config_a = {
-            .gpio_num = (gpio_num_t)LED_DATA_PIN_A,
-            .clk_src = RMT_CLK_SRC_DEFAULT,
-            .resolution_hz = 20000000,
-            .mem_block_symbols = 64,
-            .trans_queue_depth = 4,
-            .intr_priority = 99,
-            .flags = { .with_dma = 1 },
-        };
-        printf("rmt_new_tx_channel(A)\n");
-        ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config_a, &tx_chan_a));
-        printf("rmt_enable(A)\n");
-        ESP_ERROR_CHECK(rmt_enable(tx_chan_a));
-    }
-
-    // Configure TX channel B (LED_DATA_PIN_B)
-    // Fallback to single-channel if second channel unavailable (HW resource exhaustion)
-    if (!tx_chan_b) {
-        rmt_tx_channel_config_t tx_chan_config_b = {
-            .gpio_num = (gpio_num_t)LED_DATA_PIN_B,
-            .clk_src = RMT_CLK_SRC_DEFAULT,
-            .resolution_hz = 20000000,
-            .mem_block_symbols = 64,
-            .trans_queue_depth = 4,
-            .intr_priority = 99,
-            .flags = { .with_dma = 1 },
-        };
-        printf("rmt_new_tx_channel(B)\n");
-        esp_err_t err_b = rmt_new_tx_channel(&tx_chan_config_b, &tx_chan_b);
-        if (err_b != ESP_OK) {
-            ESP_LOGW(TAG, "Failed to allocate RMT channel B (0x%x): fallback to single-channel", err_b);
-            tx_chan_b = NULL;
-        } else {
-            printf("rmt_enable(B)\n");
-            ESP_ERROR_CHECK(rmt_enable(tx_chan_b));
-        }
-    }
-
-    // Legacy alias
-    tx_chan = tx_chan_a;
-
+    printf("USING RMT V2 API (rmt_tx.h)\n");
 #else
-    // Fallback: Old ESP-IDF API (single-channel, no dual-channel support)
-    // The old API has completely different types/functions and is not supported
-    // Initialize dummy handles to prevent crashes in transmit_leds()
-    printf("init_rmt_driver (old API detected - LED output disabled)\n");
-    tx_chan = (rmt_channel_handle_t)(intptr_t)0xDEADBEEF;  // Dummy handle
-    tx_chan_a = (rmt_channel_handle_t)(intptr_t)0xDEADBEEF;
-    tx_chan_b = NULL;  // No dual-channel on old API
+    printf("USING LEGACY RMT V1 API\n");
 #endif
+
+    // ========== PRIMARY CHANNEL (GPIO 5) ==========
+    rmt_tx_channel_config_t tx_chan_config = {
+        .gpio_num = (gpio_num_t)LED_DATA_PIN,  // GPIO 5
+        .clk_src = RMT_CLK_SRC_DEFAULT,        // default source clock
+        .resolution_hz = 20000000,             // 20 MHz tick resolution (1 tick = 0.05us)
+        .mem_block_symbols = 256,              // worst-case headroom for 160 LEDs (reduces refill cadence)
+        .trans_queue_depth = 4,                // pending transactions depth
+        .intr_priority = 99,
+        .flags = { .with_dma = 1 },            // DMA enabled to reduce ISR pressure
+    };
+
+	printf("rmt_new_tx_channel (primary)\n");
+	ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &tx_chan));
+
+    ESP_LOGI(TAG, "Install led strip encoder (primary)");
+    led_strip_encoder_config_t encoder_config = {
+        .resolution = 20000000,
+    };
+	printf("rmt_new_led_strip_encoder (primary)\n");
+	ESP_ERROR_CHECK(rmt_new_led_strip_encoder(&encoder_config, &led_encoder));
+
+	printf("rmt_enable (primary)\n");
+	ESP_ERROR_CHECK(rmt_enable(tx_chan));
+
+    // ========== SECONDARY CHANNEL (GPIO 4) ==========
+    rmt_tx_channel_config_t tx_chan_config_2 = {
+        .gpio_num = (gpio_num_t)LED_DATA_PIN_2,  // GPIO 4
+        .clk_src = RMT_CLK_SRC_DEFAULT,          // default source clock
+        .resolution_hz = 20000000,               // 20 MHz tick resolution (1 tick = 0.05us)
+        .mem_block_symbols = 256,                // match primary
+        .trans_queue_depth = 4,                  // pending transactions depth
+        .intr_priority = 99,
+        .flags = { .with_dma = 1 },              // DMA enabled to reduce ISR pressure
+    };
+
+	printf("rmt_new_tx_channel (secondary) - GPIO %d\n", LED_DATA_PIN_2);
+	esp_err_t ch2_result = rmt_new_tx_channel(&tx_chan_config_2, &tx_chan_2);
+	printf("  Secondary channel creation result: %s (0x%x)\n", esp_err_to_name(ch2_result), ch2_result);
+	printf("  tx_chan_2 handle = %p\n", tx_chan_2);
+	ESP_ERROR_CHECK(ch2_result);
+
+    ESP_LOGI(TAG, "Install led strip encoder (secondary)");
+	printf("rmt_new_led_strip_encoder_2 (secondary)\n");
+	esp_err_t enc2_result = rmt_new_led_strip_encoder_2(&encoder_config, &led_encoder_2);
+	printf("  Secondary encoder creation result: %s (0x%x)\n", esp_err_to_name(enc2_result), enc2_result);
+	printf("  led_encoder_2 handle = %p\n", led_encoder_2);
+	ESP_ERROR_CHECK(enc2_result);
+
+	printf("rmt_enable (secondary)\n");
+	esp_err_t en2_result = rmt_enable(tx_chan_2);
+	printf("  Secondary channel enable result: %s (0x%x)\n", esp_err_to_name(en2_result), en2_result);
+	ESP_ERROR_CHECK(en2_result);
+
+    // Register RMT probe callbacks for telemetry (measures refill cadence and max gaps)
+    extern void rmt_probe_init(rmt_channel_handle_t chan, const char* name);
+    rmt_probe_init(tx_chan,   "ch1");
+    rmt_probe_init(tx_chan_2, "ch2");
+
+	printf("SECONDARY CHANNEL FULLY INITIALIZED - GPIO %d READY\n", LED_DATA_PIN_2);
+
+	// Critical debug: Verify global handles
+	printf("DEBUG: Global handle verification:\n");
+	printf("  tx_chan (primary) = %p\n", tx_chan);
+	printf("  tx_chan_2 (secondary) = %p\n", tx_chan_2);
+	printf("  led_encoder (primary) = %p\n", led_encoder);
+	printf("  led_encoder_2 (secondary) = %p\n", led_encoder_2);
+	printf("  &strip_encoder = %p\n", &strip_encoder);
+	printf("  &strip_encoder_2 = %p\n", &strip_encoder_2);
+
+	if (tx_chan_2 == NULL || led_encoder_2 == NULL) {
+		printf("FATAL ERROR: Secondary channel handles are NULL!\n");
+		while(1) { vTaskDelay(1000); }  // Halt if initialization failed
+	}
 }
+
+#else  // Legacy RMT v1 fallback (ESP-IDF v4.x / Arduino core 2.x)
+
+#if __has_include(<driver/rmt.h>)
+rmt_channel_t v1_rmt_channel = RMT_CHANNEL_0;
+rmt_item32_t v1_items[NUM_LEDS * 24 + 64];
+
+// Add secondary channel support for RMT v1
+// Use channel 1 to avoid potential unsupported indices on some cores
+rmt_channel_t v1_rmt_channel_2 = RMT_CHANNEL_1;
+rmt_item32_t v1_items_2[NUM_LEDS * 24 + 64];     // Secondary buffer
+
+void init_rmt_driver() {
+    printf("USING LEGACY RMT V1 - ADDING DUAL CHANNEL SUPPORT\n");
+
+    // PRIMARY CHANNEL (GPIO 5, RMT Channel 0)
+    rmt_config_t config = {};
+    config.rmt_mode = RMT_MODE_TX;
+    config.channel = v1_rmt_channel;
+    config.gpio_num = (gpio_num_t)LED_DATA_PIN;
+    // Allocate memory blocks per channel; keep within total HW budget
+    config.mem_block_num = 4;
+    config.clk_div = 2;  // 40MHz base clock / 2 = 20MHz tick (0.05us)
+    config.tx_config.loop_en = false;
+    config.tx_config.carrier_en = false;
+    config.tx_config.idle_level = RMT_IDLE_LEVEL_LOW;
+    config.tx_config.idle_output_en = true;
+
+    esp_err_t err = rmt_config(&config);
+    if (err != ESP_OK) {
+        printf("Primary rmt_config failed: %d\n", (int)err);
+        return;
+    }
+
+    err = rmt_driver_install(config.channel, 0, 0);
+    if (err != ESP_OK) {
+        printf("Primary rmt_driver_install failed: %d\n", (int)err);
+    } else {
+        printf("Primary channel (GPIO %d) initialized OK\n", LED_DATA_PIN);
+    }
+
+    // SECONDARY CHANNEL (GPIO 4, RMT Channel 1)
+    rmt_config_t config2 = {};
+    config2.rmt_mode = RMT_MODE_TX;
+    config2.channel = v1_rmt_channel_2;
+    config2.gpio_num = (gpio_num_t)LED_DATA_PIN_2;
+    // Match primary capacity for symmetry (respect total blocks limit)
+    config2.mem_block_num = 4;
+    config2.clk_div = 2;  // Same timing as primary
+    config2.tx_config.loop_en = false;
+    config2.tx_config.carrier_en = false;
+    config2.tx_config.idle_level = RMT_IDLE_LEVEL_LOW;
+    config2.tx_config.idle_output_en = true;
+
+    err = rmt_config(&config2);
+    if (err != ESP_OK) {
+        printf("Secondary rmt_config failed: %d\n", (int)err);
+        return;
+    }
+
+    err = rmt_driver_install(config2.channel, 0, 0);
+    if (err != ESP_OK) {
+        printf("Secondary rmt_driver_install failed: %d\n", (int)err);
+    } else {
+        printf("Secondary channel (GPIO %d) initialized OK\n", LED_DATA_PIN_2);
+    }
+    printf("Legacy RMT v1 secondary channel ready on GPIO 4\n");
+}
+#else
+void init_rmt_driver() {
+    // RMT peripheral unavailable; initialization is a no-op.
+}
+#endif
+
+#endif  // __has_include(<driver/rmt_tx.h>)
 
 // Note: quantize_color() is defined inline in led_driver.h (required for compiler inlining)
 // Timestamp of last LED transmit start (micros)

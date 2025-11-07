@@ -90,6 +90,18 @@ const REGISTRY: Record<string, ParamBinding[]> = {
     { def: { name: 'Fade Strength', value: 50, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'custom_param_2', scale: 'percent' },
     { def: { name: 'Reactivity', value: 60, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'custom_param_3', scale: 'percent' },
   ],
+  'Startup Intro': [
+    { def: { name: 'Speed', value: 50, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'speed', scale: 'percent' },
+    { def: { name: 'Flow', value: 50, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'custom_param_2', scale: 'percent' },
+    { def: { name: 'Trail', value: 25, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'softness', scale: 'percent' },
+    { def: { name: 'Width', value: 50, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'custom_param_1', scale: 'percent' },
+  ],
+  'Tunnel Glow': [
+    { def: { name: 'Speed', value: 50, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'speed', scale: 'percent' },
+    { def: { name: 'Trail', value: 50, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'softness', scale: 'percent' },
+    { def: { name: 'Glow Strength', value: 40, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'background', scale: 'percent' },
+    { def: { name: 'Energy Mix', value: 60, min: 0, max: 100, step: 1, unit: '%', type: 'scalar' }, sendKey: 'custom_param_1', scale: 'percent' },
+  ],
 };
 
 // Map common uppercase or alias names to canonical registry keys
@@ -111,6 +123,8 @@ const ALIASES: Record<string, string> = {
   'TEMPO SCOPE': 'Tempiscope',
   'PERLIN': 'Perlin',
   'VOID TRAIL': 'Void Trail',
+  'STARTUP INTRO': 'Startup Intro',
+  'STARTUP_INTRO': 'Startup Intro',
 };
 
 function normalizeKey(key: string | undefined): string | undefined {

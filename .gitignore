@@ -9,16 +9,22 @@
 !webapp/
 !webapp/**
 
-# Track Mem0 local integration code, ignore local state
-!.mem0_local/
-!.mem0_local/README.md
-!.mem0_local/config.yaml
-!.mem0_local/ingest_docs.py
-!.mem0_local/requirements.txt
-.mem0_local/qdrant_storage/
-.mem0_local/.venv/
-.mem0_local/venv/
-.mem0_local/.DS_Store
+# Track documentation (analysis, planning, implementation, reports)
+!docs/
+!docs/**
+
+# Track tools (utilities and fixtures)
+!tools/
+!tools/**
+
+# Track GitHub workflows and local hooks
+!.github/
+!.github/**
+!.githooks/
+!.githooks/**
+
+# Mem0 local workspace is ignored (ephemeral/local-only)
+.mem0_local/
 
 # Typical build/caches to ignore inside tracked trees
 firmware/.pio/
@@ -28,34 +34,6 @@ webapp/dist/
 webapp/.vite/
 
 .config/
-!.mem0_local/bulk_ingest.sh
 !README.md
 !memory-proxy/
 !memory-proxy/**
-!.mem0_local/bulk_ingest.sh
-
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-dev-debug.log
-# Dependency directories
-node_modules/
-# Environment variables
-.env
-# Editor directories and files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-# OS specific
-.DS_Store
-
-# Task files
-# tasks.json
-# tasks/ 

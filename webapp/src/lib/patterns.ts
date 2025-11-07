@@ -195,6 +195,28 @@ export const K1_PATTERNS: K1Pattern[] = [
     firmwareIndex: 15,
     isAudioReactive: true,
     computeCost: 'low'
+  },
+
+  // New Patterns (2)
+  {
+    id: 'tunnel_glow',
+    name: 'Tunnel Glow',
+    category: 'Beat-Reactive',
+    icon: '🌀',
+    description: 'Audio-reactive glowing tunnel with energy response',
+    firmwareIndex: 16,
+    isAudioReactive: true,
+    computeCost: 'high'
+  },
+  {
+    id: 'startup_intro',
+    name: 'Startup Intro',
+    category: 'Static',
+    icon: '✨',
+    description: 'Choreographed startup sequence with tunable parameters',
+    firmwareIndex: 17,
+    isAudioReactive: false,
+    computeCost: 'medium'
   }
 ];
 

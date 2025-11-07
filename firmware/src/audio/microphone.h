@@ -10,10 +10,26 @@
 //
 // Functions for reading and storing data acquired by the I2S microphone
 
-// Use Arduino/ESP-IDF headers directly to avoid type conflicts
-#include <Arduino.h>
-#include <driver/gpio.h>
-#include <driver/i2s_std.h>
+// Prefer ESP-IDF v5 I2S std driver; fall back to legacy driver if unavailable
+#if __has_include(<driver/i2s_std.h>)
+#  define MICROPHONE_USE_NEW_I2S 1
+#  include <driver/i2s_std.h>
+#  include <driver/gpio.h>
+#elif __has_include(<driver/i2s.h>)
+#  define MICROPHONE_USE_NEW_I2S 0
+#  include <driver/i2s.h>
+#else
+#  error "I2S driver header not found. ESP-IDF headers are required."
+#endif
+
+#if MICROPHONE_USE_NEW_I2S
+#  ifndef portMAX_DELAY
+#    define portMAX_DELAY 0xFFFFFFFFu
+#  endif
+#else
+#  include <freertos/semphr.h>
+#  include <driver/periph_ctrl.h>
+#endif
 
 #include "../logging/logger.h"
 #include <string.h>
@@ -44,7 +60,9 @@ constexpr float recip_scale = 1.0 / 131072.0; // max 18 bit signed value
 // Globals (defined in microphone.cpp)
 extern std::atomic<bool> waveform_locked;
 extern std::atomic<bool> waveform_sync_flag;
+#if MICROPHONE_USE_NEW_I2S
 extern i2s_chan_handle_t rx_handle;
+#endif
 
 // Public API
 void init_i2s_microphone();

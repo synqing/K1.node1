@@ -1,0 +1,160 @@
+================================================================================
+SECONDARY LED CHANNEL FAILURE: STATE MACHINE COLLISION DIAGRAM
+================================================================================
+
+CURRENT BROKEN STATE:
+=====================
+
+    led_encoder_2 (rmt_encoder_handle_t)
+         |
+         +---> points to: strip_encoder_2.base
+                           |
+                           +---> .encode = rmt_encode_led_strip (SHARED STATIC FUNCTION)
+                           |
+                           +---> .reset = rmt_led_strip_encoder_reset (SHARED STATIC FUNCTION)
+                           |
+                           +---> .del = rmt_del_led_strip_encoder (SHARED STATIC FUNCTION)
+
+
+    led_encoder (rmt_encoder_handle_t)
+         |
+         +---> points to: strip_encoder.base
+                           |
+                           +---> .encode = rmt_encode_led_strip (SAME SHARED STATIC FUNCTION!)
+                           |
+                           +---> .reset = rmt_led_strip_encoder_reset (SAME SHARED STATIC FUNCTION!)
+                           |
+                           +---> .del = rmt_del_led_strip_encoder (SAME SHARED STATIC FUNCTION!)
+
+
+CONSEQUENCE - TIMING COLLISION:
+==============================
+
+Frame N Transmission Timeline:
+------------------------------
+
+T0:  transmit_leds() executes
+     |
+     +-- quantize_color() -> raw_led_data[480] is populated with frame N
+     |
+     +-- rmt_transmit(tx_chan, led_encoder, raw_led_data, 480, &tx_config)
+     |                              |
+     |                              +-- Calls: rmt_encode_led_strip(&strip_encoder.base, ...)
+     |                                         |
+     |                                         +-- __containerof() extracts: (rmt_led_strip_encoder_t*)
+     |                                         |
+     |                                         +-- Modifies: strip_encoder.state = 0 -> 1 -> RESET
+     |                                         |
+     |                                         +-- Returns to ISR for scheduled DMA transfer
+     |
+     +-- rmt_transmit(tx_chan_2, led_encoder_2, raw_led_data, 480, &tx_config)
+                                        |
+                                        +-- Calls: rmt_encode_led_strip(&strip_encoder_2.base, ...)
+                                                   |
+                                                   +-- __containerof() extracts: (rmt_led_strip_encoder_t*)
+                                                   |
+                                                   +-- PROBLEM: If primary encoder callback fires
+                                                   |   BEFORE secondary encoding completes,
+                                                   |   secondary sees corrupted state!
+                                                   |
+                                                   +-- State machine collision possible
+
+
+SCENARIO: Frame N Collision Case
+=================================
+
+Primary Channel (GPIO 5):
+  T0.0ms: rmt_transmit() call
+  T0.1ms: strip_encoder.state = 0 (send RGB)
+  T0.2ms: strip_encoder.state = 1 (send reset)
+  T0.3ms: strip_encoder.state = RESET (idle)
+  T1.0ms: [DMA running, data flowing to GPIO 5]
+
+Secondary Channel (GPIO 4):
+  T0.15ms: rmt_transmit() call attempts to encode
+  T0.16ms: __containerof(&strip_encoder_2.base) -> extracts strip_encoder_2
+           BUT what if primary's state machine just reset to RESET?
+  T0.17ms: Secondary encoder sees state = RESET (from primary!)
+  T0.18ms: Encoding aborts or produces wrong symbols
+  T0.19ms: Secondary RMT produces garbage or nothing
+  [GPIO 4 gets no signal, or corrupted signal]
+
+
+STATIC FUNCTION SHARING ILLUSTRATION:
+====================================
+
+    In led_driver.cpp:
+
+    rmt_led_strip_encoder_t strip_encoder{};      // Primary encoder struct
+    rmt_led_strip_encoder_t strip_encoder_2{};    // Secondary encoder struct
+
+
+    rmt_new_led_strip_encoder():
+        strip_encoder.base.encode = rmt_encode_led_strip;        // ---- \
+                                                                        |
+    rmt_new_led_strip_encoder_2():                                     |
+        strip_encoder_2.base.encode = rmt_encode_led_strip;      // ---- SAME FUNCTION!
+                                                                        |
+                                                                        V
+    IRAM_ATTR static size_t rmt_encode_led_strip(...) {
+        rmt_led_strip_encoder_t *led_encoder = __containerof(encoder, ...);
+
+        // This extracts the CORRECT encoder IF no collision occurs
+        // But under race conditions, state is unreliable
+
+        switch (led_encoder->state) {  // <-- DANGER ZONE
+            case 0: led_encoder->state = 1; break;
+            case 1: led_encoder->state = RMT_ENCODING_RESET; break;
+        }
+    }
+
+
+WHY PRIMARY WORKS BUT SECONDARY FAILS:
+====================================
+
+Primary:   Uses strip_encoder (stable, no interference)
+Secondary: Uses strip_encoder_2 (SUBJECT TO STATE CORRUPTION from primary's encode function)
+
+The __containerof() macro will correctly extract strip_encoder_2 from
+&strip_encoder_2.base, BUT if the encode function is interrupted or
+its state machine is mid-transition when secondary calls in, the
+secondary's view of the state is corrupted.
+
+
+THE FIX:
+=======
+
+Create SEPARATE static function for secondary encoder:
+
+    IRAM_ATTR static size_t rmt_encode_led_strip_2(...) {
+        // Identical logic to rmt_encode_led_strip()
+        // But operates independently
+        // No shared state machine corruption possible
+    }
+
+    Then update line 97 in led_driver.cpp:
+        strip_encoder_2.base.encode = rmt_encode_led_strip_2;  // SEPARATE FUNCTION
+
+
+RESULT:
+======
+
+    Primary:   strip_encoder.base.encode -> rmt_encode_led_strip()
+    Secondary: strip_encoder_2.base.encode -> rmt_encode_led_strip_2()
+
+    Each channel has its own state machine execution context.
+    No collisions. No race conditions. GPIO 4 lights up!
+
+
+VERIFICATION:
+=============
+
+Before fix:
+  GPIO 5 (primary): \/\/\/\/\/\/\/\/\/ (proper RMT waveform)
+  GPIO 4 (secondary): _________________  (no signal)
+
+After fix:
+  GPIO 5 (primary): \/\/\/\/\/\/\/\/\/ (proper RMT waveform)
+  GPIO 4 (secondary): \/\/\/\/\/\/\/\/\/ (identical RMT waveform)
+
+================================================================================

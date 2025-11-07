@@ -65,7 +65,7 @@ static AsyncWebServerResponse* create_error_response(
     String output;
     serializeJson(doc, output);
 
-    auto *response = request->beginResponse(status_code, "application/json", output);
+    AsyncWebServerResponse *response = request->beginResponse(status_code, "application/json", output);
     attach_cors_headers(response);
     return response;
 }
@@ -74,100 +74,10 @@ static AsyncWebServerResponse* create_error_response(
 // JSON Response Builders
 // ========================================================================================
 
-/**
- * Build JSON response for current pattern parameters
- * Used by GET /api/params endpoint
- */
-static String build_params_json() {
-    const PatternParameters& params = get_params();
-
-    StaticJsonDocument<512> doc;
-    // Global visual controls
-    doc["brightness"] = params.brightness;
-    doc["softness"] = params.softness;
-    doc["color"] = params.color;
-    doc["color_range"] = params.color_range;
-    doc["saturation"] = params.saturation;
-    doc["warmth"] = params.warmth;
-    doc["background"] = params.background;
-    doc["dithering"] = params.dithering;
-    // Pattern-specific
-    doc["speed"] = params.speed;
-    doc["palette_id"] = params.palette_id;
-    // Custom parameters (exposed for UI sync)
-    doc["custom_param_1"] = params.custom_param_1;
-    doc["custom_param_2"] = params.custom_param_2;
-    doc["custom_param_3"] = params.custom_param_3;
-
-    // Beat gating controls
-    doc["beat_threshold"] = params.beat_threshold;
-    doc["beat_squash_power"] = params.beat_squash_power;
-
-    String output;
-    serializeJson(doc, output);
-    return output;
-}
-
-/**
- * Build JSON response for available patterns list
- * Used by GET /api/patterns endpoint
- */
-static String build_patterns_json() {
-    DynamicJsonDocument doc(2048);
-    JsonArray patterns = doc.createNestedArray("patterns");
-
-    for (uint8_t i = 0; i < g_num_patterns; i++) {
-        JsonObject pattern = patterns.createNestedObject();
-        pattern["index"] = i;
-        pattern["id"] = g_pattern_registry[i].id;
-        pattern["name"] = g_pattern_registry[i].name;
-        pattern["description"] = g_pattern_registry[i].description;
-        pattern["is_audio_reactive"] = g_pattern_registry[i].is_audio_reactive;
-    }
-
-    doc["current_pattern"] = g_current_pattern_index;
-
-    String output;
-    serializeJson(doc, output);
-    return output;
-}
-
-/**
- * Build JSON response for palette metadata and color previews
- * Used by GET /api/palettes endpoint
- */
-static String build_palettes_json() {
-    DynamicJsonDocument doc(4096);  // Larger buffer for palette data
-    JsonArray palettes = doc.createNestedArray("palettes");
-
-    for (uint8_t i = 0; i < NUM_PALETTES; i++) {
-        JsonObject palette = palettes.createNestedObject();
-        palette["id"] = i;
-        palette["name"] = palette_names[i];
-
-        // Add color preview - sample 5 colors across the palette
-        JsonArray colors = palette.createNestedArray("colors");
-        for (int j = 0; j < 5; j++) {
-            float progress = j / 4.0f;  // 0.0, 0.25, 0.5, 0.75, 1.0
-            CRGBF color = color_from_palette(i, progress, 1.0f);
-            JsonObject colorObj = colors.createNestedObject();
-            colorObj["r"] = (uint8_t)(color.r * 255);
-            colorObj["g"] = (uint8_t)(color.g * 255);
-            colorObj["b"] = (uint8_t)(color.b * 255);
-        }
-
-        // Add metadata
-        PaletteInfo info;
-        memcpy_P(&info, &palette_table[i], sizeof(PaletteInfo));
-        palette["num_keyframes"] = info.num_entries;
-    }
-
-    doc["count"] = NUM_PALETTES;
-
-    String output;
-    serializeJson(doc, output);
-    return output;
-}
+// Function declarations (implementations in webserver_response_builders.cpp)
+String build_params_json();
+String build_patterns_json();
+String build_palettes_json();
 
 // ========================================================================================
 // Parameter Update Helpers
@@ -208,6 +118,34 @@ static void apply_params_json(const JsonObjectConst& root) {
     if (root.containsKey("beat_squash_power")) {
         updated.beat_squash_power = root["beat_squash_power"].as<float>();
         LOG_DEBUG(TAG_WEB, "Param update: beat_squash_power=%.3f", updated.beat_squash_power);
+    }
+
+    // Audio/Visual Response parameters
+    if (root.containsKey("audio_responsiveness")) {
+        updated.audio_responsiveness = root["audio_responsiveness"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: audio_responsiveness=%.3f", updated.audio_responsiveness);
+    }
+    if (root.containsKey("audio_sensitivity")) {
+        updated.audio_sensitivity = root["audio_sensitivity"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: audio_sensitivity=%.3f", updated.audio_sensitivity);
+    }
+    if (root.containsKey("bass_treble_balance")) {
+        updated.bass_treble_balance = root["bass_treble_balance"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: bass_treble_balance=%.3f", updated.bass_treble_balance);
+    }
+    if (root.containsKey("color_reactivity")) {
+        updated.color_reactivity = root["color_reactivity"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: color_reactivity=%.3f", updated.color_reactivity);
+    }
+    if (root.containsKey("brightness_floor")) {
+        updated.brightness_floor = root["brightness_floor"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: brightness_floor=%.3f", updated.brightness_floor);
+    }
+
+    // LED transport pacing
+    if (root.containsKey("frame_min_period_ms")) {
+        updated.frame_min_period_ms = root["frame_min_period_ms"].as<float>();
+        LOG_DEBUG(TAG_WEB, "Param update: frame_min_period_ms=%.3f", updated.frame_min_period_ms);
     }
 
     bool ok = update_params_safe(updated);

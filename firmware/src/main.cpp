@@ -49,6 +49,7 @@ void init_rmt_driver();
 #include "parameters.h"
 #include "pattern_registry.h"
 #include "generated_patterns.h"
+#include "pattern_optimizations.h"
 #include "webserver.h"
 #include "cpu_monitor.h"
 #include "connection_state.h"
@@ -56,7 +57,8 @@ void init_rmt_driver();
 #include "logging/logger.h"
 #include "beat_events.h"
 #include "diagnostics.h"
-#include "audio/goertzel.h" // For spectrogram[]
+#include "diagnostics/heartbeat_logger.h"
+// (removed duplicate include of audio/goertzel.h)
 #include "udp_echo.h"      // UDP echo server for RTT measurements
 #include "led_tx_events.h"  // Rolling buffer of LED transmit timestamps
 
@@ -414,6 +416,8 @@ static inline void run_audio_pipeline_once() {
 
     // Lock-free buffer synchronization with Core 0
     finish_audio_frame();
+    heartbeat_logger_note_audio(audio_back.update_counter);
+    heartbeat_logger_note_audio(audio_back.update_counter);
 }
 
 // ============================================================================
@@ -448,6 +452,7 @@ void loop_gpu(void* param) {
 
         // Transmit to LEDs via RMT (non-blocking DMA)
         transmit_leds();
+        heartbeat_logger_note_frame();
 
         // FPS tracking (minimal overhead)
         watch_cpu_fps();
@@ -465,11 +470,33 @@ void setup() {
     Serial.begin(2000000);
     LOG_INFO(TAG_CORE0, "=== K1.reinvented Starting ===");
 
+    // Print build environment and IDF/Arduino versions up front (so we catch cursed mismatches early)
+#ifdef ARDUINO_ESP32_RELEASE_3_0_0
+    Serial.printf("[build] Arduino core: %s\n", ARDUINO_ESP32_RELEASE_3_0_0);
+#endif
+#ifdef ARDUINO
+    Serial.printf("[build] ARDUINO macro: %d\n", ARDUINO);
+#endif
+#ifdef IDF_VER
+    Serial.printf("[build] ESP-IDF: %s\n", IDF_VER);
+#endif
+#ifdef REQUIRE_IDF5_DUAL_RMT
+    Serial.println("[build] REQUIRE_IDF5_DUAL_RMT=1 (dual RMT enforced)");
+#endif
+
     // Initialize LED driver
     LOG_INFO(TAG_LED, "Initializing LED driver...");
     init_rmt_driver();  // Initialize RMT driver for LED output
     // Initialize LED TX rolling buffer (retain ~5-10s history)
     led_tx_events_init(256);
+
+
+    // Print keyboard controls help
+    Serial.println("========== KEYBOARD CONTROLS ==========");
+    Serial.println("  SPACEBAR - Cycle to next pattern");
+    Serial.println("  D/d      - Toggle audio debug mode");
+    Serial.println("  H/h      - Dump heartbeat logs");
+    Serial.println("=======================================\n");
 
     // Initialize UART for s3z daisy chain sync (gated)
 #if ENABLE_UART_SYNC
@@ -520,6 +547,7 @@ void setup() {
     } else {
         LOG_INFO(TAG_CORE0, "SPIFFS mounted successfully");
         // Lazy enumeration removed; can be added to status endpoint if needed
+        heartbeat_logger_init();
     }
 
     // Defer web server and diagnostics until Wi-Fi connects (see handle_wifi_connected)
@@ -562,6 +590,11 @@ void setup() {
     LOG_INFO(TAG_CORE0, "Initializing pattern registry...");
     init_pattern_registry();
     LOG_INFO(TAG_CORE0, "Loaded %d patterns", g_num_patterns);
+
+    // Apply performance optimizations to underperforming patterns
+    apply_pattern_optimizations();
+    LOG_INFO(TAG_CORE0, "Applied pattern optimizations");
+
     LOG_INFO(TAG_CORE0, "Starting pattern: %s", get_current_pattern().name);
 
     // ========================================================================
@@ -662,6 +695,19 @@ void loop() {
         if (ch == 'd' || ch == 'D') {
             audio_debug_enabled = !audio_debug_enabled;
             Serial.printf("DEBUG: audio_debug_enabled = %s\n", audio_debug_enabled ? "true" : "false");
+        } else if (ch == 'h' || ch == 'H') {
+            heartbeat_logger_dump_recent(Serial);
+        } else if (ch == ' ') {  // SPACEBAR - cycle to next pattern
+            // Increment pattern index and wrap around
+            g_current_pattern_index = (g_current_pattern_index + 1) % g_num_patterns;
+
+            // Log the pattern change
+            const PatternInfo& pattern = g_pattern_registry[g_current_pattern_index];
+            Serial.printf("PATTERN CHANGED: [%d] %s - %s\n",
+                         g_current_pattern_index,
+                         pattern.name,
+                         pattern.description);
+            LOG_INFO(TAG_CORE1, "Pattern changed via spacebar to: %s", pattern.name);
         }
     }
 
@@ -709,6 +755,7 @@ void loop() {
     
     // Send sync packet to s3z secondary device (if enabled)
     send_uart_sync_frame();
+    heartbeat_logger_poll();
 
     // Small delay to prevent this loop from consuming too much CPU
     // Core 0 (loop_gpu) handles all LED rendering at high FPS

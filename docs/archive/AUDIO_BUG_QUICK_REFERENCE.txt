@@ -1,0 +1,92 @@
+================================================================================
+K1.NODE1 AUDIO BUG - QUICK REFERENCE CARD
+================================================================================
+
+PROBLEM: Audio-reactive patterns don't respond to music
+SEVERITY: CRITICAL
+ROOT CAUSE: Atomic field destroyed by memcpy in snapshot synchronization
+
+================================================================================
+THE BUG IN 30 SECONDS
+================================================================================
+
+Location: firmware/src/audio/goertzel.cpp, line 200
+Problem:  memcpy(&audio_front, &audio_back, sizeof(AudioDataSnapshot));
+
+What's wrong:
+  - memcpy copies the ENTIRE structure, including atomic fields
+  - Destroys the sequence counter synchronization protocol
+  - Patterns receive frozen initial-state snapshot forever
+  - All audio data computed correctly, but never reaches patterns
+
+Evidence:
+  - Microphone: ✓ Working
+  - Frequency analysis: ✓ Working
+  - Snapshot sync: ✗ Broken (memcpy destroys sequence counter)
+  - Patterns: ✗ Get no data
+
+================================================================================
+THE FIX IN 30 SECONDS
+================================================================================
+
+Replace:
+  memcpy(&audio_front, &audio_back, sizeof(AudioDataSnapshot));
+
+With:
+  // Copy frequency arrays
+  memcpy(audio_front.spectrogram, audio_back.spectrogram, sizeof(float) * NUM_FREQS);
+  memcpy(audio_front.spectrogram_smooth, audio_back.spectrogram_smooth, sizeof(float) * NUM_FREQS);
+  memcpy(audio_front.spectrogram_absolute, audio_back.spectrogram_absolute, sizeof(float) * NUM_FREQS);
+  memcpy(audio_front.chromagram, audio_back.chromagram, sizeof(float) * 12);
+  memcpy(audio_front.fft_smooth, audio_back.fft_smooth, sizeof(float) * 128);
+  
+  // Copy scalars
+  audio_front.vu_level = audio_back.vu_level;
+  audio_front.vu_level_raw = audio_back.vu_level_raw;
+  audio_front.novelty_curve = audio_back.novelty_curve;
+  audio_front.tempo_confidence = audio_back.tempo_confidence;
+  memcpy(audio_front.tempo_magnitude, audio_back.tempo_magnitude, sizeof(float) * NUM_TEMPI);
+  memcpy(audio_front.tempo_phase, audio_back.tempo_phase, sizeof(float) * NUM_TEMPI);
+  audio_front.update_counter = audio_back.update_counter;
+  audio_front.timestamp_us = audio_back.timestamp_us;
+
+Why this works:
+  - Copies all data fields individually
+  - Leaves atomic synchronization fields untouched
+  - Preserves double-buffer protocol integrity
+  - Same performance, working sync
+
+================================================================================
+DOCUMENTS
+================================================================================
+
+Quick Start:
+  docs/05-analysis/FINDINGS_SUMMARY.md (5 minutes)
+
+Complete Analysis:
+  docs/05-analysis/audio_pipeline_forensic_analysis.md (comprehensive)
+  docs/05-analysis/code_evidence.md (code references)
+
+Implementation:
+  docs/04-planning/audio_snapshot_sync_fix.md (step-by-step)
+
+================================================================================
+VERIFICATION AFTER FIX
+================================================================================
+
+1. Recompile: platformio run -e esp32-s3-devkit
+2. Monitor serial output (115200 baud)
+3. Run Spectrum pattern - should animate to music
+4. Check logs: [PULSE] audio_available should be 1 (not 0)
+5. Verify: spectrum[0] changes with music (not stuck at 0.14)
+
+================================================================================
+CONFIDENCE & EFFORT
+================================================================================
+
+Confidence: 95%+
+Effort: 20-30 minutes
+Risk: LOW (synchronization layer only)
+Impact: Restores all audio-reactive pattern functionality
+
+================================================================================

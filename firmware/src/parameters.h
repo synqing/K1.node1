@@ -31,6 +31,16 @@ struct PatternParameters {
     // Beat gating controls (runtime-tunable)
     float beat_threshold;      // 0.0 - 1.0 (minimum confidence to consider beat)
     float beat_squash_power;   // 0.2 - 1.0 (exponent to squash confidence)
+
+    // Audio/Visual Response Parameters (5 high-impact controls)
+    float audio_responsiveness; // 0.0-1.0 (0=smooth/fluid, 1=instant/snappy)
+    float audio_sensitivity;    // 0.1-4.0 (gain multiplier for quiet vs loud)
+    float bass_treble_balance;  // -1.0 to +1.0 (-1=bass only, 0=balanced, +1=treble only)
+    float color_reactivity;     // 0.0-1.0 (how much audio affects colors)
+    float brightness_floor;     // 0.0-0.3 (minimum brightness, prevents full black)
+
+    // LED transport pacing
+    float frame_min_period_ms;  // 4.0 - 20.0 (minimum frame period; 6.0ms ≈ 166 FPS)
 };
 
 // Default parameter values (from Emotiscope reference)
@@ -56,6 +66,15 @@ inline PatternParameters get_default_params() {
     // Beat gating defaults
     params.beat_threshold = 0.20f;     // Gate low confidence to reduce flicker
     params.beat_squash_power = 0.50f;  // sqrt-style squash; 1.0 = linear
+
+    // Audio/Visual Response defaults (balanced for most music)
+    params.audio_responsiveness = 0.5f;  // Balanced smooth vs snappy
+    params.audio_sensitivity = 1.0f;     // Unity gain (no amplification)
+    params.bass_treble_balance = 0.0f;   // Equal frequency weighting
+    params.color_reactivity = 0.5f;      // Moderate audio-to-color influence
+    params.brightness_floor = 0.05f;     // 5% minimum brightness
+    // LED transport pacing
+    params.frame_min_period_ms = 6.0f;   // Cap ~166 FPS by default
     return params;
 }
 
