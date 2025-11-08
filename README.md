@@ -35,14 +35,6 @@ K1.node1/
 └── README.md              (This file)
 ```
 
-## What's NOT Here (By Design)
-
-- ❌ Beat tracking datasets (6GB+ - abandoned)
-- ❌ Build artifacts (.pio, node_modules, dist/)
-- ❌ Old/stale documentation (700+ bloated MD files)
-- ❌ Archive folders
-- ❌ Music/audio datasets
-
 ## Quick Start (Conductor)
 
 K1.node1 uses **Conductor** for task orchestration. All workflows are defined in `ops/conductor/conductor.json`.
