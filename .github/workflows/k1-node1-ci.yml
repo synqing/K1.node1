@@ -1,0 +1,190 @@
+name: K1.node1 CI
+
+on:
+  push:
+    paths:
+      - 'webapp/**'
+      - 'firmware/**'
+      - 'ops/**'
+      - '.nvmrc'
+      - '.github/workflows/k1-node1-ci.yml'
+      - 'README.md'
+      - '.env.example'
+  pull_request:
+    paths:
+      - 'webapp/**'
+      - 'firmware/**'
+      - 'ops/**'
+      - '.nvmrc'
+      - '.github/workflows/k1-node1-ci.yml'
+      - 'README.md'
+      - '.env.example'
+  workflow_dispatch: {}
+
+concurrency:
+  group: k1-node1-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect path changes
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      fw:  ${{ steps.filter.outputs.fw }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Paths filter
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            web:
+              - 'webapp/**'
+              - 'ops/**'
+              - '.nvmrc'
+              - '.env.example'
+            fw:
+              - 'firmware/**'
+              - 'ops/**'
+              - '.env.example'
+
+  web:
+    name: Web — typecheck, lint, test, build
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node (respect .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: 'npm'
+          cache-dependency-path: |
+            webapp/package-lock.json
+            webapp/pnpm-lock.yaml
+            webapp/yarn.lock
+
+      - name: Ensure .env present (repo root)
+        run: |
+          if [ ! -f .env ] && [ -f .env.example ]; then
+            cp .env.example .env
+          fi
+
+      - name: Preflight (web scope)
+        run: bash ops/scripts/preflight.sh --scope web
+
+      - name: Install deps
+        working-directory: webapp
+        run: |
+          if [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; \
+          elif [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+          else npm ci --no-audit --no-fund; fi
+
+      - name: Typecheck
+        working-directory: webapp
+        run: |
+          if npm run | grep -q "typecheck"; then npm run typecheck; else npx tsc --noEmit; fi
+
+      - name: Lint
+        working-directory: webapp
+        run: |
+          if npm run | grep -q "lint"; then npm run lint; else echo "No lint script"; fi
+
+      - name: Unit tests
+        working-directory: webapp
+        run: |
+          if npm run | grep -q "test"; then npm test -- --runInBand; else echo "No test script"; fi
+
+      - name: Build
+        working-directory: webapp
+        run: |
+          if npm run | grep -q "build"; then npm run build; else echo "No build script"; fi
+
+      - name: Upload web build (if present)
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: webapp/dist
+          if-no-files-found: ignore
+
+  firmware:
+    name: Firmware — build + tests (PlatformIO)
+    needs: changes
+    if: needs.changes.outputs.fw == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          cache: 'pip'
+
+      - name: Install PlatformIO via pipx
+        run: |
+          python -m pip install --upgrade pip pipx
+          python -m pipx ensurepath
+          pipx install platformio
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Cache PlatformIO (frameworks/toolchains)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            firmware/.pio
+          key: pio-${{ runner.os }}-${{ hashFiles('firmware/platformio.ini') }}
+          restore-keys: |
+            pio-${{ runner.os }}-
+
+      - name: Ensure .env present (repo root)
+        run: |
+          if [ ! -f .env ] && [ -f .env.example ]; then
+            cp .env.example .env
+          fi
+
+      - name: Preflight (firmware scope)
+        run: bash ops/scripts/preflight.sh --scope firmware
+
+      - name: Build (release env if present)
+        working-directory: firmware
+        run: |
+          if grep -q "esp32-s3-devkitc-1" platformio.ini; then
+            platformio run -e esp32-s3-devkitc-1
+          else
+            platformio run
+          fi
+
+      - name: Unit/Hardware tests (Phase A)
+        working-directory: firmware
+        run: |
+          if grep -q "test" platformio.ini; then
+            if platformio test -e esp32-s3-devkitc-1; then
+              echo "PIO tests passed"
+            else
+              echo "PIO tests failed"; exit 1
+            fi
+          else
+            echo "No PIO tests configured"; exit 0
+          fi
+
+      - name: Upload firmware artifact(s)
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-binaries
+          path: |
+            firmware/.pio/build/**/firmware*.bin
+            firmware/.pio/build/**/project.*
+          if-no-files-found: warn

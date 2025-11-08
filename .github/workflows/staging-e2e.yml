@@ -1,0 +1,67 @@
+name: Staging E2E Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      device_ip:
+        description: 'Device IP (overrides secret K1_DEVICE_IP if provided)'
+        required: false
+        type: string
+  schedule:
+    - cron: '0 * * * *'  # hourly optional smoke; delete if not desired
+
+concurrency:
+  group: staging-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_OPTIONS: "--unhandled-rejections=strict"
+
+jobs:
+  e2e:
+    name: Smoke — Device API
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node (respect .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Prepare .env (non-secret)
+        run: |
+          if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi
+
+      - name: Preflight — minimal (web scope for Node/env)
+        run: bash ops/scripts/preflight.sh --scope web
+
+      - name: Resolve device target
+        id: target
+        run: |
+          IP="${{ github.event.inputs.device_ip }}"
+          if [ -z "$IP" ]; then IP="${{ secrets.K1_DEVICE_IP }}"; fi
+          if [ -z "$IP" ]; then echo "No device IP provided (input or secret K1_DEVICE_IP)"; exit 1; fi
+          echo "ip=$IP" >> $GITHUB_OUTPUT
+
+      - name: Run k1_smoke (HTTP)
+        run: |
+          node ops/diag/k1_smoke.js --device "${{ steps.target.outputs.ip }}" \
+            ${K1_DEVICE_API_TOKEN:+--token "$K1_DEVICE_API_TOKEN"} \
+            --timeout 5000
+        env:
+          K1_DEVICE_API_TOKEN: ${{ secrets.K1_DEVICE_API_TOKEN }}
+
+      - name: Upload smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-smoke-logs
+          path: ops/diag/.smoke-logs/**
+          if-no-files-found: ignore

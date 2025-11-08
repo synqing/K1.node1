@@ -1,0 +1,118 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'web-v*'
+      - 'fw-v*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write  # needed to create GitHub Releases
+
+jobs:
+  web:
+    name: Release — Web
+    if: startsWith(github.ref_name, 'web-v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: 'npm'
+          cache-dependency-path: |
+            webapp/package-lock.json
+            webapp/pnpm-lock.yaml
+            webapp/yarn.lock
+
+      - name: Prepare .env (non-secret)
+        run: |
+          if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi
+
+      - name: Preflight — web
+        run: bash ops/scripts/preflight.sh --scope web
+
+      - name: Install deps
+        working-directory: webapp
+        run: |
+          if [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; \
+          elif [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+          else npm ci --no-audit --no-fund; fi
+
+      - name: Build
+        working-directory: webapp
+        run: |
+          if npm run | grep -q "build"; then npm run build; else echo "No build script"; fi
+
+      - name: Create GitHub Release (web)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            webapp/dist/**
+
+  firmware:
+    name: Release — Firmware
+    if: startsWith(github.ref_name, 'fw-v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          cache: 'pip'
+
+      - name: Install PlatformIO (pipx)
+        run: |
+          python -m pip install --upgrade pip pipx
+          python -m pipx ensurepath
+          pipx install platformio
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            firmware/.pio
+          key: pio-${{ runner.os }}-${{ hashFiles('firmware/platformio.ini') }}
+          restore-keys: |
+            pio-${{ runner.os }}-
+
+      - name: Prepare .env (non-secret)
+        run: |
+          if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi
+
+      - name: Preflight — firmware
+        run: bash ops/scripts/preflight.sh --scope firmware
+
+      - name: Build (release env if present)
+        working-directory: firmware
+        run: |
+          if grep -q "esp32-s3-devkitc-1" platformio.ini; then
+            platformio run -e esp32-s3-devkitc-1
+          else
+            platformio run
+          fi
+
+      - name: Create GitHub Release (firmware)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            firmware/.pio/build/**/firmware*.bin
+            firmware/.pio/build/**/project.*
