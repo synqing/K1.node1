@@ -4,9 +4,10 @@ Central documentation hub for all K1.node1 project information, decisions, plans
 
 ## Start Here
 
-- **Navigation Guide:** `00-INDEX.md` - Master index of all documentation
-- **Governance Standards:** `08-governance/GOVERNANCE.md` - Team responsibilities and filing rules
-- **Quick Reference:** `07-resources/governance_quick_ref.md` - One-page cheat sheet
+- **Navigation Guide:** `K1N_INDEX_v1.0_20251108.md` - Master index of all documentation
+- **Governance Standards:** `08-governance/K1NGov_GOVERNANCE_v1.0_20251108.md` - Team responsibilities and filing rules
+- **Quick Reference:** `07-resources/K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md` - One-page cheat sheet
+- **Conductor Docs (moved):** `../Conductor/README.md` - Orchestration + MCP integration
 
 ## Documentation Folders
 
@@ -19,15 +20,15 @@ Central documentation hub for all K1.node1 project information, decisions, plans
 | **05-analysis/** | Technical analysis & research | PATTERN_ANALYSIS_* |
 | **06-reference/** | Quick references & glossaries | (to be populated) |
 | **07-resources/** | Team resources & training | governance_quick_ref, TASKMASTER_CLI_* |
-| **08-governance/** | Policies & standards | GOVERNANCE.md |
-| **09-implementation/** | Implementation specs | IMPLEMENTATION_PLAN.md |
+| **08-governance/** | Policies & standards | K1NGov_GOVERNANCE_v1.0_20251108.md |
+| **09-implementation/** | Implementation specs | K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md |
 
 ## Navigation Tips
 
 - Use numbered prefix (00-09) to browse folders logically
 - Check folder README.md for what's in that section
 - Use cross-links between related documents
-- Refer to 00-INDEX.md for searchable document list
+- Refer to K1N_INDEX_v1.0_20251108.md for searchable document list
 
 ## Filing Your Documentation
 
@@ -38,11 +39,10 @@ Central documentation hub for all K1.node1 project information, decisions, plans
 4. Link to related documents
 5. Update relevant folder README when adding new files
 
-**Questions?** See `08-governance/GOVERNANCE.md` for complete standards.
+**Questions?** See `08-governance/K1NGov_GOVERNANCE_v1.0_20251108.md` for complete standards.
 
 ---
 
 **Last Updated:** 2025-11-05
 **Governance Status:** Active Phase 2 standards in effect
 **Questions or Feedback:** Escalate to team lead
-

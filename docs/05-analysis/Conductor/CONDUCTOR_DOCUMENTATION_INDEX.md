@@ -1,10 +1,12 @@
 # Conductor Documentation Index
 
+Note: As of 2025-11-08, the Conductor documentation directory moved from `docs/Conductor` to the repository root at `Conductor/`. Any file references below refer to documents inside the `Conductor/` directory.
+
 ## Quick Start
 
-**For first-time users:** Start with **CONDUCTOR_QUICK_REFERENCE.md** (1-2 minute read)
+**For first-time users:** Start with [K1NCond_REFERENCE_QUICK_v1.0_20251108.md](../../../Conductor/K1NCond_REFERENCE_QUICK_v1.0_20251108.md) (1-2 minute read)
 
-**For detailed usage:** Read **CONDUCTOR_HOOKS_GUIDE.md** (10-15 minute read)
+**For detailed usage:** Read [K1NCond_GUIDE_HOOKS_v1.0_20251108.md](../../../Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md) (10-15 minute read)
 
 ---
 
@@ -12,7 +14,7 @@
 
 ### User-Facing Guides
 
-#### 1. CONDUCTOR_QUICK_REFERENCE.md
+#### 1. K1NCond_REFERENCE_QUICK_v1.0_20251108.md
 **Audience:** All developers
 **Length:** ~2 KB, 5 minutes
 **Content:**
@@ -26,7 +28,7 @@
 
 ---
 
-#### 2. CONDUCTOR_HOOKS_GUIDE.md
+#### 2. K1NCond_GUIDE_HOOKS_v1.0_20251108.md
 **Audience:** All developers (comprehensive reference)
 **Length:** ~10 KB, 500+ lines, 15-20 minutes
 **Content:**
@@ -46,7 +48,7 @@
 
 ### Developer & Technical Guides
 
-#### 3. CONDUCTOR_HOOKS_IMPLEMENTATION_REPORT.md
+#### 3. K1NCond_REPORT_HOOKS_v1.0_20251108.md
 **Audience:** Developers, maintainers
 **Length:** ~8 KB, technical details
 **Content:**
@@ -140,10 +142,10 @@ These were created in prior phases and work alongside Conductor hooks:
 ```
 K1.node1/
 ├── conductor.json                               ← Root config
-├── CONDUCTOR_QUICK_REFERENCE.md                 ← User guide (quick)
-├── CONDUCTOR_HOOKS_GUIDE.md                     ← User guide (comprehensive)
-├── CONDUCTOR_HOOKS_IMPLEMENTATION_REPORT.md     ← Technical report
-├── CONDUCTOR_DOCUMENTATION_INDEX.md             ← This file
+├── K1NCond_REFERENCE_QUICK_v1.0_20251108.md     ← User guide (quick)
+├── K1NCond_GUIDE_HOOKS_v1.0_20251108.md         ← User guide (comprehensive)
+├── rules/K1NCond_REPORT_HOOKS_v1.0_20251108.md  ← Technical report
+├── K1N_INDEX_v1.0_20251108.md                   ← Index
 ├── ops/
 │   └── scripts/
 │       ├── conductor-setup.sh                   ← Setup hook
@@ -162,14 +164,14 @@ K1.node1/
 
 | Goal | Document | Section |
 |------|----------|---------|
-| Remember RUN_TARGET options | CONDUCTOR_QUICK_REFERENCE.md | Run (Manual) |
-| Debug "Another run appears active" | CONDUCTOR_QUICK_REFERENCE.md | Troubleshooting |
-| Understand how setup works | CONDUCTOR_HOOKS_GUIDE.md | Hook Scripts → Setup |
-| Learn usage patterns | CONDUCTOR_HOOKS_GUIDE.md | Usage Patterns |
-| Fix a security issue | CONDUCTOR_HOOKS_GUIDE.md | Safety & Security |
-| Deploy to production | CONDUCTOR_HOOKS_IMPLEMENTATION_REPORT.md | Deployment Instructions |
-| Review acceptance tests | CONDUCTOR_HOOKS_IMPLEMENTATION_REPORT.md | Acceptance Criteria |
-| Check metrics | CONDUCTOR_HOOKS_IMPLEMENTATION_REPORT.md | Metrics & Statistics |
+| Remember RUN_TARGET options | [K1NCond_REFERENCE_QUICK_v1.0_20251108.md](../../../Conductor/K1NCond_REFERENCE_QUICK_v1.0_20251108.md) | Run (Manual) |
+| Debug "Another run appears active" | [K1NCond_REFERENCE_QUICK_v1.0_20251108.md](../../../Conductor/K1NCond_REFERENCE_QUICK_v1.0_20251108.md) | Troubleshooting |
+| Understand how setup works | [K1NCond_GUIDE_HOOKS_v1.0_20251108.md](../../../Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md) | Hook Scripts → Setup |
+| Learn usage patterns | [K1NCond_GUIDE_HOOKS_v1.0_20251108.md](../../../Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md) | Usage Patterns |
+| Fix a security issue | [K1NCond_GUIDE_HOOKS_v1.0_20251108.md](../../../Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md) | Safety & Security |
+| Deploy to production | [K1NCond_REPORT_HOOKS_v1.0_20251108.md](../../../Conductor/rules/K1NCond_REPORT_HOOKS_v1.0_20251108.md) | Deployment Instructions |
+| Review acceptance tests | [K1NCond_REPORT_HOOKS_v1.0_20251108.md](../../../Conductor/rules/K1NCond_REPORT_HOOKS_v1.0_20251108.md) | Acceptance Criteria |
+| Check metrics | [K1NCond_REPORT_HOOKS_v1.0_20251108.md](../../../Conductor/rules/K1NCond_REPORT_HOOKS_v1.0_20251108.md) | Metrics & Statistics |
 
 ---
 
@@ -177,21 +179,21 @@ K1.node1/
 
 ### For New Developers
 
-1. Read **CONDUCTOR_QUICK_REFERENCE.md** (2 min)
+1. Read [K1NCond_REFERENCE_QUICK_v1.0_20251108.md](../../../Conductor/K1NCond_REFERENCE_QUICK_v1.0_20251108.md) (2 min)
 2. Try creating a Conductor workspace (auto-runs setup)
 3. Try setting `RUN_TARGET=web:dev` and clicking Run
-4. Read **CONDUCTOR_HOOKS_GUIDE.md** if curious (10 min)
+4. Read [K1NCond_GUIDE_HOOKS_v1.0_20251108.md](../../../Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md) if curious (10 min)
 
 ### For Contributors
 
-1. Read **CONDUCTOR_HOOKS_IMPLEMENTATION_REPORT.md** (5 min)
+1. Read [K1NCond_REPORT_HOOKS_v1.0_20251108.md](../../../Conductor/rules/K1NCond_REPORT_HOOKS_v1.0_20251108.md) (5 min)
 2. Review the three shell scripts (10 min)
 3. Run acceptance tests locally (optional)
 4. Propose changes via PR
 
 ### For Maintainers
 
-1. Review **CONDUCTOR_HOOKS_IMPLEMENTATION_REPORT.md** (10 min)
+1. Review [K1NCond_REPORT_HOOKS_v1.0_20251108.md](../../../Conductor/rules/K1NCond_REPORT_HOOKS_v1.0_20251108.md) (10 min)
 2. Check **Deployment Instructions** section
 3. Run acceptance tests
 4. Merge when ready
@@ -202,10 +204,10 @@ K1.node1/
 
 | Issue | Document |
 |-------|----------|
-| `.conductor-run.lock` exists | CONDUCTOR_QUICK_REFERENCE.md |
-| PlatformIO not found | CONDUCTOR_QUICK_REFERENCE.md |
-| Node version mismatch | CONDUCTOR_QUICK_REFERENCE.md |
-| Full troubleshooting | CONDUCTOR_HOOKS_GUIDE.md |
+| `.conductor-run.lock` exists | [K1NCond_REFERENCE_QUICK_v1.0_20251108.md](../../../Conductor/K1NCond_REFERENCE_QUICK_v1.0_20251108.md) |
+| PlatformIO not found | [K1NCond_REFERENCE_QUICK_v1.0_20251108.md](../../../Conductor/K1NCond_REFERENCE_QUICK_v1.0_20251108.md) |
+| Node version mismatch | [K1NCond_REFERENCE_QUICK_v1.0_20251108.md](../../../Conductor/K1NCond_REFERENCE_QUICK_v1.0_20251108.md) |
+| Full troubleshooting | [K1NCond_GUIDE_HOOKS_v1.0_20251108.md](../../../Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md) |
 
 ---
 
@@ -220,9 +222,9 @@ K1.node1/
 
 ## Questions?
 
-1. Check **CONDUCTOR_QUICK_REFERENCE.md** for quick answers
-2. Check **CONDUCTOR_HOOKS_GUIDE.md** for detailed explanations
-3. Check **CONDUCTOR_HOOKS_IMPLEMENTATION_REPORT.md** for technical details
+1. Check [K1NCond_REFERENCE_QUICK_v1.0_20251108.md](../../../Conductor/K1NCond_REFERENCE_QUICK_v1.0_20251108.md) for quick answers
+2. Check [K1NCond_GUIDE_HOOKS_v1.0_20251108.md](../../../Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md) for detailed explanations
+3. Check [K1NCond_REPORT_HOOKS_v1.0_20251108.md](../../../Conductor/rules/K1NCond_REPORT_HOOKS_v1.0_20251108.md) for technical details
 4. File an issue if nothing above helps
 
 ---

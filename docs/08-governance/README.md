@@ -4,14 +4,14 @@ This folder contains governance standards, policies, team responsibilities, and 
 
 ## Contents
 
-- **GOVERNANCE.md:** Comprehensive governance standards covering documentation, filing rules, team responsibilities, and enforcement mechanisms
-- **K1_NODE1_LEGACY_PATH_AUDIT.md:** Audit of legacy path mapping and decision records for K1.reinvented → K1.node1 transition
-- **LEGACY_PATH_MAPPING_QUICK_REFERENCE.md:** Quick reference for legacy file paths and modern equivalents
+- **K1NGov_GOVERNANCE_v1.0_20251108.md:** Comprehensive governance standards covering documentation, filing rules, team responsibilities, and enforcement mechanisms
+- **K1NGov_AUDIT_K1_NODE1_LEGACY_PATH_v1.0_20251108.md:** Audit of legacy path mapping and decision records for K1.reinvented → K1.node1 transition
+- **K1NGov_REFERENCE_LEGACY_PATH_MAPPING_QUICK_v1.0_20251108.md:** Quick reference for legacy file paths and modern equivalents
 
 ## Quick Navigation
 
-- [Back to Index](../00-INDEX.md)
-- [Quick Reference (Resources)](../07-resources/governance_quick_ref.md)
+- [Back to Index](../K1N_INDEX_v1.0_20251108.md)
+- [Quick Reference (Resources)](../07-resources/K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md)
 - [Planning Documents](../04-planning/)
 
 ## Filing Rules for This Folder
@@ -23,6 +23,5 @@ This folder contains governance standards, policies, team responsibilities, and 
 
 ---
 
-**For team training:** See `docs/07-resources/GOVERNANCE_TRAINING_NOV6.md`
-**For quick reference:** See `docs/07-resources/governance_quick_ref.md`
-
+**For team training:** See `docs/07-resources/K1NRes_GUIDE_GOVERNANCE_TRAINING_NOV6_v1.0_20251108.md`
+**For quick reference:** See `docs/07-resources/K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md`

@@ -6,7 +6,7 @@ author: Architecture Team
 intent: Define clean, flat repository structure to prevent bloat
 references:
   - ADR-0001-project-scope-abandonment.md
-  - docs/04-planning/K1_MIGRATION_MASTER_PLAN.md
+  - docs/04-planning/K1NPlan_PLAN_K1_MIGRATION_MASTER_v1.0_20251108.md
 ---
 
 # ADR-0005: K1.node1 Repository Structure

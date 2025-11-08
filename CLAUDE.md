@@ -111,7 +111,7 @@ When in doubt, route to `docs/` and ask a maintainer.
 6. Use consistent terminology and naming; avoid duplicate sections or repeated instructions.
 7. Add validation notes: what changed, why, and how to verify.
 8. Request review if the artifact changes cross-team workflows or standards.
-9. Update indices (`docs/00-INDEX.md` or equivalents) when adding new top-level docs.
+9. Update indices (`docs/00-tab5/K1NAnalysis_INDEX_TAB5_v1.0_20251108.md` or equivalents) when adding new top-level docs.
 10. Archive or supersede outdated docs rather than editing history.
 
 ---
@@ -152,7 +152,7 @@ These role capsules provide minimal, high-signal guidance. Full specialty materi
 
 ### Documentation Curator
 - Inputs: new/updated docs, PRs.
-- Outputs: filed/moved/linked artifacts, updated `docs/00-INDEX.md`.
+- Outputs: filed/moved/linked artifacts, updated `docs/00-tab5/K1NAnalysis_INDEX_TAB5_v1.0_20251108.md`.
 - Do: de-duplicate and compress; Don’t: retain stale forks of the same topic.
 
 ---
@@ -218,7 +218,7 @@ Decision: PASS → Ready for deployment; CONDITIONAL (≤2 misses) → escalate;
 
 ## Governance & Maintenance
 
-- Follow repo conventions in `docs/08-governance/` and indices in `docs/00-INDEX.md`.
+- Follow repo conventions in `docs/08-governance/` and indices in `docs/00-tab5/K1NAnalysis_INDEX_TAB5_v1.0_20251108.md`.
 - Keep links fresh; move bulk or specialized content to `docs/06-reference/` or `docs/07-resources/`.
 - Prefer smaller, focused docs with links over monoliths.
 
@@ -226,10 +226,10 @@ Decision: PASS → Ready for deployment; CONDITIONAL (≤2 misses) → escalate;
 
 ## Related Guides (Reassigned From Prior CLAUDE.md)
 
-- Modern CLI Toolkit Agent → `docs/06-reference/modern-cli-toolkit-agent.md`
-- Frontend Testing Playbook → `docs/07-resources/frontend-testing-playbook.md`
+- Modern CLI Toolkit Agent → `docs/06-reference/K1NRef_GUIDE_MODERN_CLI_TOOLKIT_AGENT_v1.0_20251108.md`
+- Frontend Testing Playbook → `docs/07-resources/K1NRes_PLAYBOOK_FRONTEND_TESTING_v1.0_20251108.md`
 - Chat UI Animations & Micro‑Syntax → `.superdesign/CHAT_UI_ANIMATIONS.md`
-- Task Master Integration & Tools → `docs/07-resources/taskmaster_integration.md`
+- Task Master Integration & Tools → `docs/07-resources/K1NRes_GUIDE_TASKMASTER_INTEGRATION_v1.0_20251108.md`
 
 Notes:
 - These guides were split out to reduce size and improve focus for Claude Code Agents. They remain available under the paths above.

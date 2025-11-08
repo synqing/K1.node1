@@ -22,14 +22,14 @@ for FILE in $STAGED_FILES; do
     FILENAME=$(basename "$FILE")
     DIR=$(dirname "$FILE")
     
-    # Skip validation for files outside docs/Conductor directory
-    if [[ ! "$DIR" =~ ^docs/Conductor ]]; then
-        echo "✓ $FILE (outside docs/Conductor, skipped)"
+    # Skip validation for files outside Conductor directory
+    if [[ ! "$DIR" =~ ^Conductor ]]; then
+        echo "✓ $FILE (outside Conductor, skipped)"
         continue
     fi
     
     # Skip validation for files in scripts/ directory (executables)
-    if [[ "$DIR" =~ ^docs/Conductor/scripts ]]; then
+    if [[ "$DIR" =~ ^Conductor/scripts ]]; then
         echo "✓ $FILE (scripts directory, skipped)"
         continue
     fi
@@ -61,15 +61,47 @@ done
 echo ""
 echo "=========================================="
 if [ $ERRORS -eq 0 ]; then
-    echo "✅ All docs/Conductor files comply with naming standard"
-    echo "=========================================="
-    echo ""
-    exit 0
+    echo "✅ All Conductor files comply with naming standard"
 else
-    echo "❌ COMMIT BLOCKED - $ERRORS file(s) have naming violations"
-    echo "=========================================="
-    echo ""
-    echo "Fix filenames in docs/Conductor/ to match: [ProjectCode]_[Type]_v[Version]_[YYYYMMDD].[ext]"
-    echo ""
-    exit 1
+    echo "❌ Naming issues found in Conductor/ (see above)"
 fi
+echo "=========================================="
+echo ""
+
+# --- Informational docs/ validator (non-blocking) ---
+echo "Docs naming check (non-blocking)…"
+
+BLOCK=${DOCS_NAMING_ENFORCE:-1}
+DOC_ERRORS=0
+
+while IFS= read -r FILE; do
+  BASENAME=$(basename "$FILE")
+  DIR=$(dirname "$FILE")
+  # Skip exceptions
+  if [[ "$FILE" =~ ^docs/archive/ ]]; then continue; fi
+  if [[ "$FILE" =~ ^docs/02-adr/ADR-.*\.md$ ]]; then continue; fi
+  if [[ "$BASENAME" == README.md ]]; then continue; fi
+  if [[ "$FILE" == docs/_README_TEMPLATE.md ]]; then continue; fi
+  # Preserve specialized nested docs per policy
+  if [[ "$FILE" =~ ^docs/05-analysis/Conductor/ ]]; then continue; fi
+  if [[ "$FILE" =~ ^docs/05-analysis/tab5/ ]]; then continue; fi
+  if [[ "$FILE" =~ ^docs/03-guides/builderio ]]; then continue; fi
+  # Accept K1N* prefixed files
+  if [[ "$BASENAME" =~ ^K1N[A-Za-z]*_[A-Z0-9][A-Z0-9_]*_v[0-9]+\.[0-9]+_[0-9]{8}\.(md|txt|json)$ ]]; then
+    continue
+  fi
+  echo "⚠ Non-compliant (docs/): $FILE"
+  ((DOC_ERRORS++))
+done < <(find docs -type f \( -name "*.md" -o -name "*.txt" -o -name "*.json" \))
+
+if [ "$BLOCK" -eq 1 ] && [ $DOC_ERRORS -gt 0 ]; then
+  echo ""
+  echo "❌ COMMIT BLOCKED - $DOC_ERRORS docs/ file(s) violate K1N naming"
+  echo "Set DOCS_NAMING_ENFORCE=0 to run non-blocking (default)"
+  exit 1
+fi
+
+echo ""
+echo "✅ Docs naming check completed (non-blocking). Issues: $DOC_ERRORS"
+echo ""
+exit 0

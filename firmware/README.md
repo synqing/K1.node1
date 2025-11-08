@@ -92,6 +92,6 @@
 ## Notes
 - PlatformIO caches and SDK/toolchain packages are intentionally ignored (`firmware/.platformio/**`); they are re‑hydrated by the build.
 - See the playbook for Phase‑A readiness, gates, and telemetry specifics:
-  - `docs/Playbooks/phase_a_security_and_phase0_readiness_playbook.md`
-  - `docs/06-reference/phase_a_security_fixes_reference.md`
-  - `docs/09-reports/security_fix_validation.md`
+  - `docs/Playbooks/K1NPlaybook_PHASE_A_SECURITY_AND_PHASE0_READINESS_v1.0_20251108.md`
+  - `docs/06-reference/K1NRef_REFERENCE_PHASE_A_SECURITY_FIXES_v1.0_20251108.md`
+  - `docs/09-reports/K1NReport_VALIDATION_SECURITY_FIX_v1.0_20251108.md`

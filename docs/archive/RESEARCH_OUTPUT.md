@@ -35,7 +35,7 @@ Comprehensive research on SPH0645 MEMS microphone I2S integration with ESP32-S3 
 ## Documents Created
 
 ### 1. Full Analysis Document
-**Path**: `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/05-analysis/sph0645_i2s_configuration_analysis.md`
+**Path**: `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/05-analysis/K1NAnalysis_ANALYSIS_SPH0645_I2S_CONFIGURATION_v1.0_20251108.md`
 
 **Contents**:
 - SPH0645 data format specifications (24-bit MSB-left-aligned, 18-bit precision)
@@ -59,7 +59,7 @@ Comprehensive research on SPH0645 MEMS microphone I2S integration with ESP32-S3 
 - Section 8: Migration notes
 
 ### 2. Quick Reference Guide
-**Path**: `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/06-reference/sph0645_quick_reference.md`
+**Path**: `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/06-reference/K1NRef_REFERENCE_SPH0645_QUICK_v1.0_20251108.md`
 
 **Contents**:
 - Copy-paste configuration template
@@ -76,7 +76,7 @@ Comprehensive research on SPH0645 MEMS microphone I2S integration with ESP32-S3 
 **Use Case**: Fast reference during implementation or troubleshooting.
 
 ### 3. Research Summary & Sources
-**Path**: `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/05-analysis/sph0645_research_summary.md`
+**Path**: `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/05-analysis/K1NAnalysis_SUMMARY_SPH0645_RESEARCH_v1.0_20251108.md`
 
 **Contents**:
 - Key findings at a glance
@@ -319,10 +319,10 @@ All documents are stored in the project's docs/ directory following the CLAUDE.m
 /Users/spectrasynq/Workspace_Management/Software/K1.node1/
 ├── docs/
 │   ├── 05-analysis/
-│   │   ├── sph0645_i2s_configuration_analysis.md       (23 KB - FULL ANALYSIS)
-│   │   └── sph0645_research_summary.md                 (12 KB - SOURCES & FINDINGS)
+│   │   ├── K1NAnalysis_ANALYSIS_SPH0645_I2S_CONFIGURATION_v1.0_20251108.md       (23 KB - FULL ANALYSIS)
+│   │   └── K1NAnalysis_SUMMARY_SPH0645_RESEARCH_v1.0_20251108.md                 (12 KB - SOURCES & FINDINGS)
 │   └── 06-reference/
-│       └── sph0645_quick_reference.md                  (6.6 KB - QUICK LOOKUP)
+│       └── K1NRef_REFERENCE_SPH0645_QUICK_v1.0_20251108.md                  (6.6 KB - QUICK LOOKUP)
 ```
 
 ---

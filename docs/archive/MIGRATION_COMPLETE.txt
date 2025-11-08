@@ -52,8 +52,8 @@ K1.node1/
 ├── docs/                      (Essential documentation only)
 │   ├── adr/                   (10 Architecture Decision Records)
 │   ├── CLAUDE.md              (Agent operations manual)
-│   ├── PHASE_2D1_AUDIT_START_HERE.md
-│   └── PHASE_2D1_GRAPH_PARALLEL_MASTER_STRATEGY.md
+│   ├── K1NPlan_AUDIT_PHASE_2D1_START_HERE_v1.0_20251108.md
+│   └── K1NPlan_STRATEGY_PHASE_2D1_GRAPH_PARALLEL_MASTER_v1.0_20251108.md
 │
 ├── README.md                  (Project overview)
 └── MIGRATION_COMPLETE.txt     (This file)
@@ -68,7 +68,7 @@ NEXT STEPS
 
 2. UNDERSTAND DECISIONS:
    $ ls -la docs/adr/                 (10 architecture decisions)
-   $ cat docs/PHASE_2D1_AUDIT_START_HERE.md
+   $ cat docs/K1NPlan_AUDIT_PHASE_2D1_START_HERE_v1.0_20251108.md
 
 3. BUILD & TEST:
    Firmware:  cd firmware && pio run -e esp32-s3-devkitc-1

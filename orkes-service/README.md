@@ -88,6 +88,41 @@ npm start
 
 The service will start on `http://localhost:4002` by default.
 
+### Deploy First Workflow (Pattern Compilation)
+
+1. Register the workflow with Orkes (requires valid Orkes credentials in `.env.local`):
+   ```bash
+   npm run register:pattern
+   ```
+
+2. Start the worker-backed service (already polls for `validate_pattern`, `generate_cpp`, `compile_firmware`, `run_tests`, `run_benchmarks`):
+   ```bash
+   npm run dev
+   ```
+
+3. Trigger a test execution:
+   ```bash
+   curl -X POST http://localhost:4002/api/workflows/execute \
+     -H 'Content-Type: application/json' \
+     -d '{
+       "workflowName": "k1_pattern_compilation",
+       "input": {
+         "patternName": "rainbow_pulse",
+         "patternCode": "pattern rainbow_pulse { color: red; timing: pulse(0.5s); }",
+         "optimizationLevel": "O2"
+       }
+     }'
+   ```
+
+4. Monitor status:
+   ```bash
+   curl http://localhost:4002/api/workflows/<WORKFLOW_ID_FROM_PREVIOUS_STEP>
+   ```
+
+Notes:
+- Use Node 20.x; Orkes SDK depends on `isolated-vm` which is not yet compatible with Node 24.x.
+- Ensure your Orkes account/app has permission to create workflow metadata.
+
 ### Verify Installation
 
 ```bash
@@ -322,7 +357,7 @@ orkes-service/
 │   │   └── workflows.ts          # TypeScript type definitions
 │   └── index.ts                  # Express server entry point
 ├── docs/
-│   ├── INDEX.md                  # Documentation index
+│   ├── tab5/K1NAnalysis_INDEX_TAB5_v1.0_20251108.md                  # Documentation index
 │   ├── guides/
 │   │   ├── INTEGRATION_GUIDE.md  # Integration instructions
 │   │   ├── DEEP_DIVE.md          # Architecture & design patterns
@@ -531,12 +566,12 @@ pm2 startup  # Enable auto-start on boot
 
 ## Documentation
 
-See [docs/INDEX.md](docs/INDEX.md) for complete documentation index.
+See `docs/K1NOrkes_INDEX_v1.0_20251108.md` for the complete documentation index.
 
 Key guides:
-- [Integration Guide](docs/guides/INTEGRATION_GUIDE.md) - Full integration instructions
-- [Deep Dive](docs/guides/DEEP_DIVE.md) - Architecture and design patterns
-- [Pattern Compilation](docs/guides/PATTERN_COMPILATION.md) - Workflow implementation details
+- `docs/guides/K1NOrkes_GUIDE_INTEGRATION_v1.0_20251108.md` - Full integration instructions
+- `docs/guides/K1NOrkes_GUIDE_DEEP_DIVE_v1.0_20251108.md` - Architecture and design patterns
+- `docs/guides/K1NOrkes_GUIDE_PATTERN_COMPILATION_v1.0_20251108.md` - Workflow implementation details
 
 ## Resources
 

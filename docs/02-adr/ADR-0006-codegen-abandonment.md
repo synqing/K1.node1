@@ -186,8 +186,8 @@ The graph-based system has been **quietly abandoned** during the audio-reactive 
 **Decision:** CHOSEN because strategic market opportunity ($50-150M valuation) overrides technical concerns. The competitive window (12-18 months) and customer base expansion (50-100x) are strategically mandatory.
 
 **Feasibility Study:** A comprehensive architectural assessment of stateful nodes was conducted (Nov 5, 2025). See:
-- **Executive Summary:** `docs/01-architecture/STATEFUL_NODE_EXECUTIVE_SUMMARY.md`
-- **Full Analysis:** `docs/01-architecture/STATEFUL_NODE_FEASIBILITY_ASSESSMENT.md` (66 pages)
+- **Executive Summary:** `docs/01-architecture/K1NArch_SUMMARY_STATEFUL_NODE_EXECUTIVE_v1.0_20251108.md`
+- **Full Analysis:** `docs/01-architecture/K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md` (66 pages)
 
 **Key Finding:** Stateful nodes are TECHNICALLY FEASIBLE (performance impact <2%, memory <1KB per node) and ARCHITECTURALLY SOUND when implemented with pre-allocated buffers. Previous rejection was based on incomplete strategic analysis. With USP context, technical feasibility is sufficient justification.
 
@@ -360,7 +360,7 @@ The graph-based system has been **quietly abandoned** during the audio-reactive 
 
 ### Master Strategy Document (Nov 5, 2025)
 
-- **MASTER:** `Implementation.plans/roadmaps/PHASE_2D1_GRAPH_PARALLEL_MASTER_STRATEGY.md` - **START HERE** for complete parallelization strategy, business case, timeline, and team allocation
+- **MASTER:** `Implementation.plans/roadmaps/K1NPlan_STRATEGY_PHASE_2D1_GRAPH_PARALLEL_MASTER_v1.0_20251108.md` - **START HERE** for complete parallelization strategy, business case, timeline, and team allocation
   - Business-analyst findings: $50-150M valuation opportunity, 10-12x TAM expansion
   - Task-planner findings: 95% independence, 6-8 week timeline savings, 5 engineers
   - Architect findings: Phase 2D1 fixes ENABLE graph system, safe parallelization
@@ -375,19 +375,19 @@ The graph-based system has been **quietly abandoned** during the audio-reactive 
 
 - **Pattern Reversibility Study:** `docs/05-analysis/pattern_reverse_engineering_feasibility.md` (1,582 lines)
   - Finding: 88% of patterns convertible to nodes (15/17 patterns, 159 total node instances)
-- **Executive Summary:** `docs/05-analysis/PATTERN_ANALYSIS_EXECUTIVE_SUMMARY.md`
-- **Codebase Architecture:** `docs/05-analysis/pattern_codebase_architecture.md`
+- **Executive Summary:** `docs/05-analysis/K1NAnalysis_SUMMARY_PATTERN_ANALYSIS_EXECUTIVE_v1.0_20251108.md`
+- **Codebase Architecture:** `docs/05-analysis/K1NAnalysis_ANALYSIS_PATTERN_CODEBASE_ARCHITECTURE_v1.0_20251108.md`
 
 ### Stateful Node Feasibility (Nov 5, 2025)
 
-- **Full Assessment:** `docs/01-architecture/STATEFUL_NODE_FEASIBILITY_ASSESSMENT.md` (66 pages)
+- **Full Assessment:** `docs/01-architecture/K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md` (66 pages)
   - Finding: Technically feasible, <2% performance impact, <1KB memory per node
-- **Executive Summary:** `docs/01-architecture/STATEFUL_NODE_EXECUTIVE_SUMMARY.md`
+- **Executive Summary:** `docs/01-architecture/K1NArch_SUMMARY_STATEFUL_NODE_EXECUTIVE_v1.0_20251108.md`
 
 ### Implementation Planning
 
 - **Phase 2D1 Roadmap (Original):** `Implementation.plans/roadmaps/PHASE_2D1_EXECUTION_ROADMAP.md`
-- **Phase 2D1 + Graph Parallel Master Strategy (NEW):** `Implementation.plans/roadmaps/PHASE_2D1_GRAPH_PARALLEL_MASTER_STRATEGY.md`
+- **Phase 2D1 + Graph Parallel Master Strategy (NEW):** `Implementation.plans/roadmaps/K1NPlan_STRATEGY_PHASE_2D1_GRAPH_PARALLEL_MASTER_v1.0_20251108.md`
 
 ### Architecture Documents
 

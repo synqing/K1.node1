@@ -190,8 +190,8 @@ The LUT system will be considered successful if:
 
 ## References
 
-- [LUT System Architecture](../01-architecture/lut_system_architecture.md)
-- [LUT Optimization Analysis](../05-analysis/lut_optimization_analysis.md)
+- [LUT System Architecture](../01-architecture/K1NArch_SPEC_LUT_SYSTEM_ARCHITECTURE_v1.0_20251108.md)
+- [LUT Optimization Analysis](../05-analysis/K1NAnalysis_ANALYSIS_LUT_OPTIMIZATION_v1.0_20251108.md)
 - [ESP32-S3 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-s3_technical_reference_manual_en.pdf)
 - Research: "Energy-Efficient Approximation Techniques for Embedded Systems" (IEEE 2019)
 - Prior Art: FastLED library RainbowColors_p implementation

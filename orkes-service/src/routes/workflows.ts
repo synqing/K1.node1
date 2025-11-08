@@ -29,7 +29,7 @@ router.post('/execute', async (req: Request, res: Response) => {
       return;
     }
 
-    const client = await getOrkesClient();
+    const client: any = await getOrkesClient();
 
     // Start workflow execution
     const workflowId = await client.workflowResource.startWorkflow({
@@ -64,7 +64,7 @@ router.get('/:workflowId', async (req: Request, res: Response) => {
   try {
     const { workflowId } = req.params;
 
-    const client = await getOrkesClient();
+    const client: any = await getOrkesClient();
     const execution = await client.workflowResource.getExecutionStatus(workflowId, true);
 
     const response: WorkflowStatusResponse = {
@@ -74,7 +74,7 @@ router.get('/:workflowId', async (req: Request, res: Response) => {
       output: execution.output,
       startTime: execution.startTime || new Date().toISOString(),
       endTime: execution.endTime,
-      tasks: (execution.tasks || []).map((task) => ({
+      tasks: (execution.tasks || []).map((task: any) => ({
         taskName: task.taskDefName || task.taskType || 'unknown',
         status: task.status || 'UNKNOWN',
         startTime: task.startTime || '',

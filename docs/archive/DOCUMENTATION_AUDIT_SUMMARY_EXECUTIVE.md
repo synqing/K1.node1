@@ -207,7 +207,7 @@ Complete forensic audit with:
 
 ---
 
-### 2. **ADR_CONSOLIDATION_MAP.md** (15 sections, ~4,000 words)
+### 2. **K1NGov_ADR_CONSOLIDATION_MAP_v1.0_20251108.md** (15 sections, ~4,000 words)
 Detailed consolidation plan with:
 - Mapping of all 8 ADR conflicts
 - Step-by-step renumbering instructions
@@ -388,12 +388,12 @@ After implementing all recommendations:
 
 **For Detailed Review:**
 - `docs/AUDIT_REPORT_2025_11_05.md` - Complete forensic audit
-- `docs/02-adr/ADR_CONSOLIDATION_MAP.md` - ADR consolidation plan
+- `docs/02-adr/K1NGov_ADR_CONSOLIDATION_MAP_v1.0_20251108.md` - ADR consolidation plan
 - `docs/DOCUMENTATION_AUDIT_CRITICAL_FIXES.md` - Implementation checklist
 
 **For Team Reference:**
-- `docs/08-governance/GOVERNANCE.md` - Governance standards
-- `docs/00-INDEX.md` - Master documentation index
+- `docs/08-governance/K1NGov_GOVERNANCE_v1.0_20251108.md` - Governance standards
+- `docs/00-tab5/K1NAnalysis_INDEX_TAB5_v1.0_20251108.md` - Master documentation index
 - `docs/../CLAUDE.md` - Documentation standards manual
 
 ---

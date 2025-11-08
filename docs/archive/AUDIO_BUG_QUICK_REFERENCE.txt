@@ -61,14 +61,14 @@ DOCUMENTS
 ================================================================================
 
 Quick Start:
-  docs/05-analysis/FINDINGS_SUMMARY.md (5 minutes)
+  docs/05-analysis/K1NAnalysis_SUMMARY_FINDINGS_v1.0_20251108.md (5 minutes)
 
 Complete Analysis:
-  docs/05-analysis/audio_pipeline_forensic_analysis.md (comprehensive)
-  docs/05-analysis/code_evidence.md (code references)
+  docs/05-analysis/K1NAnalysis_ANALYSIS_AUDIO_PIPELINE_FORENSIC_v1.0_20251108.md (comprehensive)
+  docs/05-analysis/K1NAnalysis_EVIDENCE_CODE_v1.0_20251108.md (code references)
 
 Implementation:
-  docs/04-planning/audio_snapshot_sync_fix.md (step-by-step)
+  docs/04-planning/K1NPlan_PLAN_AUDIO_SNAPSHOT_SYNC_FIX_v1.0_20251108.md (step-by-step)
 
 ================================================================================
 VERIFICATION AFTER FIX

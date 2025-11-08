@@ -387,4 +387,4 @@ After all tests pass:
 For test issues or questions:
 - Check firmware/test/README.md
 - Review individual test source files
- - Consult `docs/05-analysis/forensic_audio_pipeline/AUDIO_LATENCY_FIX_DEPLOYED.md` for implementation details
+ - Consult `docs/05-analysis/forensic_audio_pipeline/K1NAnalysis_REPORT_AUDIO_LATENCY_FIX_DEPLOYED_v1.0_20251108.md` for implementation details

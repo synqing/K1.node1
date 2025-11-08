@@ -5,8 +5,12 @@
  * Uses environment variables for credentials.
  */
 
+import 'dotenv/config';
 import { orkesConductorClient } from '@io-orkes/conductor-javascript';
-import type { ConductorClient } from '@io-orkes/conductor-javascript';
+// The SDK's runtime client shape includes `workflowResource` and `metadataResource`.
+// Keep types flexible to avoid compiler drift across SDK versions.
+export type OrkesClient = any;
+import dotenv from 'dotenv';
 
 export interface OrkesConfig {
   serverUrl: string;
@@ -36,11 +40,18 @@ export function getOrkesConfig(): OrkesConfig {
 /**
  * Initialize Orkes Conductor client
  */
-let client: ConductorClient | null = null;
+let client: OrkesClient | null = null;
 
-export async function getOrkesClient(): Promise<ConductorClient> {
+export async function getOrkesClient(): Promise<OrkesClient> {
   if (client) {
     return client;
+  }
+
+  // Load .env.local if present (in addition to default .env)
+  try {
+    dotenv.config({ path: '.env.local' });
+  } catch {
+    // optional file; ignore errors
   }
 
   const config = getOrkesConfig();

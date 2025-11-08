@@ -28,7 +28,7 @@ bash tools/run_phase_a_validation.sh
 
 ## Links
 
-- Playbook: docs/Playbooks/phase_a_security_and_phase0_readiness_playbook.md
-- Fixes Reference: docs/06-reference/phase_a_security_fixes_reference.md
-- Validation Report: docs/09-reports/security_fix_validation.md
+- Playbook: docs/Playbooks/K1NPlaybook_PHASE_A_SECURITY_AND_PHASE0_READINESS_v1.0_20251108.md
+- Fixes Reference: docs/06-reference/K1NRef_REFERENCE_PHASE_A_SECURITY_FIXES_v1.0_20251108.md
+- Validation Report: docs/09-reports/K1NReport_VALIDATION_SECURITY_FIX_v1.0_20251108.md
 

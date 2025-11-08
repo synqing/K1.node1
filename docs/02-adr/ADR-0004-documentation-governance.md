@@ -48,4 +48,4 @@ references: [ADR-####, other docs]
 
 ---
 **Decision Date:** November 5, 2025
-**References:** GOVERNANCE.md (full spec)
+**References:** K1NGov_GOVERNANCE_v1.0_20251108.md (full spec)

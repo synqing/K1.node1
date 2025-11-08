@@ -167,6 +167,6 @@ Troubleshooting
   - Trace/screenshots on failure; shard heavy flows.
 
 - References
-  - Frontend Testing Playbook: `docs/07-resources/frontend-testing-playbook.md`
+  - Frontend Testing Playbook: `docs/07-resources/K1NRes_PLAYBOOK_FRONTEND_TESTING_v1.0_20251108.md`
   - Jest config (aliases/jsdom/CSS mapping): `webapp/jest.config.ts`
   - Repo-wide CLAUDE manual: `CLAUDE.md`

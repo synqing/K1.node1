@@ -31,6 +31,11 @@ K1.node1/
 │   ├── 02-adr/            (Architecture Decision Records - 10 decisions)
 │   └── CLAUDE.md          (Agent operations manual)
 │
+├── Conductor/             (Conductor orchestration docs; moved from docs/Conductor)
+│   ├── guides/            (How-to guides and briefs)
+│   ├── rules/             (Naming and filing standards)
+│   └── README.md          (Start here)
+│
 ├── .nvmrc                 (Node version 20)
 └── README.md              (This file)
 ```
@@ -102,9 +107,10 @@ cd webapp && npm install && npm run dev
 ### Read Documentation
 Start with: `CLAUDE.md` (Agent operations guide)
 Then: `docs/02-adr/` (Architecture decisions)
+Conductor docs: `Conductor/README.md` (orchestration + MCP integration)
 
 ### Testing
-- Frontend Playbook: `docs/07-resources/frontend-testing-playbook.md`
+- Frontend Playbook: `docs/07-resources/K1NRes_PLAYBOOK_FRONTEND_TESTING_v1.0_20251108.md`
 - Webapp Testing Quickstart: `webapp/README.md` (Jest + RTL setup, commands, E2E notes)
 - Jest config: `webapp/jest.config.ts` | Setup: `webapp/src/test/setup.ts`
 
@@ -134,8 +140,8 @@ Then: `docs/02-adr/` (Architecture decisions)
 **Documentation:**
 - `CLAUDE.md` - How Claude agents should work with this repo
 - `docs/02-adr/ADR-000*.md` - All architectural decisions with reasoning
-- `docs/04-planning/PHASE_2D1_AUDIT_START_HERE.md` - Latest comprehensive audit
-- `docs/04-planning/PHASE_2D1_GRAPH_PARALLEL_MASTER_STRATEGY.md` - Current execution plan
+- `docs/04-planning/K1NPlan_AUDIT_PHASE_2D1_START_HERE_v1.0_20251108.md` - Latest comprehensive audit
+- `docs/04-planning/K1NPlan_STRATEGY_PHASE_2D1_GRAPH_PARALLEL_MASTER_v1.0_20251108.md` - Current execution plan
 
 ## Development Workflow
 

@@ -43,4 +43,4 @@ Each stateful node maintains pre-allocated buffers:
 
 ---
 **Decision Date:** November 5, 2025
-**References:** STATEFUL_NODE_FEASIBILITY_ASSESSMENT.md
+**References:** K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md

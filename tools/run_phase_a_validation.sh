@@ -32,5 +32,5 @@ To collect:
 EOF
 fi
 
-echo "Done. Attach stress.csv and beat_phase_report.csv to security_fix_validation.md if applicable."
+echo "Done. Attach stress.csv and beat_phase_report.csv to K1NReport_VALIDATION_SECURITY_FIX_v1.0_20251108.md if applicable."
 
