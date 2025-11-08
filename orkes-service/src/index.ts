@@ -10,6 +10,7 @@ import express from 'express';
 import cors from 'cors';
 import workflowRoutes from './routes/workflows.js';
 import { getOrkesClient, closeOrkesClient } from './config/orkes.js';
+import { startPatternCompilerWorker } from './workers/index.js';
 
 const app = express();
 const PORT = process.env.PORT || 4002;
@@ -111,6 +112,11 @@ async function startup() {
 
     // Initialize Orkes connection
     await getOrkesClient();
+    console.log('[Service] Connected to Orkes Conductor');
+
+    // Start pattern compiler worker
+    console.log('[Service] Starting pattern compilation worker...');
+    await startPatternCompilerWorker();
 
     // Start HTTP server
     app.listen(PORT, () => {

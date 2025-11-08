@@ -314,14 +314,26 @@ orkes-service/
 │   │   ├── asset-processing.ts   # (TODO)
 │   │   └── analytics.ts          # (TODO)
 │   ├── workers/
-│   │   └── (TODO)                # Task worker implementations
+│   │   ├── pattern-compiler.ts   # Pattern compilation task workers
+│   │   ├── __tests__/
+│   │   │   └── pattern-compiler.test.ts # 20 passing tests
+│   │   └── index.ts              # Worker exports
 │   ├── types/
 │   │   └── workflows.ts          # TypeScript type definitions
 │   └── index.ts                  # Express server entry point
+├── docs/
+│   ├── INDEX.md                  # Documentation index
+│   ├── guides/
+│   │   ├── INTEGRATION_GUIDE.md  # Integration instructions
+│   │   ├── DEEP_DIVE.md          # Architecture & design patterns
+│   │   └── PATTERN_COMPILATION.md # Pattern compilation workflow
+│   ├── architecture/             # System design documents
+│   └── api-reference/            # API specifications
 ├── .env.example                  # Environment template
 ├── .env.local                    # Local config (gitignored)
 ├── package.json
 ├── tsconfig.json
+├── vitest.config.ts              # Test configuration
 └── README.md
 ```
 
@@ -517,6 +529,15 @@ pm2 save
 pm2 startup  # Enable auto-start on boot
 ```
 
+## Documentation
+
+See [docs/INDEX.md](docs/INDEX.md) for complete documentation index.
+
+Key guides:
+- [Integration Guide](docs/guides/INTEGRATION_GUIDE.md) - Full integration instructions
+- [Deep Dive](docs/guides/DEEP_DIVE.md) - Architecture and design patterns
+- [Pattern Compilation](docs/guides/PATTERN_COMPILATION.md) - Workflow implementation details
+
 ## Resources
 
 - **Orkes Documentation:** https://orkes.io/content/
@@ -529,12 +550,13 @@ pm2 startup  # Enable auto-start on boot
 1. ✅ Set up Orkes service with SDK
 2. ✅ Create pattern compilation workflow
 3. ✅ Create CI/CD workflow
-4. ⬜ Implement task workers
-5. ⬜ Create asset processing workflow
-6. ⬜ Create analytics workflow
-7. ⬜ Integrate with webapp UI
-8. ⬜ Add monitoring and alerting
-9. ⬜ Production deployment
+4. ✅ Implement pattern compilation task workers (5 workers, 20 tests passing)
+5. ⬜ Implement CI/CD task workers (build, test, deploy, etc.)
+6. ⬜ Create asset processing workflow
+7. ⬜ Create analytics workflow
+8. ⬜ Integrate with webapp UI
+9. ⬜ Add monitoring and alerting
+10. ⬜ Production deployment
 
 ## Support
 
