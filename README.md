@@ -106,7 +106,9 @@ cd webapp && npm install && npm run dev
 
 ### Read Documentation
 Start with: `CLAUDE.md` (Agent operations guide)
-Then: `docs/02-adr/` (Architecture decisions)
+Master index: `docs/K1N_INDEX_v1.0_20251108.md`
+Navigation guide: `docs/K1N_NAVIGATION_v1.0_20251108.md`
+Architecture decisions: `docs/02-adr/`
 Conductor docs: `Conductor/README.md` (orchestration + MCP integration)
 
 ### Testing
