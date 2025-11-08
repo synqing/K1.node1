@@ -1,0 +1,13 @@
+# K1.node1 Documentation .gitignore
+# Work-in-progress files
+temp/
+!temp/.gitkeep
+
+# IDE and OS files
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.iml
