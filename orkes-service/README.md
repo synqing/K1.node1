@@ -321,6 +321,14 @@ orkes-service/
 │   ├── types/
 │   │   └── workflows.ts          # TypeScript type definitions
 │   └── index.ts                  # Express server entry point
+├── docs/
+│   ├── INDEX.md                  # Documentation index
+│   ├── guides/
+│   │   ├── INTEGRATION_GUIDE.md  # Integration instructions
+│   │   ├── DEEP_DIVE.md          # Architecture & design patterns
+│   │   └── PATTERN_COMPILATION.md # Pattern compilation workflow
+│   ├── architecture/             # System design documents
+│   └── api-reference/            # API specifications
 ├── .env.example                  # Environment template
 ├── .env.local                    # Local config (gitignored)
 ├── package.json
@@ -520,6 +528,15 @@ pm2 start dist/index.js --name k1-orkes-service
 pm2 save
 pm2 startup  # Enable auto-start on boot
 ```
+
+## Documentation
+
+See [docs/INDEX.md](docs/INDEX.md) for complete documentation index.
+
+Key guides:
+- [Integration Guide](docs/guides/INTEGRATION_GUIDE.md) - Full integration instructions
+- [Deep Dive](docs/guides/DEEP_DIVE.md) - Architecture and design patterns
+- [Pattern Compilation](docs/guides/PATTERN_COMPILATION.md) - Workflow implementation details
 
 ## Resources
 
