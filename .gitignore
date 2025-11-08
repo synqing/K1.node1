@@ -6,13 +6,15 @@
 !.mcp.json
 !CLAUDE.md
 
-# Unignore firmware, webapp, and orkes-service directories, then their contents
+# Unignore firmware, webapp, orkes-service, and Conductor directories, then their contents
 !firmware/
 !firmware/**
 !webapp/
 !webapp/**
 !orkes-service/
 !orkes-service/**
+!Conductor/
+!Conductor/**
 
 # Track documentation (analysis, planning, implementation, reports)
 !docs/
