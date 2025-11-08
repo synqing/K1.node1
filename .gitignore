@@ -4,11 +4,13 @@
 !.gitignore
 !conductor.json
 
-# Unignore firmware and webapp directories, then their contents
+# Unignore firmware, webapp, and orkes-service directories, then their contents
 !firmware/
 !firmware/**
 !webapp/
 !webapp/**
+!orkes-service/
+!orkes-service/**
 
 # Track documentation (analysis, planning, implementation, reports)
 !docs/
@@ -37,6 +39,8 @@ firmware/.platformio/**
 webapp/node_modules/
 webapp/dist/
 webapp/.vite/
+orkes-service/node_modules/
+orkes-service/dist/
 
 # OS cruft
 *.DS_Store
@@ -44,5 +48,31 @@ docs/.DS_Store
 
 .config/
 !README.md
+!ORKES_INTEGRATION_SUMMARY.md
 !memory-proxy/
 !memory-proxy/**
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev-debug.log
+
+# Dependency directories
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env*.local
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
