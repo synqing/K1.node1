@@ -1,4 +1,4 @@
-# Ignore everything by default, only keep core sources and mem0 integration tracked
+# Ignore everything by default, only keep core sources and development tools tracked
 /*
 # Keep root tracked files
 !.gitignore
@@ -28,8 +28,9 @@
 !.taskmaster/
 !.taskmaster/**
 
-# Mem0 local workspace is ignored (ephemeral/local-only)
-.mem0_local/
+# Track development tools (.claude/)
+!.claude/
+!.claude/**
 
 # Typical build/caches to ignore inside tracked trees
 firmware/.pio/
