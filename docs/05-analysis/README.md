@@ -3,11 +3,11 @@
 ## Quick Links
 
 ### Start Here
-1. **[FINDINGS_SUMMARY.md](./FINDINGS_SUMMARY.md)** - Executive summary, 5-minute read
-2. **[audio_pipeline_forensic_analysis.md](./audio_pipeline_forensic_analysis.md)** - Complete technical analysis
+1. **[K1NAnalysis_SUMMARY_FINDINGS_v1.0_20251108.md](./K1NAnalysis_SUMMARY_FINDINGS_v1.0_20251108.md)** - Executive summary, 5-minute read
+2. **[K1NAnalysis_ANALYSIS_AUDIO_PIPELINE_FORENSIC_v1.0_20251108.md](./K1NAnalysis_ANALYSIS_AUDIO_PIPELINE_FORENSIC_v1.0_20251108.md)** - Complete technical analysis
 
 ### Implementation
-- **[../04-planning/audio_snapshot_sync_fix.md](../04-planning/audio_snapshot_sync_fix.md)** - Step-by-step fix guide
+- **[../04-planning/K1NPlan_PLAN_AUDIO_SNAPSHOT_SYNC_FIX_v1.0_20251108.md](../04-planning/K1NPlan_PLAN_AUDIO_SNAPSHOT_SYNC_FIX_v1.0_20251108.md)** - Step-by-step fix guide
 
 ## Analysis Overview
 
@@ -39,4 +39,4 @@ Replace memcpy with selective field copies (40 lines replacing 1 line). Estimate
 
 ---
 
-See FINDINGS_SUMMARY.md for 5-minute overview or audio_pipeline_forensic_analysis.md for full details.
+See K1NAnalysis_SUMMARY_FINDINGS_v1.0_20251108.md for 5-minute overview or K1NAnalysis_ANALYSIS_AUDIO_PIPELINE_FORENSIC_v1.0_20251108.md for full details.

@@ -76,4 +76,4 @@ See ADR-0003 for parallel execution model details.
 ---
 **Decision Date:** November 5, 2025
 **Status:** PUBLISHED
-**References:** PHASE_2D1_GRAPH_PARALLEL_MASTER_STRATEGY.md
+**References:** K1NPlan_STRATEGY_PHASE_2D1_GRAPH_PARALLEL_MASTER_v1.0_20251108.md

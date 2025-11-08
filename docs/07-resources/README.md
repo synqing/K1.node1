@@ -9,14 +9,14 @@ This folder contains shared tools, training materials, quick-start references, a
 - **M5Stack_Tab5_Pinout_Reference.md:** Quick reference guide for GPIO pinout, internal interfaces, peripheral assignments, and expansion port details
 
 ### Team References & Training
-- **GOVERNANCE_TRAINING_NOV6.md:** Training guide for Phase 2 governance standards and team responsibilities
-- **BUILDER_EXTENSION.md:** Documentation for Builder.io extension capabilities and integration points
-- **governance_quick_ref.md:** One-page governance reference card for quick lookup during work
-- **TASKMASTER_CLI_REFERENCE.md:** Complete TaskMaster CLI command reference with examples
+- **K1NRes_GUIDE_GOVERNANCE_TRAINING_NOV6_v1.0_20251108.md:** Training guide for Phase 2 governance standards and team responsibilities
+- **K1NRes_GUIDE_BUILDER_EXTENSION_v1.0_20251108.md:** Documentation for Builder.io extension capabilities and integration points
+- **K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md:** One-page governance reference card for quick lookup during work
+- **K1NRes_REFERENCE_TASKMASTER_CLI_v1.0_20251108.md:** Complete TaskMaster CLI command reference with examples
 
 ## Quick Navigation
 
-- [Back to Index](../00-INDEX.md)
+- [Back to Index](../K1N_INDEX_v1.0_20251108.md)
 - [Governance Standards](../08-governance/)
 - [Planning Documents](../04-planning/)
 
@@ -29,5 +29,5 @@ This folder contains shared tools, training materials, quick-start references, a
 
 ---
 
-**For detailed governance:** See `docs/08-governance/GOVERNANCE.md`
+**For detailed governance:** See `docs/08-governance/K1NGov_GOVERNANCE_v1.0_20251108.md`
 **For guides and tutorials:** See `docs/03-guides/`

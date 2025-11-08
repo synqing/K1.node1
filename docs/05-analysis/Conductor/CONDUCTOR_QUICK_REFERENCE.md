@@ -1,5 +1,7 @@
 # Conductor Hooks Quick Reference
 
+Note: Conductor documentation lives at `Conductor/` (root-level). This quick reference and related guides are referenced there (previously under `docs/Conductor`).
+
 ## Setup (Automatic)
 
 When you create a new Conductor workspace:
@@ -109,8 +111,8 @@ When you close the workspace:
 
 ## Full Documentation
 
-- **CONDUCTOR_HOOKS_GUIDE.md** — Complete usage guide
-- **CONDUCTOR_HOOKS_IMPLEMENTATION_REPORT.md** — Technical details
+- [K1NCond_GUIDE_HOOKS_v1.0_20251108.md](../../../Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md) — Complete usage guide
+- [K1NCond_REPORT_HOOKS_v1.0_20251108.md](../../../Conductor/rules/K1NCond_REPORT_HOOKS_v1.0_20251108.md) — Technical details
 
 ---
 

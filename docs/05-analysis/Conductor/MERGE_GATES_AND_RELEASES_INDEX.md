@@ -254,7 +254,7 @@ K1.node1/
 │   └── setup-branch-protection.sh ...... ✅ NEW (setup)
 │
 ├── MERGE_AND_RELEASE_GUIDE.md ......... ✅ NEW (docs)
-├── MERGE_GATES_AND_RELEASES_INDEX.md .. ✅ NEW (this file)
+├── MERGE_GATES_AND_RELEASES_tab5/K1NAnalysis_INDEX_TAB5_v1.0_20251108.md .. ✅ NEW (this file)
 └── ... (all others unchanged)
 ```
 

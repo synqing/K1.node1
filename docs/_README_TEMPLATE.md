@@ -10,7 +10,7 @@
 
 ## Quick Navigation
 
-- [Back to Index](../00-INDEX.md)
+- [Back to Index](../K1N_INDEX_v1.0_20251108.md)
 - [Related Folder Name](../XX-related/)
 - [Key Documents in This Folder](#)
 
@@ -20,4 +20,4 @@
 
 ---
 
-**For questions or updates:** See parent folder README or `docs/GOVERNANCE.md`
+**For questions or updates:** See parent folder README or `docs/K1NGov_GOVERNANCE_v1.0_20251108.md`

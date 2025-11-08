@@ -4,12 +4,12 @@ This folder contains system design documents, architectural decisions, and feasi
 
 ## Contents
 
-- **STATEFUL_NODE_EXECUTIVE_SUMMARY.md:** Decision rationale and approval summary for stateful node architecture approach
-- **STATEFUL_NODE_FEASIBILITY_ASSESSMENT.md:** Detailed technical feasibility analysis with implementation estimates
+- **K1NArch_SUMMARY_STATEFUL_NODE_EXECUTIVE_v1.0_20251108.md:** Decision rationale and approval summary for stateful node architecture approach
+- **K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md:** Detailed technical feasibility analysis with implementation estimates
 
 ## Quick Navigation
 
-- [Back to Index](../00-INDEX.md)
+- [Back to Index](../K1N_INDEX_v1.0_20251108.md)
 - [Decisions (ADRs)](../02-adr/)
 - [Planning & Roadmaps](../04-planning/)
 
@@ -22,4 +22,4 @@ This folder contains system design documents, architectural decisions, and feasi
 ---
 
 **For architectural decisions:** See `docs/02-adr/`
-**For governance standards:** See `docs/08-governance/GOVERNANCE.md`
+**For governance standards:** See `docs/08-governance/K1NGov_GOVERNANCE_v1.0_20251108.md`

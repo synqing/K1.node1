@@ -12,15 +12,15 @@ namespace {
 constexpr uint32_t WIFI_ASSOC_TIMEOUT_MS = 20000;
 constexpr uint32_t WIFI_RECONNECT_INTERVAL_MS = 5000;
 constexpr uint8_t MAX_NETWORK_CONNECT_ATTEMPTS = 5;
-constexpr uint8_t FALLBACK_ATTEMPT_THRESHOLD = 8;  // Switch to fallback after 8 failures
+constexpr uint8_t FALLBACK_ATTEMPT_THRESHOLD = 3;  // Switch to fallback after 3 failures
 constexpr uint32_t WIFI_KEEPALIVE_INTERVAL_MS = 30000;  // Send keepalive every 30 seconds
 constexpr uint32_t NETWORK_PAUSE_DEFAULT_MS = 500;      // Short pause before disconnect
 
-// Primary network
+// Primary network (build defaults)
 char primary_ssid[64] = "VX220-013F";
 char primary_pass[64] = "3232AA90E0F24";
 
-// Fallback network
+// Fallback network (secondary)
 char fallback_ssid[64] = "OPTUS_738CC0N";
 char fallback_pass[64] = "parrs45432vw";
 
@@ -315,20 +315,25 @@ void wifi_monitor_init(const char* ssid, const char* pass) {
     memset(stored_ssid, 0, sizeof(stored_ssid));
     memset(stored_pass, 0, sizeof(stored_pass));
 
-    // CRITICAL FIX: Force rebuild defaults on each init to prevent stale NVS from blocking
-    // NVS persistence caused device to cache old credentials that no longer work
-    // By initializing from parameters (build defaults) first, we ensure main.cpp controls the default SSID
+    // Initialize from build defaults first
     if (ssid != nullptr) {
         strncpy(stored_ssid, ssid, sizeof(stored_ssid) - 1);
     }
     if (pass != nullptr) {
         strncpy(stored_pass, pass, sizeof(stored_pass) - 1);
     }
-    connection_logf("INFO", "Using WiFi credentials from build defaults: '%s'", stored_ssid);
+    connection_logf("INFO", "Build default WiFi credentials: '%s'", stored_ssid);
 
-    // Note: NVS override disabled to prevent stale cached credentials from blocking connection
-    // If user updates credentials via API, those will override build defaults
-    // For now, main.cpp build defaults take priority on each firmware load
+    // Prefer LAST CONNECTED credentials from NVS, when available
+    char last_ssid[64] = {0};
+    char last_pass[64] = {0};
+    if (wifi_monitor_load_credentials_from_nvs(last_ssid, sizeof(last_ssid), last_pass, sizeof(last_pass)) && last_ssid[0] != '\0') {
+        strncpy(stored_ssid, last_ssid, sizeof(stored_ssid) - 1);
+        strncpy(stored_pass, last_pass, sizeof(stored_pass) - 1);
+        connection_logf("INFO", "Using LAST connected WiFi credentials from NVS: '%s'", stored_ssid);
+    } else {
+        connection_logf("INFO", "No NVS credentials found; using build defaults");
+    }
 
     // Ensure STA interface is enabled before attempting to connect
     WiFi.mode(WIFI_STA);
@@ -499,6 +504,8 @@ void wifi_monitor_loop() {
             credentials_failures_since_update = 0;
             credentials_cooldown_until_ms = 0;
             stop_ap_fallback_if_active();
+            // Persist LAST connected credentials so we prefer them on next boot
+            wifi_monitor_save_credentials_to_nvs(stored_ssid, stored_pass);
             if (on_connect_cb) {
                 on_connect_cb();
             }

@@ -4,7 +4,7 @@
  * Orchestrates: Build → Test → Deploy workflows for firmware and webapp
  */
 
-import type { ConductorClient, WorkflowDef } from '@io-orkes/conductor-javascript';
+import type { WorkflowDef } from '@io-orkes/conductor-javascript';
 
 /**
  * CI/CD Build and Deploy Workflow
@@ -198,7 +198,7 @@ export const cicdWorkflow: WorkflowDef = {
 /**
  * Register CI/CD workflow with Orkes
  */
-export async function registerCICDWorkflow(client: ConductorClient): Promise<void> {
+export async function registerCICDWorkflow(client: any): Promise<void> {
   try {
     await client.metadataResource.create(cicdWorkflow, true);
     console.log('[Workflow] Registered: k1_cicd_pipeline');

@@ -4,7 +4,7 @@
  * Orchestrates: Pattern Design → C++ Generation → Compilation → Testing → Benchmarking → Iteration
  */
 
-import type { ConductorClient, WorkflowDef } from '@io-orkes/conductor-javascript';
+import type { WorkflowDef } from '@io-orkes/conductor-javascript';
 import type {
   PatternCompilationInput,
   PatternCompilationOutput,
@@ -83,6 +83,8 @@ export const patternCompilationWorkflow: WorkflowDef = {
       inputParameters: {
         testsPassed: '${run_tests_ref.output.success}',
       },
+      evaluatorType: 'javascript',
+      expression: '$.testsPassed ? "true" : "false"',
       decisionCases: {
         true: [
           // Step 6: Deploy to test device
@@ -162,7 +164,7 @@ export const patternCompilationWorkflow: WorkflowDef = {
 /**
  * Register pattern compilation workflow with Orkes
  */
-export async function registerPatternCompilationWorkflow(client: ConductorClient): Promise<void> {
+export async function registerPatternCompilationWorkflow(client: any): Promise<void> {
   try {
     await client.metadataResource.create(patternCompilationWorkflow, true);
     console.log('[Workflow] Registered: k1_pattern_compilation');

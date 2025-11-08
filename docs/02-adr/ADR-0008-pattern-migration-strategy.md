@@ -48,4 +48,4 @@ Convert 2 high-complexity patterns as proof-of-concept:
 
 ---
 **Decision Date:** November 5, 2025
-**References:** pattern_codebase_architecture.md, pattern_reversibility_feasibility.md
+**References:** K1NAnalysis_ANALYSIS_PATTERN_CODEBASE_ARCHITECTURE_v1.0_20251108.md, pattern_reversibility_feasibility.md

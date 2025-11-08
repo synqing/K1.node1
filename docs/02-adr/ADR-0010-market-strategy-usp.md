@@ -64,4 +64,4 @@ intent: Define market strategy and business case for node system
 
 ---
 **Decision Date:** November 5, 2025
-**References:** PHASE_2D1_GRAPH_PARALLEL_MASTER_STRATEGY.md (market analysis)
+**References:** K1NPlan_STRATEGY_PHASE_2D1_GRAPH_PARALLEL_MASTER_v1.0_20251108.md (market analysis)

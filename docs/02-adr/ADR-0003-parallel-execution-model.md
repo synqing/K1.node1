@@ -59,4 +59,4 @@ Previous analysis treated Phase 2D1 and graph system as sequential (Phase 2D1 fi
 
 ---
 **Decision Date:** November 5, 2025
-**References:** PHASE_2D1_GRAPH_PARALLEL_MASTER_STRATEGY.md
+**References:** K1NPlan_STRATEGY_PHASE_2D1_GRAPH_PARALLEL_MASTER_v1.0_20251108.md

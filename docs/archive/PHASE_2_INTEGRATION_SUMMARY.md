@@ -22,7 +22,7 @@ I chose **Option C: Do Both** for these reasons:
 
 ## Documents Created
 
-### 1. **PHASE_2_COMPLETE_ROADMAP.md** (docs/04-planning/)
+### 1. **K1NPlan_ROADMAP_PHASE_2_COMPLETE_v1.0_20251108.md** (docs/04-planning/)
 - **Comprehensive 30-week plan** covering Phase C + PF-5.1-5.5
 - **Both conditional paths detailed:**
   - Path A (Graph System): 8 weeks, Jan 15 ship
@@ -33,7 +33,7 @@ I chose **Option C: Do Both** for these reasons:
 
 **Size:** 550+ lines, production-ready specification
 
-### 2. **PHASE_OVERVIEW.md** (docs/04-planning/)
+### 2. **K1NPlan_OVERVIEW_PHASE_v1.0_20251108.md** (docs/04-planning/)
 - **Navigation guide** connecting Week 1 → Decision Gate → Phase 2
 - **Quick reference table** for finding files
 - **Risk & decision logic** explaining why each path matters
@@ -67,7 +67,7 @@ TASKS.md (lines 1-350)
 ### Phase 2 (Weeks 2-20+): Conditional Execution
 ```
 TASKS.md (lines 352-422)
-└── References PHASE_2_COMPLETE_ROADMAP.md
+└── References K1NPlan_ROADMAP_PHASE_2_COMPLETE_v1.0_20251108.md
     └── Full 30-week specification
         ├── Path A: Graph System (12w Phase C + 18w PF-5) → Jan 15
         └── Path B: C++ SDK (10w SDK + 10w stability) → Jan 29
@@ -81,8 +81,8 @@ TASKS.md (lines 352-422)
 
 **Solution:**
 - ✅ TASKS.md now references Phase 2 scope while remaining focused on Week 1 execution
-- ✅ PHASE_2_COMPLETE_ROADMAP.md provides full detail for leadership + resource planning
-- ✅ PHASE_OVERVIEW.md guides navigation through both phases
+- ✅ K1NPlan_ROADMAP_PHASE_2_COMPLETE_v1.0_20251108.md provides full detail for leadership + resource planning
+- ✅ K1NPlan_OVERVIEW_PHASE_v1.0_20251108.md guides navigation through both phases
 - ✅ All documents cross-reference each other (bidirectional links)
 - ✅ Week 1 teams stay focused; Phase 2 planning visible from day 1
 
@@ -91,8 +91,8 @@ TASKS.md (lines 352-422)
 ## What's Ready Now
 
 - ✅ Week 1 task list (TASKS.md, lines 1-350) — ready to execute Nov 6
-- ✅ Full Phase 2 roadmap (PHASE_2_COMPLETE_ROADMAP.md) — ready for planning
-- ✅ Navigation guide (PHASE_OVERVIEW.md) — ready for team reference
+- ✅ Full Phase 2 roadmap (K1NPlan_ROADMAP_PHASE_2_COMPLETE_v1.0_20251108.md) — ready for planning
+- ✅ Navigation guide (K1NPlan_OVERVIEW_PHASE_v1.0_20251108.md) — ready for team reference
 - ✅ Decision gate criteria defined — ready for Nov 13 measurement
 - ✅ Both paths documented — ready for either outcome
 
@@ -116,7 +116,7 @@ TASKS.md (lines 352-422)
 2. **Nov 6-13:** Daily updates to TASKS.md + governance checks
 3. **Nov 13, 8 AM:** Prepare decision package (all 6 criteria measured)
 4. **Nov 13, 9 AM:** DECISION GATE → outcome determines Phase 2 path
-5. **Nov 14 onwards:** Execute Phase 2 using PHASE_2_COMPLETE_ROADMAP.md
+5. **Nov 14 onwards:** Execute Phase 2 using K1NPlan_ROADMAP_PHASE_2_COMPLETE_v1.0_20251108.md
 
 ---
 

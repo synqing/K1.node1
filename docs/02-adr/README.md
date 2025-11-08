@@ -7,11 +7,11 @@ reviewers: [Engineering Leads]
 last_updated: 2025-10-31
 next_review_due: 2026-01-31
 tags: [docs, adr]
-related_docs: [../00-INDEX.md, ../../CLAUDE.md, ADR-template.md]
+related_docs: [../K1N_INDEX_v1.0_20251108.md, ../../CLAUDE.md, ADR-template.md]
 ---
 # Architecture Decision Records (ADRs)
 
-**⭐ Part of the K1 docs:** See the [Documentation Index](../00-INDEX.md) for the canonical navigation hub.
+**⭐ Part of the K1 docs:** See the [Documentation Index](../K1N_INDEX_v1.0_20251108.md) for the canonical navigation hub.
 
 **Purpose:** Document significant architectural decisions, design choices, and trade-offs per [CLAUDE.md](../../CLAUDE.md) requirements.
 

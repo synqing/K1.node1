@@ -1,5 +1,7 @@
 # Conductor Hooks Implementation Report
 
+Note: Conductor docs have moved to `Conductor/` at the repository root (previously `docs/Conductor`). Where this report references documentation files without a path, they now reside under `Conductor/`.
+
 **Project:** K1.node1
 **Date:** 2025-11-08
 **Status:** ✅ COMPLETE & DEPLOYMENT-READY
@@ -15,7 +17,7 @@ Implemented three Conductor workspace lifecycle hooks plus comprehensive documen
 - **conductor-setup.sh** — Idempotent bootstrapper (64 lines)
 - **conductor-run.sh** — Multi-target runner (96 lines)
 - **conductor-archive.sh** — Smart cleanup (32 lines)
-- **CONDUCTOR_HOOKS_GUIDE.md** — Complete usage documentation (500+ lines)
+- **K1NCond_GUIDE_HOOKS_v1.0_20251108.md** — Complete usage documentation (500+ lines)
 
 **Total implementation:** 192 lines of code + 500 lines of docs. **All scripts validated.**
 
@@ -49,7 +51,7 @@ Implemented three Conductor workspace lifecycle hooks plus comprehensive documen
 
 ### Documentation
 
-**File:** `CONDUCTOR_HOOKS_GUIDE.md`
+**File:** `Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md`
 **Size:** 10 KB
 **Sections:**
 - Architecture overview
@@ -311,7 +313,7 @@ python3 -m json.tool conductor.json  # ✓ Valid JSON
 1. **Verify files in repo root:**
    ```bash
    cd /Users/spectrasynq/Workspace_Management/Software/K1.node1
-   ls -lh conductor.json ops/scripts/conductor-*.sh CONDUCTOR_HOOKS_GUIDE.md
+   ls -lh conductor.json ops/scripts/conductor-*.sh Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md
    ```
 
 2. **Stage files for commit:**
@@ -320,7 +322,7 @@ python3 -m json.tool conductor.json  # ✓ Valid JSON
            ops/scripts/conductor-setup.sh \
            ops/scripts/conductor-run.sh \
            ops/scripts/conductor-archive.sh \
-           CONDUCTOR_HOOKS_GUIDE.md
+          Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md
    ```
 
 3. **Create commit:**
@@ -344,8 +346,8 @@ python3 -m json.tool conductor.json  # ✓ Valid JSON
 
 | Document | Purpose | Location |
 |----------|---------|----------|
-| CONDUCTOR_HOOKS_GUIDE.md | Complete usage guide | Repository root |
-| CONDUCTOR_HOOKS_IMPLEMENTATION_REPORT.md | This report | Repository root |
+| Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md | Complete usage guide | Conductor/ |
+| Conductor/rules/K1NCond_REPORT_HOOKS_v1.0_20251108.md | This report | Conductor/rules/ |
 | CI_IMPLEMENTATION_SUMMARY.md | GitHub Actions CI/CD | Repository root |
 | MERGE_AND_RELEASE_GUIDE.md | Pre-merge gates | Repository root |
 | STAGING_E2E_GUIDE.md | Device validation | Repository root |
@@ -404,7 +406,7 @@ git revert <commit-hash>
 | Node version mismatch | `nvm use` (respects `.nvmrc`) |
 | .env not created | `cp .env.example .env` |
 
-### Full troubleshooting guide available in `CONDUCTOR_HOOKS_GUIDE.md`.
+### Full troubleshooting guide available in `Conductor/K1NCond_GUIDE_HOOKS_v1.0_20251108.md`.
 
 ---
 

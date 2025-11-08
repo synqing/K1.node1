@@ -89,8 +89,26 @@ case "${TARGET}" in
     fi
     ;;
 
+  # Agent task execution pattern: agent:{AGENT_TYPE}:{TASK_ID}
+  # Example: RUN_TARGET=agent:SecurityAgent:1
+  agent:*)
+    # Parse agent task target: agent:AgentType:TaskId
+    IFS=':' read -r prefix agent_type task_id <<< "${TARGET}"
+
+    if [[ -z "${agent_type}" ]] || [[ -z "${task_id}" ]]; then
+      echo "[RUN] Invalid agent target format. Use: agent:AgentType:TaskId (e.g., agent:SecurityAgent:1)"
+      exit 3
+    fi
+
+    echo "[RUN] Routing to agent task handler: ${agent_type} Task ${task_id}"
+    bash "$ROOT_DIR/ops/scripts/agent-handler.sh" "${agent_type}" "${task_id}" "task:${task_id}"
+    ;;
+
   *)
-    echo "[RUN] Unknown RUN_TARGET='${TARGET}'. Supported: web:dev | web:test | web:e2e | fw:monitor | fw:test | fw:build"
+    echo "[RUN] Unknown RUN_TARGET='${TARGET}'. Supported:"
+    echo "  Web:  web:dev | web:test | web:e2e"
+    echo "  Firmware: fw:monitor | fw:test | fw:build"
+    echo "  Agents: agent:AgentType:TaskId (e.g., agent:SecurityAgent:1)"
     exit 3
     ;;
 esac

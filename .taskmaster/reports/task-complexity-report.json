@@ -47,7 +47,7 @@
 			"complexityScore": 4,
 			"recommendedSubtasks": 3,
 			"expansionPrompt": "Break down the research, drafting, and review tasks for authoring ADR-0003 covering the code generation strategy.",
-			"reasoning": "The docs tree already contains extensive analysis (`docs/01-architecture/STATEFUL_NODE_FEASIBILITY_ASSESSMENT.md:1`, multiple ADRs in `docs/02-adr/`), so producing a new ADR mostly involves synthesizing existing findings, formalizing the decision, and aligning numbering conventions."
+			"reasoning": "The docs tree already contains extensive analysis (`docs/01-architecture/K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md:1`, multiple ADRs in `docs/02-adr/`), so producing a new ADR mostly involves synthesizing existing findings, formalizing the decision, and aligning numbering conventions."
 		},
 		{
 			"taskId": 6,

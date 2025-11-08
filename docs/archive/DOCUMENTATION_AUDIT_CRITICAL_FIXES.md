@@ -22,7 +22,7 @@ intent: Quick checklist of critical documentation fixes that must be completed b
    - File: `02-adr/ADR-0009-phase-2d1-critical-fixes.md` (now the only version after cleanup)
    - Deleted: `02-adr/ADR-0009-phase-2d1-critical-fixes.md` (shorter version, removed for consistency)
    - Time: 5 minutes
-   - Verification: Check `governance_quick_ref.md` still references correct file
+   - Verification: Check `K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md` still references correct file
 
 2. ✅ **Standardize README files**
    - Update 9 README.md files to have consistent structure
@@ -38,7 +38,7 @@ intent: Quick checklist of critical documentation fixes that must be completed b
    - Batch approach recommended
 
 4. ✅ **Verify critical cross-references**
-   - Check ADR references in: `governance_quick_ref.md`, `IMPLEMENTATION_PLAN.md`
+   - Check ADR references in: `K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md`, `K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md`
    - Verify all links point to correct files
    - Time: 30 minutes
    - Automated grep check recommended
@@ -102,7 +102,7 @@ ls -lh docs/02-adr/ADR-0009*
 
 ## Quick Navigation
 
-- [Back to Index](../00-INDEX.md)
+- [Back to Index](../00-tab5/K1NAnalysis_INDEX_TAB5_v1.0_20251108.md)
 - [Related Folder](#)
 - [Key Documents](#)
 
@@ -187,10 +187,10 @@ done
 
 **Files to Check:**
 
-#### File 1: `docs/07-resources/governance_quick_ref.md`
+#### File 1: `docs/07-resources/K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md`
 ```bash
 # Search for ADR references
-grep "ADR-" docs/07-resources/governance_quick_ref.md
+grep "ADR-" docs/07-resources/K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md
 
 # Expected: References to ADR-0003 and ADR-0009 with correct filenames
 # Verify files exist and have expected content
@@ -200,10 +200,10 @@ grep "ADR-" docs/07-resources/governance_quick_ref.md
 - Update to reference correct filename
 - Verify link points to comprehensive version of any ADR
 
-#### File 2: `docs/09-implementation/IMPLEMENTATION_PLAN.md`
+#### File 2: `docs/09-implementation/K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md`
 ```bash
 # Search for all ADR references
-grep -n "ADR-" docs/09-implementation/IMPLEMENTATION_PLAN.md
+grep -n "ADR-" docs/09-implementation/K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md
 
 # Expected references: ADR-0001, ADR-0002, ADR-0003, ADR-0004, ADR-0007, ADR-0009
 # Verify each file exists
@@ -269,8 +269,8 @@ After completing all fixes, verify:
 - [ ] No broken ADR links
 - [ ] All references point to correct files
 - [ ] Duplicate ADR versions removed
-- [ ] governance_quick_ref.md links work
-- [ ] IMPLEMENTATION_PLAN.md links work
+- [ ] K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md links work
+- [ ] K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md links work
 
 ✅ **No Regressions:**
 - [ ] All original files still readable
@@ -390,8 +390,8 @@ After completing these fixes, documentation will be ready for Phase 2 with:
 ## Reference Documents
 
 - **Detailed Audit Report:** `docs/AUDIT_REPORT_2025_11_05.md`
-- **ADR Consolidation Plan:** `docs/02-adr/ADR_CONSOLIDATION_MAP.md`
-- **Governance Standards:** `docs/08-governance/GOVERNANCE.md`
+- **ADR Consolidation Plan:** `docs/02-adr/K1NGov_ADR_CONSOLIDATION_MAP_v1.0_20251108.md`
+- **Governance Standards:** `docs/08-governance/K1NGov_GOVERNANCE_v1.0_20251108.md`
 - **CLAUDE.md Manual:** `docs/../CLAUDE.md`
 
 ---

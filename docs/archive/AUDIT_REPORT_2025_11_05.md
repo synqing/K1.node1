@@ -37,11 +37,11 @@ The K1.node1 documentation structure is well-organized at the folder level and f
 
 ```
 docs/
-├── 00-INDEX.md (996 bytes)
+├── 00-tab5/K1NAnalysis_INDEX_TAB5_v1.0_20251108.md (996 bytes)
 ├── 01-architecture/ (60K)
 │   ├── README.md
-│   ├── STATEFUL_NODE_EXECUTIVE_SUMMARY.md (9KB)
-│   └── STATEFUL_NODE_FEASIBILITY_ASSESSMENT.md (41KB)
+│   ├── K1NArch_SUMMARY_STATEFUL_NODE_EXECUTIVE_v1.0_20251108.md (9KB)
+│   └── K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md (41KB)
 ├── 02-adr/ (156K) ⚠️ HIGHEST ISSUE DENSITY
 │   ├── ADR-template.md
 │   ├── README.md (214 lines - comprehensive)
@@ -60,28 +60,28 @@ docs/
 │   ├── builderio.guide/ (3 files: 27KB md + 12KB json + 17KB html)
 │   └── builderio.starterkit/ (5 files: comprehensive guides + interactive HTML)
 ├── 04-planning/ (144K) - Well-organized execution docs
-│   ├── K1_MIGRATION_MASTER_PLAN.md (29KB)
-│   ├── PHASE_2_COMPLETE_ROADMAP.md (16KB)
-│   ├── WEEK_1_EXECUTION_KICKOFF.md (17KB)
+│   ├── K1NPlan_PLAN_K1_MIGRATION_MASTER_v1.0_20251108.md (29KB)
+│   ├── K1NPlan_ROADMAP_PHASE_2_COMPLETE_v1.0_20251108.md (16KB)
+│   ├── K1NPlan_PLAN_WEEK_1_EXECUTION_KICKOFF_v1.0_20251108.md (17KB)
 │   └── 6 other planning documents
 ├── 05-analysis/ (52K)
 │   ├── README.md (minimal)
-│   ├── PATTERN_ANALYSIS_EXECUTIVE_SUMMARY.md (8KB)
-│   ├── pattern_codebase_architecture.md (35KB)
+│   ├── K1NAnalysis_SUMMARY_PATTERN_ANALYSIS_EXECUTIVE_v1.0_20251108.md (8KB)
+│   ├── K1NAnalysis_ANALYSIS_PATTERN_CODEBASE_ARCHITECTURE_v1.0_20251108.md (35KB)
 │   └── forensic_audio_pipeline/ (1KB)
 ├── 06-reference/ (4K) ❌ EMPTY EXCEPT README
 │   └── README.md (108 bytes)
 ├── 07-resources/ (40K)
-│   ├── governance_quick_ref.md (4.8KB)
-│   ├── TASKMASTER_CLI_REFERENCE.md (13KB)
-│   ├── GOVERNANCE_TRAINING_NOV6.md (5.7KB)
-│   └── BUILDER_EXTENSION.md (1.8KB)
+│   ├── K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md (4.8KB)
+│   ├── K1NRes_REFERENCE_TASKMASTER_CLI_v1.0_20251108.md (13KB)
+│   ├── K1NRes_GUIDE_GOVERNANCE_TRAINING_NOV6_v1.0_20251108.md (5.7KB)
+│   └── K1NRes_GUIDE_BUILDER_EXTENSION_v1.0_20251108.md (1.8KB)
 ├── 08-governance/ (60K)
-│   ├── GOVERNANCE.md (12KB - main governance doc)
-│   ├── K1_NODE1_LEGACY_PATH_AUDIT.md (34KB)
-│   └── LEGACY_PATH_MAPPING_QUICK_REFERENCE.md (7KB)
+│   ├── K1NGov_GOVERNANCE_v1.0_20251108.md (12KB - main governance doc)
+│   ├── K1NGov_AUDIT_K1_NODE1_LEGACY_PATH_v1.0_20251108.md (34KB)
+│   └── K1NGov_REFERENCE_LEGACY_PATH_MAPPING_QUICK_v1.0_20251108.md (7KB)
 ├── 09-implementation/ (16K)
-│   ├── IMPLEMENTATION_PLAN.md (10KB)
+│   ├── K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md (10KB)
 │   └── README.md (minimal)
 ├── 09-reports/ ❌ EMPTY FOLDER
 ├── archive/ ❌ EMPTY FOLDER
@@ -354,7 +354,7 @@ Keep existing 15-folder structure but with improvements:
 
 ```
 docs/
-├── 00-INDEX.md (updated master index)
+├── 00-tab5/K1NAnalysis_INDEX_TAB5_v1.0_20251108.md (updated master index)
 ├── 01-architecture/ (3 files) → Keep as-is
 ├── 02-adr/ (25 files → 18 files) → Consolidate ADRs, remove duplicates
 ├── 03-guides/ (6 files) → Keep as-is
@@ -441,8 +441,8 @@ docs/
 - Delete: `02-adr/ADR-0009-phase-2d1-critical-fixes.md` (shorter version)
 - Keep: `02-adr/ADR-0009-phase-2d1-critical-fixes.md` (comprehensive)
 - Verify references in:
-  - governance_quick_ref.md
-  - IMPLEMENTATION_PLAN.md
+  - K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md
+  - K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md
   - Any other internal refs
 - Time: 30 minutes
 
@@ -465,7 +465,7 @@ docs/
 ### Phase B: Recommended (Week 1 of Phase 2, Nov 6-13)
 
 **Task 5: Document Indexing**
-- Update `00-INDEX.md` with complete file inventory and purpose map
+- Update `00-tab5/K1NAnalysis_INDEX_TAB5_v1.0_20251108.md` with complete file inventory and purpose map
 - Add "Quick Navigation" guide for new readers
 - Create decision matrix (which ADR covers what)
 - Time: 1.5 hours

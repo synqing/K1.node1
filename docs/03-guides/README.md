@@ -9,7 +9,7 @@ This folder contains procedural guides, step-by-step instructions, and how-to do
 
 ## Quick Navigation
 
-- [Back to Index](../00-INDEX.md)
+- [Back to Index](../K1N_INDEX_v1.0_20251108.md)
 - [Resources & References](../07-resources/)
 - [Planning & Execution](../04-planning/)
 
@@ -22,4 +22,4 @@ This folder contains procedural guides, step-by-step instructions, and how-to do
 ---
 
 **For reference materials:** See `docs/07-resources/`
-**For governance standards:** See `docs/08-governance/GOVERNANCE.md`
+**For governance standards:** See `docs/08-governance/K1NGov_GOVERNANCE_v1.0_20251108.md`

@@ -7,8 +7,8 @@
 **Scope:** Dual-channel RMT LED encoder initialization robustness
 **Owner:** Forensic Analysis
 **Related:**
-- Analysis: `/docs/05-analysis/rmt_encoder_dual_channel_forensics.md`
-- Reference: `/docs/06-reference/rmt_encoder_initialization_comparison.md`
+- Analysis: `/docs/05-analysis/K1NAnalysis_FORENSICS_RMT_ENCODER_DUAL_CHANNEL_v1.0_20251108.md`
+- Reference: `/docs/06-reference/K1NRef_REFERENCE_RMT_ENCODER_INITIALIZATION_COMPARISON_v1.0_20251108.md`
 
 ## Problem Statement
 
@@ -232,10 +232,10 @@ Instead of storing sub-encoder handles in the instance, request them only when n
 
 ## Related Documents
 
-- **Forensic Analysis:** `/docs/05-analysis/rmt_encoder_dual_channel_forensics.md`
-- **Comparison Reference:** `/docs/06-reference/rmt_encoder_initialization_comparison.md`
-- **Executive Summary:** `/docs/09-reports/rmt_encoder_analysis_summary.md`
-- **Visual Diagrams:** `/docs/07-resources/rmt_encoder_state_isolation_diagram.md`
+- **Forensic Analysis:** `/docs/05-analysis/K1NAnalysis_FORENSICS_RMT_ENCODER_DUAL_CHANNEL_v1.0_20251108.md`
+- **Comparison Reference:** `/docs/06-reference/K1NRef_REFERENCE_RMT_ENCODER_INITIALIZATION_COMPARISON_v1.0_20251108.md`
+- **Executive Summary:** `/docs/09-reports/K1NReport_SUMMARY_RMT_ENCODER_ANALYSIS_v1.0_20251108.md`
+- **Visual Diagrams:** `/docs/07-resources/K1NRes_REFERENCE_RMT_ENCODER_STATE_ISOLATION_DIAGRAM_v1.0_20251108.md`
 
 ---
 

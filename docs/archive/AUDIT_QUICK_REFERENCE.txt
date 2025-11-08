@@ -38,7 +38,7 @@ RECOMMENDED FIXES (Before Nov 13):
 DETAILED DOCUMENTS:
   → AUDIT_REPORT_2025_11_05.md (complete forensic audit)
   → DOCUMENTATION_AUDIT_CRITICAL_FIXES.md (implementation checklist)
-  → ADR_CONSOLIDATION_MAP.md (ADR numbering fix plan)
+  → K1NGov_ADR_CONSOLIDATION_MAP_v1.0_20251108.md (ADR numbering fix plan)
   → DOCUMENTATION_AUDIT_SUMMARY_EXECUTIVE.md (this summary)
 
 TIMELINE:
@@ -94,8 +94,8 @@ WEEK 1 RECOMMENDED FIXES (Nov 6-13):
      - Check: find . -name "*.md" | head -5 | xargs head -5
 
   3. Verify Cross-References (30 min):
-     - Check: grep -r "ADR-" docs/07-resources/governance_quick_ref.md
-     - Check: grep -r "ADR-" docs/09-implementation/IMPLEMENTATION_PLAN.md
+     - Check: grep -r "ADR-" docs/07-resources/K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md
+     - Check: grep -r "ADR-" docs/09-implementation/K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md
      - Ensure all links point to comprehensive versions
 
 ═══════════════════════════════════════════════════════════════════════════════
