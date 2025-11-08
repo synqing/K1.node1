@@ -1,0 +1,66 @@
+[
+  {
+    "pair": "text-primary on canvas (dark)",
+    "foreground": "#e6e9ef",
+    "background": "#1c2130",
+    "theme": "dark",
+    "estimated": true,
+    "compliance": "AAA",
+    "notes": "Primary body text on canvas passes AAA."
+  },
+  {
+    "pair": "text-secondary on canvas (dark)",
+    "foreground": "#b5bdca",
+    "background": "#1c2130",
+    "theme": "dark",
+    "estimated": true,
+    "compliance": "AA",
+    "notes": "Use for labels/help text; AAA for large likely."
+  },
+  {
+    "pair": "primary-foreground on primary (light)",
+    "foreground": "oklch(1 0 0)",
+    "background": "#030213",
+    "theme": "light",
+    "estimated": true,
+    "compliance": "AAA",
+    "notes": "Buttons/CTAs."
+  },
+  {
+    "pair": "accent-foreground on accent (light)",
+    "foreground": "#030213",
+    "background": "#e9ebef",
+    "theme": "light",
+    "estimated": true,
+    "compliance": "AAA",
+    "notes": "Secondary surfaces & hover states."
+  },
+  {
+    "pair": "destructive-foreground on destructive (light)",
+    "foreground": "#ffffff",
+    "background": "#d4183d",
+    "theme": "light",
+    "estimated": true,
+    "compliance": "AA",
+    "notes": "AAA for large text; ensure button min height 44px."
+  },
+  {
+    "pair": "error text on canvas (dark)",
+    "foreground": "#ef4444",
+    "background": "#1c2130",
+    "theme": "dark",
+    "estimated": true,
+    "compliance": "borderline",
+    "notes": "Prefer destructive for long text or place on elevated chip for contrast."
+  },
+  {
+    "pair": "ring on dark background",
+    "foreground": "oklch(0.439 0 0)",
+    "background": "oklch(0.145 0 0)",
+    "theme": "dark",
+    "estimated": true,
+    "compliance": "AA",
+    "notes": "Use 2–3px ring; passes focus visibility."
+  }
+]
+

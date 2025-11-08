@@ -1,0 +1,9 @@
+pair,foreground,background,theme,estimated,compliance,notes
+text-primary on canvas (dark),#e6e9ef,#1c2130,dark,true,AAA,Primary body text on canvas passes AAA.
+text-secondary on canvas (dark),#b5bdca,#1c2130,dark,true,AA,Use for labels/help text; AAA for large likely.
+primary-foreground on primary (light),oklch(1 0 0),#030213,light,true,AAA,Buttons/CTAs.
+accent-foreground on accent (light),#030213,#e9ebef,light,true,AAA,Secondary surfaces & hover states.
+destructive-foreground on destructive (light),#ffffff,#d4183d,light,true,AA,AAA for large text; ensure button min height 44px.
+error text on canvas (dark),#ef4444,#1c2130,dark,true,borderline,Prefer destructive for long text or place on elevated chip for contrast.
+ring on dark background,oklch(0.439 0 0),oklch(0.145 0 0),dark,true,AA,Use 2–3px ring; passes focus visibility.
+

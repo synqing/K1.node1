@@ -1,0 +1,98 @@
+ Purpose
+
+  - Perform a comprehensive static UI/UX audit of the existing K1.node1 webapp to produce prioritized, actionable recommendations. No redesign or rebuild.
+
+  Scope
+
+  - Analyze only the webapp/ directory in the repo. Ignore all other folders (firmware/, memory-proxy/, etc.).
+  - Target three views: Control Panel, Profiling Dashboard, Terminal.
+
+  Tech Context
+
+  - React (TypeScript) + Vite, Tailwind CSS v4, shadcn/ui patterns, Recharts.
+  - Dark theme via .dark on the root element.
+  - Design tokens live in webapp/src/styles/globals.css.
+
+  Source of Truth
+
+  - Styles/tokens: webapp/src/styles/globals.css:1
+  - Global CSS: webapp/src/index.css:1, webapp/src/styles/globals.css:1
+  - Entrypoints: webapp/src/main.tsx:1, webapp/src/App.tsx:1
+  - UI components examples: webapp/src/components/ui/
+
+  Constraints
+
+  - Do not propose a new design system or replace Tailwind/shadcn.
+  - Respect and reuse existing tokens and dark-mode behavior in globals.css.
+  - Prefer component composition/props and Tailwind utilities over raw CSS rewrites.
+  - Keep suggestions self-contained; do not require external services or credentials.
+  - Static code audit first; if runtime metrics are needed, label as “Unmeasured — needs staging URL”.
+
+  Deliverables
+
+  - A structured report with four sections:
+      1. Performance Audit
+      2. Design Evaluation (ratings 1–10 with rationale)
+      3. Critical Analysis (heuristics & principle violations)
+      4. Improvement Proposals (Must/Should/Could with steps, effort, metrics)
+  - A short “Open Questions” list for any blockers or info gaps.
+
+  Methodology
+
+  - Reference code precisely by path and line (e.g., webapp/src/styles/globals.css:70).
+  - When suggesting fixes, include concrete implementation steps and example Tailwind class adjustments or component-level changes.
+  - Call out trade-offs when recommending alternatives.
+
+  Performance Audit (Static)
+
+  - Note likely implications for FCP/LCP/CLS/INP/TBT from code structure and dependencies.
+  - Responsiveness review at 360/768/1024/1440 widths: identify potential overflows, grid issues, or layout shifts.
+  - Cross-device notes (Desktop Chrome/Safari, iOS Safari, Android Chrome): static expectations and known caveats.
+  - For any runtime-only measure, mark “Unmeasured — needs URL” and provide instructions to capture (Lighthouse, Web Vitals, profiling steps).
+
+  Accessibility (WCAG 2.2 AA)
+
+  - Evaluate color contrast against tokens, keyboard navigation/focus order, visible focus styles, landmarks/semantics, form labels/ARIA on interactive components.
+  - Identify issues and propose specific remediations with code references.
+
+  Design Evaluation (Rate 1–10)
+
+  - Visual hierarchy & IA
+  - Pattern consistency
+  - Color scheme & typography effectiveness
+  - User flow intuitiveness
+  - Mobile responsiveness
+  - Include concise rationale and pointers to code/structure driving the score.
+
+  Critical Analysis
+
+  - Enumerate UX pain points with examples (selectors/paths).
+  - Identify components failing usability heuristics (e.g., feedback, recognition vs recall, error prevention).
+  - Note violations of design principles (contrast, alignment, proximity, affordance).
+  - Benchmark against best practices for dashboards, live metrics, and terminal UIs.
+
+  Improvement Proposals (Prioritized)
+
+  - For each recommendation, include:
+      - Category: Must-have / Should-have / Could-have
+      - Rationale (what’s broken or suboptimal)
+      - Specific implementation steps (paths/lines, Tailwind/shadcn usage)
+      - Effort: S/M/L
+      - Success metric with baseline → target 
+
+  Reporting Format
+
+  - Use clear headings and bullet lists.
+  - Group issues by view (Control Panel, Profiling, Terminal) and by component when helpful.
+  - Provide a final short roadmap: sequence of Must → Should → Could with estimated timeline.
+
+  Out of Scope
+
+  - Replacing Tailwind/shadcn or introducing new frameworks.
+  - Broad visual redesigns beyond targeted improvements using existing tokens/utilities.
+
+  Assumptions & Open Questions
+
+  - If any ambiguity exists (e.g., expected behaviors, data ranges, performance targets), list assumptions explicitly and include precise follow-up questions.
+
+  These rules should steer your audit toward pragmatic, code-referenced, and directly actionable results aligned with our stack and constraints.

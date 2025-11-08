@@ -1,0 +1,61 @@
+{
+  "components": {
+    "Button": {
+      "path": "@/components/ui/button",
+      "exports": ["Button"],
+      "inputs": {
+        "variant": ["default", "destructive", "outline", "secondary", "ghost", "link"],
+        "size": ["sm", "default", "lg", "icon"],
+        "asChild": "boolean",
+        "text": "string"
+      }
+    },
+    "CardWrapper": {
+      "path": "@/builder/CardWrapper",
+      "exports": ["CardWrapper"],
+      "inputs": {
+        "header": "string",
+        "subheader": "string",
+        "children": "BuilderElement"
+      }
+    },
+    "TabsWrapper": {
+      "path": "@/builder/TabsWrapper",
+      "exports": ["TabsWrapper"],
+      "inputs": {
+        "value": "string",
+        "tabs": [{ "label": "string", "value": "string", "content": "BuilderElement" }]
+      }
+    },
+    "MetricTileWrapper": {
+      "path": "@/builder/MetricTileWrapper",
+      "exports": ["MetricTileWrapper"],
+      "inputs": {
+        "label": "string",
+        "value": "string|number",
+        "unit": "string",
+        "trend": ["up", "down", "flat"],
+        "tone": ["default", "success", "warning", "error", "info"],
+        "decimals": "number"
+      }
+    },
+    "TerminalPanelWrapper": {
+      "path": "@/builder/TerminalPanelWrapper",
+      "exports": ["TerminalPanelWrapper"],
+      "inputs": {
+        "initialCommand": "string",
+        "autoScroll": "boolean",
+        "historyLimit": "number"
+      }
+    },
+    "ProfilingChartsWrapper": {
+      "path": "@/builder/ProfilingChartsWrapper",
+      "exports": ["ProfilingChartsWrapper"],
+      "inputs": {
+        "selectedEffect": ["all", "Analog", "Spectrum", "Octave", "Metronome", "Spectronome", "Hype", "Bloom", "PULSE", "SPARKLE"],
+        "timeRange": [100, 500, 1000]
+      }
+    }
+  }
+}
+
