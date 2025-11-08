@@ -3,6 +3,8 @@
 # Keep root tracked files
 !.gitignore
 !conductor.json
+!.mcp.json
+!CLAUDE.md
 
 # Unignore firmware, webapp, and orkes-service directories, then their contents
 !firmware/
@@ -19,6 +21,10 @@
 # Track tools (utilities and fixtures)
 !tools/
 !tools/**
+
+# Track design documentation
+!design/
+!design/**
 
 # Track GitHub workflows and local hooks
 !.github/

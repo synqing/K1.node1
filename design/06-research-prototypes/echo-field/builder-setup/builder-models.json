@@ -1,0 +1,313 @@
+{
+  "models": [
+    {
+      "name": "page",
+      "displayName": "Page",
+      "description": "Top-level page container for K1.node1 views",
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "helperText": "Page title (e.g., 'Control Panel', 'Profiling Dashboard')"
+        },
+        {
+          "name": "slug",
+          "type": "string",
+          "required": true,
+          "helperText": "URL slug (e.g., '/control-panel', '/profiling')",
+          "pattern": "^/[a-z0-9-]*$"
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "helperText": "Brief page description for SEO/documentation"
+        },
+        {
+          "name": "sections",
+          "type": "reference",
+          "refModel": "section",
+          "isList": true,
+          "helperText": "Ordered list of sections composing this page"
+        },
+        {
+          "name": "theme",
+          "type": "enum",
+          "options": ["light", "dark", "auto"],
+          "defaultValue": "auto",
+          "helperText": "Force light/dark theme or auto-detect"
+        },
+        {
+          "name": "hideNav",
+          "type": "boolean",
+          "defaultValue": false,
+          "helperText": "Hide sidebar/top nav (e.g., for full-screen Terminal)"
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "displayName": "Section",
+      "description": "Composable section representing a view or component area",
+      "fields": [
+        {
+          "name": "type",
+          "type": "enum",
+          "options": ["controlPanel", "profiling", "terminal", "analysis", "graph", "diagnostics", "stressTest", "custom"],
+          "required": true,
+          "helperText": "Section type determines layout and components"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "helperText": "Section heading (optional; some types auto-title)"
+        },
+        {
+          "name": "layout",
+          "type": "enum",
+          "options": ["single", "twoCol", "threeCol", "grid"],
+          "defaultValue": "single",
+          "helperText": "Desktop layout template"
+        },
+        {
+          "name": "props",
+          "type": "json",
+          "helperText": "Pass-through props to React component (e.g., {\"autoScroll\": true})"
+        },
+        {
+          "name": "visibility",
+          "type": "json",
+          "helperText": "Conditional visibility (e.g., {\"featureFlag\": \"profiling_enabled\", \"role\": \"admin\"})"
+        },
+        {
+          "name": "className",
+          "type": "string",
+          "helperText": "Override Tailwind classes (e.g., 'gap-8 p-6')"
+        }
+      ]
+    }
+  ],
+  "examples": {
+    "pages": [
+      {
+        "id": "page_control_panel",
+        "title": "Control Panel",
+        "slug": "/control-panel",
+        "description": "Real-time LED pattern control with parameter adjustment",
+        "theme": "auto",
+        "hideNav": false,
+        "sections": [
+          {
+            "id": "section_cp_selector",
+            "type": "controlPanel",
+            "title": "Effect Selector",
+            "layout": "threeCol",
+            "props": {
+              "showEffectLibrary": true,
+              "allowCustomPatterns": true
+            },
+            "visibility": {
+              "featureFlag": "control_panel_enabled"
+            }
+          },
+          {
+            "id": "section_cp_params",
+            "type": "controlPanel",
+            "title": "Parameter Controls",
+            "layout": "threeCol",
+            "props": {
+              "livePreview": true,
+              "enableValidation": true,
+              "sliderHeight": 44
+            }
+          },
+          {
+            "id": "section_cp_colors",
+            "type": "controlPanel",
+            "title": "Color Management",
+            "layout": "threeCol",
+            "props": {
+              "showPresets": true,
+              "showCustom": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "page_profiling",
+        "title": "Profiling Dashboard",
+        "slug": "/profiling",
+        "description": "Real-time monitoring with live metrics and performance charts",
+        "theme": "auto",
+        "hideNav": false,
+        "sections": [
+          {
+            "id": "section_prof_header",
+            "type": "profiling",
+            "title": "Live Metrics",
+            "layout": "single",
+            "props": {
+              "metricCount": 5,
+              "updateInterval": 1000,
+              "showFilters": true,
+              "showLiveBadge": true
+            },
+            "visibility": {
+              "featureFlag": "profiling_enabled"
+            }
+          },
+          {
+            "id": "section_prof_charts",
+            "type": "profiling",
+            "title": "Data Visualization",
+            "layout": "grid",
+            "props": {
+              "charts": ["frequency", "beatgrid", "dynamics"],
+              "responsiveGrid": "2col",
+              "enableZoom": true
+            }
+          },
+          {
+            "id": "section_prof_activity",
+            "type": "profiling",
+            "title": "Activity Log",
+            "layout": "single",
+            "props": {
+              "maxLines": 100,
+              "autoScroll": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "page_terminal",
+        "title": "Terminal",
+        "slug": "/terminal",
+        "description": "Interactive terminal emulator for command execution",
+        "theme": "dark",
+        "hideNav": false,
+        "sections": [
+          {
+            "id": "section_term_main",
+            "type": "terminal",
+            "title": "Terminal",
+            "layout": "single",
+            "props": {
+              "historyLimit": 1000,
+              "autoScroll": true,
+              "enableSyntaxHighlight": true,
+              "showHistoryDrawer": true,
+              "historyWidth": 320
+            },
+            "visibility": {
+              "featureFlag": "terminal_enabled"
+            }
+          }
+        ]
+      },
+      {
+        "id": "page_analysis",
+        "title": "Analysis",
+        "slug": "/analysis",
+        "description": "Audio analysis, recommendations, and artifact management",
+        "theme": "auto",
+        "hideNav": false,
+        "sections": [
+          {
+            "id": "section_analysis_toolbar",
+            "type": "analysis",
+            "title": "Tools",
+            "layout": "single",
+            "props": {
+              "showUpload": true,
+              "showExport": true
+            }
+          },
+          {
+            "id": "section_analysis_results",
+            "type": "analysis",
+            "title": "Analysis Results",
+            "layout": "twoCol",
+            "props": {
+              "showMetrics": true,
+              "showRecommendations": true,
+              "showArtifacts": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "page_graph",
+        "title": "Graph Editor",
+        "slug": "/graph",
+        "description": "Node-based graph editor for complex workflows",
+        "theme": "auto",
+        "hideNav": false,
+        "sections": [
+          {
+            "id": "section_graph_canvas",
+            "type": "graph",
+            "title": "Canvas",
+            "layout": "single",
+            "props": {
+              "autoLayout": false,
+              "enableZoom": true,
+              "enablePan": true,
+              "gridSnap": true
+            },
+            "visibility": {
+              "featureFlag": "graph_editor_enabled"
+            }
+          }
+        ]
+      }
+    ],
+    "sections": [
+      {
+        "id": "section_standalone_metrics",
+        "type": "custom",
+        "title": "Metrics Summary",
+        "layout": "grid",
+        "props": {
+          "metrics": [
+            {
+              "label": "CPU Usage",
+              "value": "42.5",
+              "unit": "%",
+              "trend": "up",
+              "tone": "warning"
+            },
+            {
+              "label": "Memory",
+              "value": "1.2",
+              "unit": "GB",
+              "trend": "flat",
+              "tone": "default"
+            },
+            {
+              "label": "Frame Rate",
+              "value": "59.8",
+              "unit": "FPS",
+              "trend": "up",
+              "tone": "success"
+            }
+          ]
+        },
+        "className": "grid-cols-3 gap-4 p-6"
+      },
+      {
+        "id": "section_standalone_alert",
+        "type": "custom",
+        "title": "Status Alert",
+        "layout": "single",
+        "props": {
+          "type": "warning",
+          "message": "Device temperature elevated. Reduce effect intensity.",
+          "actionLabel": "Reduce",
+          "onAction": "handleReduceIntensity"
+        },
+        "className": "p-4 bg-yellow-50 border-l-4 border-yellow-400"
+      }
+    ]
+  }
+}
