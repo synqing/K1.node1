@@ -22,10 +22,16 @@ K1.node1/
 │   ├── tsconfig.json      (TypeScript config)
 │   └── vite.config.ts     (Bundler config)
 │
+├── ops/                   (Conductor orchestration & diagnostics)
+│   ├── conductor/         (conductor.json task definitions)
+│   ├── scripts/           (preflight.sh – environment gating)
+│   └── diag/              (k1_smoke.js – E2E diagnostics)
+│
 ├── docs/                  (Essential documentation only)
 │   ├── 02-adr/            (Architecture Decision Records - 10 decisions)
 │   └── CLAUDE.md          (Agent operations manual)
 │
+├── .nvmrc                 (Node version 20)
 └── README.md              (This file)
 ```
 
@@ -37,19 +43,68 @@ K1.node1/
 - ❌ Archive folders
 - ❌ Music/audio datasets
 
-## Quick Start
+## Quick Start (Conductor)
 
-### Build Firmware
+K1.node1 uses **Conductor** for task orchestration. All workflows are defined in `ops/conductor/conductor.json`.
+
+### Environment Setup
+First time? The preflight gating will help:
 ```bash
-cd firmware
-pio run -e esp32-s3-devkitc-1
+bash ops/scripts/preflight.sh --scope web    # Node 20+, package manager, .env
+bash ops/scripts/preflight.sh --scope firmware # PlatformIO availability
 ```
 
-### Run Webapp
+### Run Tasks via Conductor
+Start the **webapp dev server**:
 ```bash
-cd webapp
-npm install
-npm run dev
+conductor run web:dev
+```
+
+Build **firmware** (release):
+```bash
+conductor run fw:build:release
+```
+
+Upload firmware via **USB**:
+```bash
+conductor run fw:upload:usb
+```
+
+Monitor **serial output**:
+```bash
+conductor run fw:monitor
+```
+
+### All Available Tasks
+
+**Webapp**
+- `conductor run web:dev` — Start React dev server (port 5173)
+- `conductor run web:typecheck` — TypeScript validation (tsc --noEmit)
+- `conductor run web:lint` — ESLint (if configured)
+- `conductor run web:test` — Jest tests (--runInBand)
+- `conductor run web:e2e` — Playwright E2E tests
+- `conductor run web:build` — Production build (dist/)
+
+**Firmware**
+- `conductor run fw:build:release` — Build for esp32-s3-devkitc-1
+- `conductor run fw:build:debug` — Build debug variant
+- `conductor run fw:upload:usb` — Flash via USB/serial
+- `conductor run fw:upload:ota` — OTA update (if env configured)
+- `conductor run fw:monitor` — Serial monitor (115200 baud)
+- `conductor run fw:test:phaseA` — Hardware test suite
+
+**Diagnostics**
+- `conductor run diag:k1` — E2E smoke test (device + API validation)
+
+### Manual (Legacy)
+
+If not using Conductor:
+```bash
+# Build Firmware
+cd firmware && pio run -e esp32-s3-devkitc-1
+
+# Run Webapp
+cd webapp && npm install && npm run dev
 ```
 
 ### Read Documentation
