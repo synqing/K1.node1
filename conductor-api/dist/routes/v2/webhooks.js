@@ -118,8 +118,10 @@ export function createWebhookRouter(webhookService) {
             limit: pageSize,
             offset: pageOffset,
         };
-        if (eventType && VALID_EVENT_TYPES.includes(String(eventType))) {
-            filter.eventType = String(eventType);
+        if (eventType && typeof eventType === 'string') {
+            if (VALID_EVENT_TYPES.includes(eventType)) {
+                filter.eventType = eventType;
+            }
         }
         if (enabled !== undefined) {
             filter.enabled = String(enabled).toLowerCase() === 'true';
@@ -338,22 +340,26 @@ function validateRetryPolicy(policy) {
         throw new ValidationError('retryPolicy must be an object');
     }
     if (policy.maxRetries !== undefined) {
-        if (!Number.isInteger(policy.maxRetries) || policy.maxRetries < 0 || policy.maxRetries > 100) {
+        const maxRetries = Number(policy.maxRetries);
+        if (!Number.isInteger(maxRetries) || maxRetries < 0 || maxRetries > 100) {
             throw new ValidationError('maxRetries must be an integer between 0 and 100');
         }
     }
     if (policy.initialDelayMs !== undefined) {
-        if (!Number.isInteger(policy.initialDelayMs) || policy.initialDelayMs < 100) {
+        const initialDelayMs = Number(policy.initialDelayMs);
+        if (!Number.isInteger(initialDelayMs) || initialDelayMs < 100) {
             throw new ValidationError('initialDelayMs must be an integer >= 100');
         }
     }
     if (policy.maxDelayMs !== undefined) {
-        if (!Number.isInteger(policy.maxDelayMs) || policy.maxDelayMs < 1000) {
+        const maxDelayMs = Number(policy.maxDelayMs);
+        if (!Number.isInteger(maxDelayMs) || maxDelayMs < 1000) {
             throw new ValidationError('maxDelayMs must be an integer >= 1000');
         }
     }
     if (policy.backoffMultiplier !== undefined) {
-        if (typeof policy.backoffMultiplier !== 'number' || policy.backoffMultiplier < 1 || policy.backoffMultiplier > 10) {
+        const multiplier = Number(policy.backoffMultiplier);
+        if (typeof multiplier !== 'number' || isNaN(multiplier) || multiplier < 1 || multiplier > 10) {
             throw new ValidationError('backoffMultiplier must be a number between 1 and 10');
         }
     }

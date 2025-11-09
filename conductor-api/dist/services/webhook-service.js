@@ -3,7 +3,7 @@
  * Manages webhook registration, event delivery, signature verification,
  * and retry logic with exponential backoff
  */
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
 import { WebhookDeliveryStatus, } from '../types/webhook.types.js';
 /**
@@ -77,9 +77,23 @@ export class WebhookService extends EventEmitter {
             throw new Error(`Webhook ${id} not found`);
         }
         const updates = {
-            ...request,
             updatedAt: new Date(),
         };
+        if (request.url !== undefined) {
+            updates.url = request.url;
+        }
+        if (request.headers !== undefined) {
+            updates.headers = request.headers;
+        }
+        if (request.enabled !== undefined) {
+            updates.enabled = request.enabled;
+        }
+        if (request.secret !== undefined) {
+            updates.secret = request.secret;
+        }
+        if (request.metadata !== undefined) {
+            updates.metadata = request.metadata;
+        }
         if (request.retryPolicy) {
             updates.retryPolicy = {
                 ...existing.retryPolicy,
