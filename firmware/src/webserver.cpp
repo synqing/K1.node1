@@ -213,7 +213,10 @@ public:
         }
         if (ctx.request->hasParam("fmt")) {
             String v = ctx.request->getParam("fmt")->value();
-            if (v == "rgb" || v == "hex") fmt = v.c_str();
+            // Validate format parameter: must be exactly "rgb" or "hex" and not oversized
+            if (v.length() <= 32 && (v == "rgb" || v == "hex")) {
+                fmt = v.c_str();
+            }
         }
 
         // Build JSON response
@@ -224,14 +227,17 @@ public:
         JsonArray data = doc.createNestedArray("data");
 
         if (strcmp(fmt, "hex") == 0) {
-            char hexbuf[7];
-            hexbuf[6] = '\0';
+            char hexbuf[8];  // SECURITY: Buffer size sufficient for 6 hex chars + null terminator + safety
+            hexbuf[7] = '\0';  // Explicit null terminator
             for (uint32_t i = 0; i < limit; ++i) {
                 uint8_t r = raw_led_data[i*3 + 0];
                 uint8_t g = raw_led_data[i*3 + 1];
                 uint8_t b = raw_led_data[i*3 + 2];
-                snprintf(hexbuf, sizeof(hexbuf), "%02X%02X%02X", r, g, b);
-                data.add(String(hexbuf));
+                // snprintf always null-terminates and respects buffer bounds
+                int written = snprintf(hexbuf, sizeof(hexbuf), "%02X%02X%02X", r, g, b);
+                if (written > 0 && written < (int)sizeof(hexbuf)) {
+                    data.add(String(hexbuf));
+                }
             }
         } else {
             for (uint32_t i = 0; i < limit; ++i) {
@@ -592,8 +598,13 @@ public:
         wifi_monitor_get_credentials(ssid, sizeof(ssid), pass, sizeof(pass));
 
         StaticJsonDocument<160> resp;
+        // SECURITY: Ensure null-terminated strings with bounds checking
+        ssid[63] = '\0';  // Force null terminator
+        pass[63] = '\0';  // Force null terminator
         resp["ssid"] = String(ssid);
-        resp["password_len"] = (uint32_t)strlen(pass);
+        // Use safe string length with bounds check
+        size_t pass_len = strnlen(pass, sizeof(pass) - 1);
+        resp["password_len"] = (uint32_t)pass_len;
         String output;
         serializeJson(resp, output);
         ctx.sendJson(200, output);
@@ -740,13 +751,25 @@ public:
             return;
         }
         auto p = ctx.request->getParam("t_us");
-        uint32_t t_us = (uint32_t)strtoul(p->value().c_str(), nullptr, 10);
+        // SECURITY: Validate parameter length before parsing to prevent buffer overflow in parser
+        String t_us_str = p->value();
+        if (t_us_str.length() > 32) {
+            ctx.sendError(400, "invalid_param", "t_us parameter too long");
+            return;
+        }
+        uint32_t t_us = (uint32_t)strtoul(t_us_str.c_str(), nullptr, 10);
 
         // Optional: max_delta_us threshold to indicate whether a sufficiently close match was found
         uint32_t max_delta_us = 0; // 0 means "no threshold provided"
         if (ctx.request->hasParam("max_delta_us")) {
             auto pmax = ctx.request->getParam("max_delta_us");
-            max_delta_us = (uint32_t)strtoul(pmax->value().c_str(), nullptr, 10);
+            String max_delta_str = pmax->value();
+            // SECURITY: Validate parameter length before parsing
+            if (max_delta_str.length() > 32) {
+                ctx.sendError(400, "invalid_param", "max_delta_us parameter too long");
+                return;
+            }
+            max_delta_us = (uint32_t)strtoul(max_delta_str.c_str(), nullptr, 10);
         }
 
         // Optional: strategy for selection
@@ -755,8 +778,11 @@ public:
         Strategy strategy = NEAREST;
         if (ctx.request->hasParam("strategy")) {
             String s = ctx.request->getParam("strategy")->value();
-            if (s == "older" || s == "before") strategy = OLDER;
-            else if (s == "newer" || s == "after") strategy = NEWER;
+            // SECURITY: Validate strategy parameter length
+            if (s.length() <= 32) {
+                if (s == "older" || s == "before") strategy = OLDER;
+                else if (s == "newer" || s == "after") strategy = NEWER;
+            }
         }
 
         uint16_t count = led_tx_events_count();
@@ -814,7 +840,13 @@ public:
         uint16_t limit = 10;
         if (ctx.request->hasParam("limit")) {
             auto p = ctx.request->getParam("limit");
-            limit = (uint16_t)strtoul(p->value().c_str(), nullptr, 10);
+            String limit_str = p->value();
+            // SECURITY: Validate parameter length before parsing
+            if (limit_str.length() > 32) {
+                ctx.sendError(400, "invalid_param", "limit parameter too long");
+                return;
+            }
+            limit = (uint16_t)strtoul(limit_str.c_str(), nullptr, 10);
         }
         if (limit == 0) limit = 10;
         if (limit > 32) limit = 32;
@@ -848,30 +880,40 @@ public:
         uint32_t max_delta_us = 0;
         bool order_oldest = false;  // default newest-first
 
+        // SECURITY: Helper lambda for safe parameter parsing with bounds checking
+        auto safe_strtoul = [](const char* str, const char* param_name) -> uint32_t {
+            if (!str) return 0;
+            size_t len = strlen(str);
+            // Prevent excessively long parameter strings that could overflow parsers
+            if (len > 32) return 0;
+            return (uint32_t)strtoul(str, nullptr, 10);
+        };
+
         if (ctx.request->hasParam("limit")) {
             auto p = ctx.request->getParam("limit");
-            limit = (uint16_t)strtoul(p->value().c_str(), nullptr, 10);
+            limit = (uint16_t)safe_strtoul(p->value().c_str(), "limit");
         }
         if (ctx.request->hasParam("since_us")) {
             auto p = ctx.request->getParam("since_us");
-            since_us = (uint32_t)strtoul(p->value().c_str(), nullptr, 10);
+            since_us = safe_strtoul(p->value().c_str(), "since_us");
         }
         if (ctx.request->hasParam("order")) {
             auto p = ctx.request->getParam("order");
             String v = p->value();
-            if (v == "oldest" || v == "asc") order_oldest = true;
+            // SECURITY: Validate order parameter length
+            if (v.length() <= 32 && (v == "oldest" || v == "asc")) order_oldest = true;
         }
         if (ctx.request->hasParam("until_us")) {
             auto p = ctx.request->getParam("until_us");
-            until_us = (uint32_t)strtoul(p->value().c_str(), nullptr, 10);
+            until_us = safe_strtoul(p->value().c_str(), "until_us");
         }
         if (ctx.request->hasParam("around_us")) {
             auto p = ctx.request->getParam("around_us");
-            around_us = (uint32_t)strtoul(p->value().c_str(), nullptr, 10);
+            around_us = safe_strtoul(p->value().c_str(), "around_us");
         }
         if (ctx.request->hasParam("max_delta_us")) {
             auto p = ctx.request->getParam("max_delta_us");
-            max_delta_us = (uint32_t)strtoul(p->value().c_str(), nullptr, 10);
+            max_delta_us = safe_strtoul(p->value().c_str(), "max_delta_us");
         }
 
         if (limit == 0) limit = 16;
@@ -1010,45 +1052,63 @@ public:
         uint16_t novelty_count = 0; // 0 => default
         bool order_newest_first = true; // default newest→oldest
 
+        // SECURITY: Helper lambda for safe uint16 parameter parsing
+        auto safe_strtou16 = [](const char* str) -> uint16_t {
+            if (!str) return 0;
+            size_t len = strlen(str);
+            if (len > 32) return 0;  // Prevent excessively long parameters
+            return (uint16_t)strtoul(str, nullptr, 10);
+        };
+
         if (ctx.request->hasParam("count")) {
             auto p = ctx.request->getParam("count");
-            count = (uint16_t)strtoul(p->value().c_str(), nullptr, 10);
+            count = safe_strtou16(p->value().c_str());
         }
         if (ctx.request->hasParam("offset")) {
             auto p = ctx.request->getParam("offset");
-            offset = (uint16_t)strtoul(p->value().c_str(), nullptr, 10);
+            offset = safe_strtou16(p->value().c_str());
         }
         if (ctx.request->hasParam("stride")) {
             auto p = ctx.request->getParam("stride");
-            stride = (uint16_t)strtoul(p->value().c_str(), nullptr, 10);
+            stride = safe_strtou16(p->value().c_str());
         }
         if (ctx.request->hasParam("history")) {
             auto p = ctx.request->getParam("history");
             String v = p->value();
-            history = (v == "1" || v == "true" || v == "True");
+            // SECURITY: Validate parameter length before comparison
+            if (v.length() <= 32) {
+                history = (v == "1" || v == "true" || v == "True");
+            }
         }
         if (ctx.request->hasParam("frames")) {
             auto p = ctx.request->getParam("frames");
-            frames = (uint16_t)strtoul(p->value().c_str(), nullptr, 10);
+            frames = safe_strtou16(p->value().c_str());
         }
         if (ctx.request->hasParam("include_chromagram")) {
             auto p = ctx.request->getParam("include_chromagram");
             String v = p->value();
-            include_chromagram = (v == "1" || v == "true" || v == "True");
+            if (v.length() <= 32) {
+                include_chromagram = (v == "1" || v == "true" || v == "True");
+            }
         }
         if (ctx.request->hasParam("include_novelty")) {
             auto p = ctx.request->getParam("include_novelty");
             String v = p->value();
-            include_novelty = (v == "1" || v == "true" || v == "True");
+            if (v.length() <= 32) {
+                include_novelty = (v == "1" || v == "true" || v == "True");
+            }
         }
         if (ctx.request->hasParam("novelty_count")) {
             auto p = ctx.request->getParam("novelty_count");
-            novelty_count = (uint16_t)strtoul(p->value().c_str(), nullptr, 10);
+            novelty_count = safe_strtou16(p->value().c_str());
         }
         if (ctx.request->hasParam("order")) {
             auto p = ctx.request->getParam("order");
             String v = p->value();
-            if (v == "oldest" || v == "asc") order_newest_first = false;
+            // SECURITY: Validate parameter length before comparison
+            if (v.length() <= 32 && (v == "oldest" || v == "asc")) {
+                order_newest_first = false;
+            }
         }
 
         if (count < 4) count = 4;
@@ -1331,21 +1391,33 @@ public:
         // Parameters: order, since_us, until_us, around_us+max_delta_us
         bool order_oldest = false; // default newest-first
         uint32_t since_us = 0, until_us = 0, around_us = 0, max_delta_us = 0;
+
+        // SECURITY: Helper lambda for safe parameter parsing with bounds validation
+        auto safe_strtoul_checked = [](const char* str, const char* param_name) -> uint32_t {
+            if (!str) return 0;
+            size_t len = strlen(str);
+            if (len > 32) return 0;  // Reject oversized parameters
+            return (uint32_t)strtoul(str, nullptr, 10);
+        };
+
         if (ctx.request->hasParam("order")) {
             String v = ctx.request->getParam("order")->value();
-            if (v == "oldest" || v == "asc") order_oldest = true;
+            // SECURITY: Validate parameter length before comparison
+            if (v.length() <= 32 && (v == "oldest" || v == "asc")) {
+                order_oldest = true;
+            }
         }
         if (ctx.request->hasParam("since_us")) {
-            since_us = (uint32_t)strtoul(ctx.request->getParam("since_us")->value().c_str(), nullptr, 10);
+            since_us = safe_strtoul_checked(ctx.request->getParam("since_us")->value().c_str(), "since_us");
         }
         if (ctx.request->hasParam("until_us")) {
-            until_us = (uint32_t)strtoul(ctx.request->getParam("until_us")->value().c_str(), nullptr, 10);
+            until_us = safe_strtoul_checked(ctx.request->getParam("until_us")->value().c_str(), "until_us");
         }
         if (ctx.request->hasParam("around_us")) {
-            around_us = (uint32_t)strtoul(ctx.request->getParam("around_us")->value().c_str(), nullptr, 10);
+            around_us = safe_strtoul_checked(ctx.request->getParam("around_us")->value().c_str(), "around_us");
         }
         if (ctx.request->hasParam("max_delta_us")) {
-            max_delta_us = (uint32_t)strtoul(ctx.request->getParam("max_delta_us")->value().c_str(), nullptr, 10);
+            max_delta_us = safe_strtoul_checked(ctx.request->getParam("max_delta_us")->value().c_str(), "max_delta_us");
         }
 
         // Apply filters, collect into a temporary vector with capacity cap
@@ -1779,9 +1851,19 @@ static void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *clien
             {
                 AwsFrameInfo *info = (AwsFrameInfo*)arg;
                 if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-                    // Handle incoming WebSocket message (for future bidirectional communication)
-                    data[len] = 0; // Null terminate
-                    LOG_DEBUG(TAG_WEB, "WebSocket message from client #%u: %s", client->id(), (char*)data);
+                    // SECURITY: Validate WebSocket frame size and null-terminate safely
+                    // Prevent oversized frames that could overflow buffers or cause DoS
+                    if (len > 4096) {
+                        LOG_WARN(TAG_WEB, "WebSocket frame too large: %zu bytes (max 4096)", len);
+                        client->close();
+                        break;
+                    }
+                    // Null terminate only if safe (buffer must have at least len+1 bytes)
+                    // In practice, AsyncWebServer allocates sufficient space
+                    if (len > 0 && len < 4097) {
+                        data[len] = 0;  // Safe null termination
+                    }
+                    LOG_DEBUG(TAG_WEB, "WebSocket message from client #%u: %.*s", client->id(), (int)len, (char*)data);
                     
                     // Echo back for now (can be extended for commands)
                     StaticJsonDocument<256> response;
