@@ -1,0 +1,425 @@
+{
+  "version": "1.0",
+  "pattern_id": "bloom",
+  "pattern_name": "Bloom Pattern - Node Graph",
+  "description": "Procedural bloom effect with audio reactivity, trail decay, and center-origin spreading",
+  "metadata": {
+    "author": "K1.node1 Pattern System",
+    "created": "2025-11-10",
+    "scope": "PoC - Single-channel trail-based bloom",
+    "quality_gates": ["120+ FPS", "Audio reactive", "No warnings"]
+  },
+
+  "state_variables": [
+    {
+      "id": "bloom_trail",
+      "type": "float_array",
+      "size": "NUM_LEDS",
+      "dimension": "2",
+      "description": "Main bloom trail buffer (per-channel, dual-channel support)"
+    },
+    {
+      "id": "bloom_trail_prev",
+      "type": "float_array",
+      "size": "NUM_LEDS",
+      "dimension": "2",
+      "description": "Previous frame bloom trail for decay calculations"
+    }
+  ],
+
+  "input_nodes": [
+    {
+      "node_id": "input_time",
+      "node_type": "builtin_scalar",
+      "output_type": "float",
+      "description": "Frame time parameter (not used in bloom but part of pattern signature)"
+    },
+    {
+      "node_id": "input_params",
+      "node_type": "builtin_struct",
+      "output_type": "PatternParameters",
+      "description": "Pattern parameters struct containing speed, softness, brightness, palette, etc."
+    },
+    {
+      "node_id": "input_audio",
+      "node_type": "builtin_audio",
+      "output_type": "float",
+      "available_when": "AUDIO_IS_AVAILABLE()",
+      "description": "Audio input node - provides VU, bass, mids, treble, novelty"
+    }
+  ],
+
+  "processing_nodes": [
+    {
+      "node_id": "extract_speed",
+      "node_type": "extract_param",
+      "input": "input_params",
+      "param_name": "speed",
+      "output_type": "float",
+      "description": "Extract speed parameter from input"
+    },
+    {
+      "node_id": "extract_softness",
+      "node_type": "extract_param",
+      "input": "input_params",
+      "param_name": "softness",
+      "output_type": "float",
+      "description": "Extract softness parameter (controls decay rate)"
+    },
+    {
+      "node_id": "extract_brightness",
+      "node_type": "extract_param",
+      "input": "input_params",
+      "param_name": "brightness",
+      "output_type": "float",
+      "description": "Extract brightness parameter"
+    },
+    {
+      "node_id": "extract_palette",
+      "node_type": "extract_param",
+      "input": "input_params",
+      "param_name": "palette_id",
+      "output_type": "uint8_t",
+      "description": "Extract palette ID"
+    },
+    {
+      "node_id": "extract_custom3",
+      "node_type": "extract_param",
+      "input": "input_params",
+      "param_name": "custom_param_3",
+      "output_type": "float",
+      "description": "Extract custom_param_3 for boost control"
+    },
+    {
+      "node_id": "spread_speed_calc",
+      "node_type": "arithmetic",
+      "operation": "linear_interp",
+      "inputs": [
+        {"node_id": "extract_speed", "scale": 0.875, "offset": 0.125}
+      ],
+      "output_type": "float",
+      "description": "Calculate spread_speed = 0.125 + 0.875 * speed (clamped)"
+    },
+    {
+      "node_id": "trail_decay_calc",
+      "node_type": "arithmetic",
+      "operation": "linear_interp",
+      "inputs": [
+        {"node_id": "extract_softness", "scale": 0.06, "offset": 0.92}
+      ],
+      "output_type": "float",
+      "description": "Calculate trail_decay = 0.92 + 0.06 * softness (affects persistence)"
+    },
+    {
+      "node_id": "get_channel_idx",
+      "node_type": "builtin_function",
+      "function_name": "get_pattern_channel_index",
+      "output_type": "uint8_t",
+      "description": "Get channel index for dual-channel support"
+    },
+    {
+      "node_id": "audio_energy_gate",
+      "node_type": "conditional_block",
+      "condition": "AUDIO_IS_AVAILABLE()",
+      "children": [
+        {
+          "node_id": "audio_vu_read",
+          "node_type": "audio_query",
+          "query": "AUDIO_VU",
+          "output_type": "float",
+          "description": "Read audio VU level"
+        },
+        {
+          "node_id": "audio_novelty_read",
+          "node_type": "audio_query",
+          "query": "AUDIO_NOVELTY",
+          "output_type": "float",
+          "description": "Read audio novelty level"
+        },
+        {
+          "node_id": "energy_gate_calc",
+          "node_type": "arithmetic",
+          "operation": "fminf",
+          "inputs": [
+            {"node_id": "audio_vu_read", "scale": 0.9},
+            {"node_id": "audio_novelty_read", "scale": 0.5}
+          ],
+          "max": 1.0,
+          "output_type": "float",
+          "description": "Energy gate = fminf(1.0, VU*0.9 + NOVELTY*0.5)"
+        },
+        {
+          "node_id": "bass_inject",
+          "node_type": "arithmetic",
+          "operation": "sqrt_response",
+          "input": {"node_type": "audio_query", "query": "AUDIO_BASS_ABS()"},
+          "scale": 0.6,
+          "output_type": "float",
+          "description": "Bass injection component"
+        },
+        {
+          "node_id": "mids_inject",
+          "node_type": "arithmetic",
+          "operation": "sqrt_response",
+          "input": {"node_type": "audio_query", "query": "AUDIO_MIDS_ABS()"},
+          "scale": 0.3,
+          "output_type": "float",
+          "description": "Mids injection component"
+        },
+        {
+          "node_id": "treble_inject",
+          "node_type": "arithmetic",
+          "operation": "sqrt_response",
+          "input": {"node_type": "audio_query", "query": "AUDIO_TREBLE_ABS()"},
+          "scale": 0.2,
+          "output_type": "float",
+          "description": "Treble injection component"
+        },
+        {
+          "node_id": "inject_base_calc",
+          "node_type": "arithmetic",
+          "operation": "sum",
+          "inputs": [
+            {"node_id": "bass_inject"},
+            {"node_id": "mids_inject"},
+            {"node_id": "treble_inject"}
+          ],
+          "output_type": "float",
+          "description": "Combined injection base = bass + mids + treble"
+        },
+        {
+          "node_id": "boost_calc",
+          "node_type": "arithmetic",
+          "operation": "linear_interp",
+          "inputs": [
+            {"node_id": "extract_custom3", "scale": 1.0, "offset": 1.0}
+          ],
+          "min": 1.0,
+          "max": 2.0,
+          "output_type": "float",
+          "description": "User boost = 1.0 + custom_param_3 * 1.0 (clamped [1.0, 2.0])"
+        },
+        {
+          "node_id": "inject_calc",
+          "node_type": "arithmetic",
+          "operation": "multiply",
+          "inputs": [
+            {"node_id": "inject_base_calc"},
+            {"node_id": "energy_gate_calc", "scale": 0.85, "offset": 0.25},
+            {"node_id": "boost_calc"}
+          ],
+          "output_type": "float",
+          "description": "Final inject = base * (0.25 + gate*0.85) * boost"
+        },
+        {
+          "node_id": "inject_floor_check",
+          "node_type": "conditional",
+          "condition": "inject < 0.02f && energy_gate > 0.05f",
+          "then_value": 0.02,
+          "else_input": "inject_calc",
+          "output_type": "float",
+          "description": "Apply floor to inject if quiet but has energy"
+        }
+      ],
+      "output_type": "float",
+      "description": "Audio-driven injection calculation block"
+    },
+    {
+      "node_id": "prev_trail_decay",
+      "node_type": "buffer_operation",
+      "operation": "scale_in_place",
+      "buffer": "bloom_trail_prev",
+      "scale_input": "trail_decay_calc",
+      "size": "NUM_LEDS",
+      "channel_input": "get_channel_idx",
+      "description": "Apply decay to previous trail: trail_prev *= decay"
+    },
+    {
+      "node_id": "sprite_spread",
+      "node_type": "buffer_operation",
+      "operation": "draw_sprite_float",
+      "dst_buffer": "bloom_trail",
+      "src_buffer": "bloom_trail_prev",
+      "speed_input": "spread_speed_calc",
+      "alpha": 1.0,
+      "size": "NUM_LEDS",
+      "channel_input": "get_channel_idx",
+      "description": "Spread and accumulate trail using sprite drawing"
+    },
+    {
+      "node_id": "trail_injection",
+      "node_type": "conditional_block",
+      "condition": "AUDIO_IS_AVAILABLE()",
+      "children": [
+        {
+          "node_id": "inject_center",
+          "node_type": "buffer_write",
+          "buffer": "bloom_trail",
+          "index": 0,
+          "value_input": "inject_floor_check",
+          "operation": "fmax_accumulate",
+          "channel_input": "get_channel_idx",
+          "description": "Inject audio energy at center (index 0)"
+        },
+        {
+          "node_id": "inject_adjacent",
+          "node_type": "buffer_write",
+          "buffer": "bloom_trail",
+          "index": 1,
+          "value_input": "inject_floor_check",
+          "scale": 0.6,
+          "operation": "fmax_accumulate",
+          "channel_input": "get_channel_idx",
+          "description": "Seed adjacent cell for better spread"
+        }
+      ],
+      "description": "Inject audio energy into trail"
+    },
+    {
+      "node_id": "render_half_loop",
+      "node_type": "loop",
+      "loop_type": "for",
+      "start": 0,
+      "end": "NUM_LEDS >> 1",
+      "loop_var": "i",
+      "children": [
+        {
+          "node_id": "brightness_read",
+          "node_type": "buffer_read",
+          "buffer": "bloom_trail",
+          "index": "i",
+          "clamp": true,
+          "channel_input": "get_channel_idx",
+          "output_type": "float",
+          "description": "Read brightness from trail at index i"
+        },
+        {
+          "node_id": "color_palette_lookup",
+          "node_type": "builtin_function",
+          "function_name": "color_from_palette",
+          "inputs": [
+            {"param": "extract_palette"},
+            {"param": "i / half_leds", "type": "normalized_position"},
+            {"param": "brightness_read", "type": "brightness"}
+          ],
+          "output_type": "CRGBF",
+          "description": "Look up color from palette based on position and brightness"
+        },
+        {
+          "node_id": "apply_brightness_mul",
+          "node_type": "arithmetic",
+          "operation": "component_multiply",
+          "inputs": [
+            {"node_id": "color_palette_lookup"},
+            {"node_id": "extract_brightness"}
+          ],
+          "output_type": "CRGBF",
+          "description": "Apply pattern brightness to color"
+        },
+        {
+          "node_id": "calc_left_index",
+          "node_type": "arithmetic",
+          "operation": "subtract",
+          "inputs": [
+            {"value": "half_leds - 1"},
+            {"node_id": "loop_var"}
+          ],
+          "output_type": "int",
+          "description": "Calculate left LED index"
+        },
+        {
+          "node_id": "calc_right_index",
+          "node_type": "arithmetic",
+          "operation": "add",
+          "inputs": [
+            {"value": "half_leds"},
+            {"node_id": "loop_var"}
+          ],
+          "output_type": "int",
+          "description": "Calculate right LED index"
+        },
+        {
+          "node_id": "write_left_led",
+          "node_type": "buffer_write",
+          "buffer": "leds",
+          "index_input": "calc_left_index",
+          "value_input": "apply_brightness_mul",
+          "description": "Write color to left LED"
+        },
+        {
+          "node_id": "write_right_led",
+          "node_type": "buffer_write",
+          "buffer": "leds",
+          "index_input": "calc_right_index",
+          "value_input": "apply_brightness_mul",
+          "description": "Write color to right LED"
+        }
+      ],
+      "description": "Render loop: mirror bloom trail across strip center"
+    },
+    {
+      "node_id": "copy_trail_prev",
+      "node_type": "buffer_operation",
+      "operation": "memcpy_accel",
+      "dst": "bloom_trail_prev",
+      "src": "bloom_trail",
+      "size": "NUM_LEDS",
+      "channel_input": "get_channel_idx",
+      "description": "Copy current trail to prev for next frame decay"
+    },
+    {
+      "node_id": "apply_background",
+      "node_type": "builtin_function",
+      "function_name": "apply_background_overlay",
+      "inputs": [
+        {"param": "input_params"}
+      ],
+      "description": "Apply uniform background overlay"
+    }
+  ],
+
+  "output_nodes": [
+    {
+      "node_id": "output_leds",
+      "node_type": "global_buffer",
+      "buffer_name": "leds",
+      "description": "Final LED buffer written by render loop"
+    }
+  ],
+
+  "execution_flow": [
+    "PATTERN_AUDIO_START()",
+    "extract_speed",
+    "extract_softness",
+    "extract_brightness",
+    "extract_palette",
+    "extract_custom3",
+    "spread_speed_calc",
+    "trail_decay_calc",
+    "get_channel_idx",
+    "prev_trail_decay",
+    "sprite_spread",
+    "audio_energy_gate (conditional)",
+    "trail_injection (conditional)",
+    "render_half_loop",
+    "copy_trail_prev",
+    "apply_background"
+  ],
+
+  "validation": {
+    "constraints": [
+      "speed parameter clamped to [0, 1]",
+      "softness parameter clamped to [0, 1]",
+      "custom_param_3 clamped to [0, 1]",
+      "brightness can be > 1.0 for HDR effects",
+      "trail values should remain in [0, 1] after clipping",
+      "NUM_LEDS must be even for center-origin mirroring"
+    ],
+    "quality_gates": [
+      "No warnings on modern C++ compilers",
+      "Zero hot-path logging",
+      "RMT callback latency < 100us",
+      "120+ FPS target on 320 LEDs dual-RMT"
+    ]
+  }
+}

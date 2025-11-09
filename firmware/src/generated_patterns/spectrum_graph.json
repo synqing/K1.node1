@@ -1,0 +1,274 @@
+{
+  "pattern": {
+    "name": "draw_spectrum",
+    "version": "1.0",
+    "description": "Audio reactive spectrum visualizer - maps FFT bins to LED strip with magnitude-driven colors",
+    "metadata": {
+      "author": "K1 Team",
+      "generated": "2025-11-10",
+      "architecture": "center-origin (render half, mirror)",
+      "compatibility": ["IDF5 FFT", "legacy fallback"]
+    }
+  },
+  "nodes": [
+    {
+      "id": "audio_init",
+      "type": "audio_control",
+      "name": "Initialize Audio Snapshot",
+      "description": "Fetch thread-safe audio data snapshot",
+      "operation": "PATTERN_AUDIO_START()",
+      "outputs": {
+        "audio": "AudioDataSnapshot",
+        "available": "bool",
+        "fresh": "bool",
+        "age_ms": "uint32_t"
+      },
+      "properties": {
+        "timeout_ms": 1
+      }
+    },
+    {
+      "id": "availability_check",
+      "type": "conditional",
+      "name": "Check Audio Availability",
+      "description": "Fallback to ambient if no audio data",
+      "condition": "!AUDIO_IS_AVAILABLE()",
+      "branches": {
+        "true": "ambient_fallback",
+        "false": "freshness_check"
+      }
+    },
+    {
+      "id": "ambient_fallback",
+      "type": "rendering",
+      "name": "Render Ambient Color",
+      "description": "Fill all LEDs with palette color when audio unavailable",
+      "inputs": ["params"],
+      "logic": {
+        "operation": "color_from_palette",
+        "params": {
+          "palette_id": "params.palette_id",
+          "position": "clip_float(params.color)",
+          "brightness": "clip_float(params.background) * clip_float(params.brightness)"
+        }
+      },
+      "outputs": {
+        "color": "CRGBF"
+      },
+      "loops": {
+        "range": "0 to NUM_LEDS",
+        "body": "leds[i] = color"
+      }
+    },
+    {
+      "id": "freshness_check",
+      "type": "conditional",
+      "name": "Check Data Freshness",
+      "description": "Skip render if no new audio frame",
+      "condition": "!AUDIO_IS_FRESH()",
+      "branches": {
+        "true": "return",
+        "false": "age_decay_calc"
+      }
+    },
+    {
+      "id": "age_decay_calc",
+      "type": "audio_processing",
+      "name": "Calculate Age-Based Decay",
+      "description": "Apply graded decay based on audio data age",
+      "inputs": ["AUDIO_AGE_MS()"],
+      "logic": {
+        "age_ms": "float = (float)AUDIO_AGE_MS()",
+        "age_factor": "1.0f - fminf(age_ms, 250.0f) / 250.0f",
+        "clamp": "fmaxf(0.0f, age_factor)"
+      },
+      "outputs": {
+        "age_factor": "float (0.0-1.0)"
+      }
+    },
+    {
+      "id": "spectrum_setup",
+      "type": "calculation",
+      "name": "Setup Spectrum Rendering",
+      "description": "Initialize spectrum rendering parameters",
+      "logic": {
+        "half_leds": "int = NUM_LEDS / 2",
+        "smooth_mix": "clip_float(params.custom_param_3)"
+      },
+      "outputs": {
+        "half_leds": "int",
+        "smooth_mix": "float (0.0=raw, 1.0=smoothed)"
+      }
+    },
+    {
+      "id": "spectrum_loop",
+      "type": "loop",
+      "name": "Render Spectrum Bars",
+      "description": "Map frequency bins to LED positions with magnitude coloring",
+      "range": "0 to half_leds",
+      "body": [
+        {
+          "id": "freq_mapping",
+          "type": "calculation",
+          "name": "Map LED to Frequency",
+          "description": "Convert LED position to frequency spectrum range",
+          "logic": {
+            "progress": "float = (float)i / half_leds",
+            "raw_mag": "clip_float(interpolate(progress, AUDIO_SPECTRUM, NUM_FREQS))",
+            "smooth_mag": "clip_float(AUDIO_SPECTRUM_INTERP(progress))"
+          },
+          "outputs": {
+            "progress": "float (0.0-1.0)",
+            "raw_mag": "float",
+            "smooth_mag": "float"
+          }
+        },
+        {
+          "id": "magnitude_blend",
+          "type": "audio_processing",
+          "name": "Blend Raw and Smoothed Magnitude",
+          "description": "Mix raw and smoothed spectrum for responsiveness control",
+          "inputs": ["raw_mag", "smooth_mag", "smooth_mix"],
+          "logic": {
+            "magnitude": "raw_mag * (1.0f - smooth_mix) + smooth_mag * smooth_mix"
+          },
+          "outputs": {
+            "magnitude": "float"
+          }
+        },
+        {
+          "id": "magnitude_response",
+          "type": "signal_processing",
+          "name": "Apply Response Curve",
+          "description": "Enhance separation using sqrt response curve and apply age decay",
+          "inputs": ["magnitude", "age_factor"],
+          "logic": {
+            "operation": "response_sqrt(magnitude) * age_factor"
+          },
+          "outputs": {
+            "final_magnitude": "float"
+          }
+        },
+        {
+          "id": "color_lookup",
+          "type": "rendering",
+          "name": "Lookup Palette Color",
+          "description": "Get color from palette using frequency position and magnitude",
+          "inputs": ["progress", "final_magnitude", "params.palette_id"],
+          "logic": {
+            "operation": "color_from_palette(params.palette_id, progress, final_magnitude)"
+          },
+          "outputs": {
+            "color": "CRGBF"
+          }
+        },
+        {
+          "id": "brightness_apply",
+          "type": "rendering",
+          "name": "Apply Global Brightness",
+          "description": "Scale color by global brightness parameter",
+          "inputs": ["color", "params.brightness"],
+          "logic": {
+            "r": "color.r * params.brightness",
+            "g": "color.g * params.brightness",
+            "b": "color.b * params.brightness"
+          },
+          "outputs": {
+            "bright_color": "CRGBF"
+          }
+        },
+        {
+          "id": "center_mirror",
+          "type": "rendering",
+          "name": "Mirror from Center",
+          "description": "Place color at mirrored positions (center-origin architecture)",
+          "inputs": ["i", "bright_color"],
+          "logic": {
+            "left_index": "int = (NUM_LEDS / 2) - 1 - i",
+            "right_index": "int = (NUM_LEDS / 2) + i"
+          },
+          "outputs": {
+            "left_index": "int",
+            "right_index": "int"
+          }
+        },
+        {
+          "id": "led_assign",
+          "type": "output",
+          "name": "Assign to LEDs",
+          "description": "Write color to LED buffer at mirrored positions",
+          "logic": {
+            "op1": "leds[left_index] = bright_color",
+            "op2": "leds[right_index] = bright_color"
+          }
+        }
+      ]
+    },
+    {
+      "id": "background_overlay",
+      "type": "rendering",
+      "name": "Apply Background Overlay",
+      "description": "Apply uniform background handling across pattern",
+      "operation": "apply_background_overlay(params)"
+    }
+  ],
+  "flow": [
+    "audio_init -> availability_check",
+    "availability_check -> (true: ambient_fallback | false: freshness_check)",
+    "ambient_fallback -> [loop: 0..NUM_LEDS, assign leds[i]]",
+    "freshness_check -> (true: return | false: age_decay_calc)",
+    "age_decay_calc -> spectrum_setup",
+    "spectrum_setup -> spectrum_loop",
+    "spectrum_loop[0..half_leds] -> freq_mapping -> magnitude_blend -> magnitude_response -> color_lookup -> brightness_apply -> center_mirror -> led_assign",
+    "spectrum_loop -> background_overlay"
+  ],
+  "data_flow": {
+    "inputs": ["time", "PatternParameters& params"],
+    "constants": ["NUM_LEDS", "NUM_FREQS"],
+    "audio_data": [
+      "AUDIO_SPECTRUM[NUM_FREQS]",
+      "AUDIO_SPECTRUM_INTERP()",
+      "AUDIO_IS_AVAILABLE()",
+      "AUDIO_IS_FRESH()",
+      "AUDIO_AGE_MS()"
+    ],
+    "outputs": ["leds[NUM_LEDS]"]
+  },
+  "dependencies": {
+    "headers": [
+      "pattern_audio_interface.h",
+      "pattern_registry.h",
+      "emotiscope_helpers.h",
+      "palettes.h"
+    ],
+    "functions": [
+      "PATTERN_AUDIO_START()",
+      "AUDIO_IS_AVAILABLE()",
+      "AUDIO_IS_FRESH()",
+      "color_from_palette()",
+      "clip_float()",
+      "interpolate()",
+      "response_sqrt()",
+      "apply_background_overlay()"
+    ]
+  },
+  "validation": {
+    "preconditions": [
+      "NUM_LEDS > 0",
+      "NUM_FREQS >= 64",
+      "params.palette_id is valid",
+      "leds array is initialized"
+    ],
+    "invariants": [
+      "All frequency bins normalized to 0.0-1.0 range",
+      "Magnitude values squared/sqrt for visual separation",
+      "Center-origin mirroring creates symmetric display",
+      "Age decay prevents brightness flicker on stale data"
+    ],
+    "postconditions": [
+      "All leds[0..NUM_LEDS-1] assigned valid CRGBF colors",
+      "Brightness within 0.0-1.0 range",
+      "No undefined memory access outside leds array"
+    ]
+  }
+}
