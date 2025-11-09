@@ -1,13 +1,8 @@
 /**
- * API v2 Router
- * Main router setup with versioning, authentication, and route handlers
- * Consolidates error recovery and scheduling routes under v2 namespace
- * Task T3: API v2 Router Scaffolding
+ * API v2 Routes Index
+ * Central export point for all v2 endpoints
  */
-import { Router } from 'express';
-/**
- * Create API v2 router with authentication and versioning
- */
-export declare const createV2Router: () => Router;
-export default createV2Router;
+export { createBatchRouter, batchRetryErrors, batchResolveErrors, batchExecuteSchedules, batchResolveDLQ, BATCH_CONFIG } from './batch.js';
+export type { BatchResponse, BatchItemResult } from './batch.js';
+export { createWebhookRouter } from './webhooks.js';
 //# sourceMappingURL=index.d.ts.map

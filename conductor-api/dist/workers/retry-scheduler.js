@@ -3,19 +3,16 @@
  * Background worker that polls database for pending retries and executes them
  * Runs on a 30-second interval
  */
-import { RetryEngine } from '../services/retry-engine';
+import { RetryEngine } from '../services/retry-engine.js';
 /**
  * Retry Scheduler Worker
  * Handles polling, scheduling, and execution of retries
  */
 export class RetryScheduler {
-    retryEngine;
-    taskExecutor;
-    config;
-    intervalId = null;
-    isRunning = false;
-    activeRetries = 0;
     constructor(database, taskExecutor, config = {}) {
+        this.intervalId = null;
+        this.isRunning = false;
+        this.activeRetries = 0;
         this.retryEngine = new RetryEngine(database);
         this.taskExecutor = taskExecutor;
         this.config = {

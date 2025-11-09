@@ -3,8 +3,8 @@
  * Background worker that polls database for pending retries and executes them
  * Runs on a 30-second interval
  */
-import { RetryDatabase } from '../services/retry-engine';
-import { RetryPolicy } from '../types/retry-policy.types';
+import { RetryDatabase } from '../services/retry-engine.js';
+import { RetryPolicy } from '../types/retry-policy.types.js';
 /**
  * Interface for task execution
  * In production, this would execute the actual task

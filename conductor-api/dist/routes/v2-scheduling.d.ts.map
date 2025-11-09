@@ -1,0 +1,1 @@
+{"version":3,"file":"v2-scheduling.d.ts","sourceRoot":"","sources":["../../src/routes/v2-scheduling.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAEH,OAAO,EAAE,MAAM,EAAmC,MAAM,SAAS,CAAC;AAClE,OAAO,EACL,iBAAiB,EACjB,iBAAiB,EAMlB,MAAM,6BAA6B,CAAC;AASrC;;;;;GAKG;AACH,wBAAgB,sBAAsB,CACpC,gBAAgB,EAAE,iBAAiB,EACnC,gBAAgB,EAAE,iBAAiB,GAClC,MAAM,CAsZR;AAED;;GAEG;AACH,eAAe,sBAAsB,CAAC"}

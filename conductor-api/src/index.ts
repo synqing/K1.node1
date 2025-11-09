@@ -65,3 +65,10 @@ export {
   type ErrorResponse,
   type ErrorRequest,
 } from './middleware/v2-error-handler.js';
+
+// Export scheduler routes
+export { createSchedulingRouter, default as schedulingRouter } from './routes/v2-scheduling.js';
+
+// Export batch operations routes (T12)
+export { createBatchRouter, batchRetryErrors, batchResolveErrors, batchExecuteSchedules, batchResolveDLQ, BATCH_CONFIG } from './routes/v2/batch.js';
+export type { BatchResponse, BatchItemResult } from './routes/v2/batch.js';

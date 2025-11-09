@@ -1,350 +1,271 @@
 /**
  * Circuit Breaker Service
- * Implements the circuit breaker pattern with three states: CLOSED, OPEN, HALF_OPEN
- * Manages failure/success counts, state transitions, and event emissions
+ * Implements the circuit breaker pattern to prevent cascading failures
  */
-import { EventEmitter } from 'events';
 /**
- * Circuit Breaker Service Implementation
- * In-memory state storage (can be migrated to DB in production)
+ * Circuit Breaker Service
+ * Manages service health and prevents calls to failing services
  */
-export class CircuitBreakerService extends EventEmitter {
-    breakers = new Map();
-    defaultConfig = {
-        failureThreshold: 5,
-        successThreshold: 2,
-        timeoutMs: 60000, // 1 minute
-        monitoringWindowMs: 300000, // 5 minutes
-    };
-    constructor(defaultConfig) {
-        super();
-        if (defaultConfig) {
-            this.defaultConfig = { ...this.defaultConfig, ...defaultConfig };
-        }
+export class CircuitBreaker {
+    constructor(storage, config) {
+        this.eventListeners = [];
+        this.storage = storage;
+        this.config = config;
     }
     /**
-     * Initialize a new circuit breaker for a service
-     */
-    async initializeCircuitBreaker(serviceName, config) {
-        try {
-            if (this.breakers.has(serviceName)) {
-                return {
-                    success: false,
-                    error: `Circuit breaker for service "${serviceName}" already exists`,
-                };
-            }
-            const breaker = {
-                state: 'closed',
-                failureCount: 0,
-                successCount: 0,
-                totalRequests: 0,
-                successfulRequests: 0,
-                failedRequests: 0,
-                lastFailureAt: null,
-                lastSuccessAt: null,
-                lastStateChangeAt: new Date(),
-                nextRetryAt: null,
-                config,
-            };
-            this.breakers.set(serviceName, breaker);
-            this.emitEvent(serviceName, 'closed', { initialized: true });
-            return {
-                success: true,
-                data: this.buildState(serviceName, breaker),
-            };
-        }
-        catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            };
-        }
-    }
-    /**
-     * Record a failure for a service
-     */
-    async recordFailure(serviceName, error) {
-        try {
-            let breaker = this.breakers.get(serviceName);
-            // Auto-initialize if not exists
-            if (!breaker) {
-                await this.initializeCircuitBreaker(serviceName, this.defaultConfig);
-                breaker = this.breakers.get(serviceName);
-            }
-            breaker.failureCount += 1;
-            breaker.failedRequests += 1;
-            breaker.totalRequests += 1;
-            breaker.lastFailureAt = new Date();
-            this.emitEvent(serviceName, 'failure', { error: error?.message });
-            // Transition to OPEN if threshold reached
-            if (breaker.state === 'closed' && breaker.failureCount >= breaker.config.failureThreshold) {
-                this.transitionToOpen(serviceName, breaker);
-            }
-            // From HALF_OPEN to OPEN on any failure
-            if (breaker.state === 'half_open') {
-                this.transitionToOpen(serviceName, breaker);
-            }
-            return {
-                success: true,
-                data: this.buildState(serviceName, breaker),
-            };
-        }
-        catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            };
-        }
-    }
-    /**
-     * Record a success for a service
+     * Record a successful call for a service
+     * @param serviceName - name of the service
      */
     async recordSuccess(serviceName) {
-        try {
-            let breaker = this.breakers.get(serviceName);
-            // Auto-initialize if not exists
-            if (!breaker) {
-                await this.initializeCircuitBreaker(serviceName, this.defaultConfig);
-                breaker = this.breakers.get(serviceName);
-            }
-            breaker.successfulRequests += 1;
-            breaker.totalRequests += 1;
-            breaker.lastSuccessAt = new Date();
-            this.emitEvent(serviceName, 'success');
-            // Only track success count in HALF_OPEN state
-            if (breaker.state === 'half_open') {
-                breaker.successCount += 1;
-                // Transition to CLOSED if threshold reached
-                if (breaker.successCount >= breaker.config.successThreshold) {
-                    this.transitionToClosed(serviceName, breaker);
-                }
-            }
-            // In CLOSED state, reset failure count on success
-            if (breaker.state === 'closed') {
-                breaker.failureCount = 0;
-            }
-            return {
-                success: true,
-                data: this.buildState(serviceName, breaker),
-            };
+        let state = await this.storage.getState(serviceName);
+        if (!state) {
+            state = this.createInitialState(serviceName, 'closed');
         }
-        catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            };
+        if (state.state === 'open') {
+            // In half-open state, a success closes the circuit
+            if (this.isHalfOpen(state)) {
+                state.state = 'closed';
+                state.failureCount = 0;
+                state.lastFailureAt = null;
+                state.nextRetryAt = null;
+                state.updatedAt = new Date();
+                await this.storage.setState(state);
+                this.emitEvent({
+                    serviceName,
+                    eventType: 'closed',
+                    timestamp: new Date(),
+                    details: { reason: 'success_in_half_open' },
+                });
+            }
         }
+        else if (state.state === 'closed') {
+            // Already closed, just update timestamp
+            state.updatedAt = new Date();
+            await this.storage.setState(state);
+        }
+        this.emitEvent({
+            serviceName,
+            eventType: 'success',
+            timestamp: new Date(),
+        });
     }
     /**
-     * Get current circuit breaker state
+     * Record a failed call for a service
+     * @param serviceName - name of the service
      */
-    async getCircuitBreakerState(serviceName) {
-        try {
-            const breaker = this.breakers.get(serviceName);
-            if (!breaker) {
-                return {
-                    success: false,
-                    error: `Circuit breaker for service "${serviceName}" not found`,
-                };
-            }
-            // Check if we should transition from OPEN to HALF_OPEN
-            if (breaker.state === 'open' && breaker.nextRetryAt && new Date() >= breaker.nextRetryAt) {
-                this.transitionToHalfOpen(serviceName, breaker);
-            }
-            return {
-                success: true,
-                data: this.buildState(serviceName, breaker),
-            };
+    async recordFailure(serviceName) {
+        let state = await this.storage.getState(serviceName);
+        if (!state) {
+            state = this.createInitialState(serviceName, 'closed');
         }
-        catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            };
+        state.failureCount += 1;
+        state.lastFailureAt = new Date();
+        state.updatedAt = new Date();
+        // Check if we should open the circuit
+        if (state.state === 'closed' && state.failureCount >= this.config.failureThreshold) {
+            state.state = 'open';
+            state.nextRetryAt = new Date(Date.now() + this.config.timeoutMs);
+            await this.storage.setState(state);
+            this.emitEvent({
+                serviceName,
+                eventType: 'opened',
+                timestamp: new Date(),
+                details: { failureCount: state.failureCount },
+            });
         }
+        else if (state.state === 'half_open') {
+            // Failure in half-open state reopens the circuit
+            state.state = 'open';
+            state.nextRetryAt = new Date(Date.now() + this.config.timeoutMs);
+            await this.storage.setState(state);
+            this.emitEvent({
+                serviceName,
+                eventType: 'opened',
+                timestamp: new Date(),
+                details: { reason: 'failure_in_half_open' },
+            });
+        }
+        else {
+            await this.storage.setState(state);
+        }
+        this.emitEvent({
+            serviceName,
+            eventType: 'failure',
+            timestamp: new Date(),
+            details: { failureCount: state.failureCount },
+        });
     }
     /**
-     * Check if service is available (not open)
+     * Check if a service is available
+     * @param serviceName - name of the service
+     * @returns true if service is available, false if circuit is open
      */
-    async isServiceAvailable(serviceName) {
-        try {
-            const result = await this.getCircuitBreakerState(serviceName);
-            if (!result.success || !result.data) {
-                return false;
-            }
-            return result.data.state !== 'open';
+    async isAvailable(serviceName) {
+        const state = await this.storage.getState(serviceName);
+        if (!state) {
+            return true; // Unknown service is assumed available
         }
-        catch {
+        if (state.state === 'closed') {
+            return true;
+        }
+        if (state.state === 'open') {
+            if (state.nextRetryAt && new Date() >= state.nextRetryAt) {
+                // Timeout expired, transition to half-open
+                state.state = 'half_open';
+                state.failureCount = 0;
+                state.updatedAt = new Date();
+                await this.storage.setState(state);
+                this.emitEvent({
+                    serviceName,
+                    eventType: 'half_open',
+                    timestamp: new Date(),
+                    details: { reason: 'timeout_expired' },
+                });
+                return true;
+            }
             return false;
         }
+        // Half-open state
+        return true;
     }
     /**
-     * Reset circuit breaker to closed state
+     * Get the current state of a service
+     * @param serviceName - name of the service
+     * @returns circuit breaker state
      */
-    async resetCircuitBreaker(serviceName) {
-        try {
-            const breaker = this.breakers.get(serviceName);
-            if (!breaker) {
-                return {
-                    success: false,
-                    error: `Circuit breaker for service "${serviceName}" not found`,
-                };
-            }
-            this.transitionToClosed(serviceName, breaker);
-            return { success: true };
-        }
-        catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            };
-        }
-    }
-    /**
-     * Update circuit breaker configuration
-     */
-    async updateCircuitBreakerConfig(serviceName, config) {
-        try {
-            const breaker = this.breakers.get(serviceName);
-            if (!breaker) {
-                return {
-                    success: false,
-                    error: `Circuit breaker for service "${serviceName}" not found`,
-                };
-            }
-            breaker.config = { ...breaker.config, ...config };
-            return { success: true };
-        }
-        catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            };
-        }
+    async getState(serviceName) {
+        return this.storage.getState(serviceName);
     }
     /**
      * Get all circuit breaker states
+     * @returns array of all circuit breaker states
      */
-    async getAllCircuitBreakerStates() {
-        try {
-            const states = [];
-            for (const [serviceName, breaker] of this.breakers.entries()) {
-                // Check for OPEN to HALF_OPEN transitions
-                if (breaker.state === 'open' && breaker.nextRetryAt && new Date() >= breaker.nextRetryAt) {
-                    this.transitionToHalfOpen(serviceName, breaker);
-                }
-                states.push(this.buildState(serviceName, breaker));
-            }
-            return {
-                success: true,
-                data: states,
-            };
-        }
-        catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            };
+    async getAllStates() {
+        return this.storage.getAllStates();
+    }
+    /**
+     * Reset circuit breaker for a service
+     * @param serviceName - name of the service
+     */
+    async reset(serviceName) {
+        const state = await this.storage.getState(serviceName);
+        if (state) {
+            state.state = 'closed';
+            state.failureCount = 0;
+            state.lastFailureAt = null;
+            state.nextRetryAt = null;
+            state.updatedAt = new Date();
+            await this.storage.setState(state);
+            this.emitEvent({
+                serviceName,
+                eventType: 'closed',
+                timestamp: new Date(),
+                details: { reason: 'manual_reset' },
+            });
         }
     }
     /**
-     * Get metrics for a circuit breaker
+     * Manually open a circuit
+     * @param serviceName - name of the service
      */
-    getMetrics(serviceName) {
-        const breaker = this.breakers.get(serviceName);
-        if (!breaker) {
+    async open(serviceName) {
+        let state = await this.storage.getState(serviceName);
+        if (!state) {
+            state = this.createInitialState(serviceName, 'open');
+        }
+        state.state = 'open';
+        state.nextRetryAt = new Date(Date.now() + this.config.timeoutMs);
+        state.updatedAt = new Date();
+        await this.storage.setState(state);
+        this.emitEvent({
+            serviceName,
+            eventType: 'opened',
+            timestamp: new Date(),
+            details: { reason: 'manual_open' },
+        });
+    }
+    /**
+     * Manually close a circuit
+     * @param serviceName - name of the service
+     */
+    async close(serviceName) {
+        const state = await this.storage.getState(serviceName);
+        if (state) {
+            state.state = 'closed';
+            state.failureCount = 0;
+            state.lastFailureAt = null;
+            state.nextRetryAt = null;
+            state.updatedAt = new Date();
+            await this.storage.setState(state);
+            this.emitEvent({
+                serviceName,
+                eventType: 'closed',
+                timestamp: new Date(),
+                details: { reason: 'manual_close' },
+            });
+        }
+    }
+    /**
+     * Get metrics for a service
+     * @param serviceName - name of the service
+     * @returns circuit breaker metrics
+     */
+    async getMetrics(serviceName) {
+        const state = await this.storage.getState(serviceName);
+        if (!state) {
             return null;
         }
-        const failureRate = breaker.totalRequests > 0 ? breaker.failedRequests / breaker.totalRequests : 0;
+        const failureRate = state.failureCount > 0 ? state.failureCount : 0;
         return {
             serviceName,
-            totalRequests: breaker.totalRequests,
-            successfulRequests: breaker.successfulRequests,
-            failedRequests: breaker.failedRequests,
+            totalRequests: 0, // Would be tracked separately
+            successfulRequests: 0, // Would be tracked separately
+            failedRequests: state.failureCount,
             failureRate,
-            state: breaker.state,
-            transitionedAt: breaker.lastStateChangeAt,
+            state: state.state,
+            transitionedAt: state.updatedAt,
         };
     }
     /**
-     * Get metrics for all circuit breakers
+     * Subscribe to circuit breaker events
+     * @param listener - callback function for events
      */
-    getAllMetrics() {
-        const metrics = [];
-        for (const serviceName of this.breakers.keys()) {
-            const m = this.getMetrics(serviceName);
-            if (m) {
-                metrics.push(m);
-            }
-        }
-        return metrics;
+    onEvent(listener) {
+        this.eventListeners.push(listener);
     }
     /**
-     * Internal: Transition to OPEN state
+     * Private helper to create initial circuit breaker state
      */
-    transitionToOpen(serviceName, breaker) {
-        breaker.state = 'open';
-        breaker.successCount = 0;
-        breaker.lastStateChangeAt = new Date();
-        breaker.nextRetryAt = new Date(Date.now() + breaker.config.timeoutMs);
-        this.emitEvent(serviceName, 'opened', {
-            failureCount: breaker.failureCount,
-            nextRetryAt: breaker.nextRetryAt,
-        });
-    }
-    /**
-     * Internal: Transition to HALF_OPEN state
-     */
-    transitionToHalfOpen(serviceName, breaker) {
-        breaker.state = 'half_open';
-        breaker.failureCount = 0;
-        breaker.successCount = 0;
-        breaker.lastStateChangeAt = new Date();
-        breaker.nextRetryAt = null;
-        this.emitEvent(serviceName, 'half_open', {
-            recoveryAttempt: true,
-        });
-    }
-    /**
-     * Internal: Transition to CLOSED state
-     */
-    transitionToClosed(serviceName, breaker) {
-        breaker.state = 'closed';
-        breaker.failureCount = 0;
-        breaker.successCount = 0;
-        breaker.lastStateChangeAt = new Date();
-        breaker.nextRetryAt = null;
-        this.emitEvent(serviceName, 'closed', {
-            recovered: true,
-        });
-    }
-    /**
-     * Internal: Build CircuitBreakerState from internal representation
-     */
-    buildState(serviceName, breaker) {
+    createInitialState(serviceName, state) {
         return {
-            id: serviceName,
+            id: `cb_${serviceName}_${Date.now()}`,
             serviceName,
-            state: breaker.state,
-            failureCount: breaker.failureCount,
-            lastFailureAt: breaker.lastFailureAt,
-            nextRetryAt: breaker.nextRetryAt,
+            state,
+            failureCount: 0,
+            lastFailureAt: null,
+            nextRetryAt: null,
             createdAt: new Date(),
             updatedAt: new Date(),
         };
     }
     /**
-     * Internal: Emit circuit breaker event
+     * Private helper to check if state is half-open
      */
-    emitEvent(serviceName, eventType, details) {
-        const event = {
-            serviceName,
-            eventType,
-            timestamp: new Date(),
-            details,
-        };
-        this.emit('event', event);
-        this.emit(eventType, event);
+    isHalfOpen(state) {
+        return state.state === 'half_open';
+    }
+    /**
+     * Private helper to emit events
+     */
+    emitEvent(event) {
+        this.eventListeners.forEach((listener) => {
+            try {
+                listener(event);
+            }
+            catch (error) {
+                console.error('Circuit breaker event listener error:', error);
+            }
+        });
     }
 }
 //# sourceMappingURL=circuit-breaker.js.map

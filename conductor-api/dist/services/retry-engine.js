@@ -8,7 +8,6 @@
  * Handles calculation and tracking of retry attempts
  */
 export class RetryEngine {
-    db;
     constructor(database) {
         this.db = database;
     }

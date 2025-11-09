@@ -1,78 +1,89 @@
 /**
  * Circuit Breaker Service
- * Implements the circuit breaker pattern with three states: CLOSED, OPEN, HALF_OPEN
- * Manages failure/success counts, state transitions, and event emissions
+ * Implements the circuit breaker pattern to prevent cascading failures
  */
-import { EventEmitter } from 'events';
-import type { CircuitBreakerConfig, CircuitBreakerState, CircuitBreakerMetrics } from '../types/circuit-breaker.types';
-import type { ICircuitBreakerService } from '../interfaces/error-recovery.interface';
-import type { ServiceResult } from '../types/error-recovery.types';
+import type { CircuitBreakerConfig, CircuitBreakerState, CircuitBreakerMetrics, CircuitBreakerEvent } from '../types/circuit-breaker.types.js';
 /**
- * Circuit Breaker Service Implementation
- * In-memory state storage (can be migrated to DB in production)
+ * Interface for circuit breaker state storage (abstraction)
+ * In production, this would interface with actual DB
  */
-export declare class CircuitBreakerService extends EventEmitter implements ICircuitBreakerService {
-    private breakers;
-    private defaultConfig;
-    constructor(defaultConfig?: Partial<CircuitBreakerConfig>);
+export interface CircuitBreakerStorage {
+    getState(serviceName: string): Promise<CircuitBreakerState | null>;
+    setState(state: CircuitBreakerState): Promise<void>;
+    getAllStates(): Promise<CircuitBreakerState[]>;
+}
+/**
+ * Circuit Breaker Service
+ * Manages service health and prevents calls to failing services
+ */
+export declare class CircuitBreaker {
+    private storage;
+    private config;
+    private eventListeners;
+    constructor(storage: CircuitBreakerStorage, config: CircuitBreakerConfig);
     /**
-     * Initialize a new circuit breaker for a service
+     * Record a successful call for a service
+     * @param serviceName - name of the service
      */
-    initializeCircuitBreaker(serviceName: string, config: CircuitBreakerConfig): Promise<ServiceResult<CircuitBreakerState>>;
+    recordSuccess(serviceName: string): Promise<void>;
     /**
-     * Record a failure for a service
+     * Record a failed call for a service
+     * @param serviceName - name of the service
      */
-    recordFailure(serviceName: string, error?: Error): Promise<ServiceResult<CircuitBreakerState>>;
+    recordFailure(serviceName: string): Promise<void>;
     /**
-     * Record a success for a service
+     * Check if a service is available
+     * @param serviceName - name of the service
+     * @returns true if service is available, false if circuit is open
      */
-    recordSuccess(serviceName: string): Promise<ServiceResult<CircuitBreakerState>>;
+    isAvailable(serviceName: string): Promise<boolean>;
     /**
-     * Get current circuit breaker state
+     * Get the current state of a service
+     * @param serviceName - name of the service
+     * @returns circuit breaker state
      */
-    getCircuitBreakerState(serviceName: string): Promise<ServiceResult<CircuitBreakerState>>;
-    /**
-     * Check if service is available (not open)
-     */
-    isServiceAvailable(serviceName: string): Promise<boolean>;
-    /**
-     * Reset circuit breaker to closed state
-     */
-    resetCircuitBreaker(serviceName: string): Promise<ServiceResult<void>>;
-    /**
-     * Update circuit breaker configuration
-     */
-    updateCircuitBreakerConfig(serviceName: string, config: Partial<CircuitBreakerConfig>): Promise<ServiceResult<void>>;
+    getState(serviceName: string): Promise<CircuitBreakerState | null>;
     /**
      * Get all circuit breaker states
+     * @returns array of all circuit breaker states
      */
-    getAllCircuitBreakerStates(): Promise<ServiceResult<CircuitBreakerState[]>>;
+    getAllStates(): Promise<CircuitBreakerState[]>;
     /**
-     * Get metrics for a circuit breaker
+     * Reset circuit breaker for a service
+     * @param serviceName - name of the service
      */
-    getMetrics(serviceName: string): CircuitBreakerMetrics | null;
+    reset(serviceName: string): Promise<void>;
     /**
-     * Get metrics for all circuit breakers
+     * Manually open a circuit
+     * @param serviceName - name of the service
      */
-    getAllMetrics(): CircuitBreakerMetrics[];
+    open(serviceName: string): Promise<void>;
     /**
-     * Internal: Transition to OPEN state
+     * Manually close a circuit
+     * @param serviceName - name of the service
      */
-    private transitionToOpen;
+    close(serviceName: string): Promise<void>;
     /**
-     * Internal: Transition to HALF_OPEN state
+     * Get metrics for a service
+     * @param serviceName - name of the service
+     * @returns circuit breaker metrics
      */
-    private transitionToHalfOpen;
+    getMetrics(serviceName: string): Promise<CircuitBreakerMetrics | null>;
     /**
-     * Internal: Transition to CLOSED state
+     * Subscribe to circuit breaker events
+     * @param listener - callback function for events
      */
-    private transitionToClosed;
+    onEvent(listener: (event: CircuitBreakerEvent) => void): void;
     /**
-     * Internal: Build CircuitBreakerState from internal representation
+     * Private helper to create initial circuit breaker state
      */
-    private buildState;
+    private createInitialState;
     /**
-     * Internal: Emit circuit breaker event
+     * Private helper to check if state is half-open
+     */
+    private isHalfOpen;
+    /**
+     * Private helper to emit events
      */
     private emitEvent;
 }
