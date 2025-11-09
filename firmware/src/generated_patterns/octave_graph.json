@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "pattern_id": "octave",
+  "pattern_name": "Octave Pattern - Node Graph",
+  "description": "Audio-driven chromagram visualization with 12-note musical spectrum",
+  "metadata": {
+    "author": "K1.node1 Pattern System",
+    "created": "2025-11-10",
+    "scope": "PoC - Audio spectrum visualization",
+    "original_loc": 67
+  },
+  "state_variables": [],
+  "input_nodes": [
+    {
+      "node_id": "input_time",
+      "node_type": "builtin_scalar",
+      "output_type": "float"
+    },
+    {
+      "node_id": "input_params",
+      "node_type": "builtin_struct",
+      "output_type": "PatternParameters"
+    },
+    {
+      "node_id": "input_audio",
+      "node_type": "builtin_audio",
+      "output_type": "AudioDataSnapshot"
+    }
+  ],
+  "computation_nodes": [
+    {
+      "node_id": "audio_availability",
+      "node_type": "conditional",
+      "condition": "!AUDIO_IS_AVAILABLE()",
+      "branches": {
+        "true": "time_fallback",
+        "false": "chromagram_render"
+      }
+    },
+    {
+      "node_id": "chromagram_render",
+      "node_type": "spectrum_loop",
+      "description": "Render 12-note chromagram with energy emphasis"
+    }
+  ]
+}

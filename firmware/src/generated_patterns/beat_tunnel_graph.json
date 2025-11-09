@@ -1,0 +1,48 @@
+{
+  "version": "1.0",
+  "pattern_id": "beat_tunnel",
+  "pattern_name": "Beat Tunnel Pattern - Node Graph",
+  "description": "Expanding tunnel effect from center driven by audio beats",
+  "metadata": {
+    "author": "K1.node1 Pattern System",
+    "created": "2025-11-10",
+    "scope": "PoC - Beat-driven spatial expansion",
+    "original_loc": 73
+  },
+  "state_variables": [
+    {
+      "id": "tunnel_wave_position",
+      "type": "float",
+      "description": "Current tunnel expansion position"
+    },
+    {
+      "id": "tunnel_wave_intensity",
+      "type": "float",
+      "description": "Intensity of tunnel wave"
+    }
+  ],
+  "input_nodes": [
+    {
+      "node_id": "input_time",
+      "node_type": "builtin_scalar",
+      "output_type": "float"
+    },
+    {
+      "node_id": "input_params",
+      "node_type": "builtin_struct",
+      "output_type": "PatternParameters"
+    },
+    {
+      "node_id": "input_audio",
+      "node_type": "builtin_audio",
+      "output_type": "AudioDataSnapshot"
+    }
+  ],
+  "computation_nodes": [
+    {
+      "node_id": "wave_expansion",
+      "node_type": "calculation",
+      "description": "Expand tunnel wave from center outward"
+    }
+  ]
+}

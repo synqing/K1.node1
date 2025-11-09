@@ -1,7 +1,11 @@
 import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
-import { GraphState, GraphNode, GraphError } from '../../lib/types';
+import { GraphState, GraphNode, GraphError, GraphConnection } from '../../lib/types';
 import { Canvas } from '../graph/Canvas';
 import { Toolbar } from '../graph/Toolbar';
+import { PropertyPanel } from '../graph/PropertyPanel';
+import { ValidationPanel } from '../graph/ValidationPanel';
+import { CodeExport } from '../graph/CodeExport';
+import { TestDevice } from '../graph/TestDevice';
 const NodePaletteModal = lazy(() => import('../graph/NodePaletteModal').then(m => ({ default: m.NodePaletteModal })));
 const ShortcutsModal = lazy(() => import('../graph/ShortcutsModal').then(m => ({ default: m.ShortcutsModal })));
 import { ErrorPanel } from '../graph/ErrorPanel';
@@ -22,6 +26,11 @@ export function GraphEditorView() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [errors, setErrors] = useState<GraphError[]>([]);
+  const [showPropertyPanel, setShowPropertyPanel] = useState(true);
+  const [showValidation, setShowValidation] = useState(true);
+  const [showCodeExport, setShowCodeExport] = useState(false);
+  const [showTestDevice, setShowTestDevice] = useState(false);
+  const [patternName, setPatternName] = useState('CustomPattern');
   
   const pushHistory = useCallback((newState: GraphState) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -160,7 +169,41 @@ export function GraphEditorView() {
       connections: graphState.connections,
     };
   }, [graphState]);
-  
+
+  const handleParameterChange = useCallback((nodeId: string, parameters: Record<string, any>) => {
+    const newState = {
+      ...graphState,
+      nodes: graphState.nodes.map(n =>
+        n.id === nodeId ? { ...n, parameters } : n
+      ),
+    };
+    setGraphState(newState);
+    pushHistory(newState);
+  }, [graphState, pushHistory]);
+
+  const handleConnectionCreate = useCallback((connection: GraphConnection) => {
+    const newState = {
+      ...graphState,
+      connections: [...graphState.connections, connection],
+    };
+    setGraphState(newState);
+    pushHistory(newState);
+  }, [graphState, pushHistory]);
+
+  const handleConnectionDelete = useCallback((connectionId: string) => {
+    const newState = {
+      ...graphState,
+      connections: graphState.connections.filter(c => c.id !== connectionId),
+    };
+    setGraphState(newState);
+    pushHistory(newState);
+  }, [graphState, pushHistory]);
+
+  const getSelectedNode = () => {
+    if (graphState.selectedNodeIds.length === 0) return null;
+    return graphState.nodes.find(n => n.id === graphState.selectedNodeIds[0]) || null;
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -207,11 +250,26 @@ export function GraphEditorView() {
         <h2 className="font-bebas text-lg tracking-wide text-[var(--prism-text-primary)]">
           Node Graph Editor
         </h2>
-        <ImportExport onImport={handleImport} onExport={handleExport} />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowCodeExport(true)}
+            className="px-3 py-1.5 text-xs font-medium bg-[var(--prism-info)] hover:bg-[var(--prism-info-dark)] text-white rounded transition-colors"
+          >
+            Export Code
+          </button>
+          <button
+            onClick={() => setShowTestDevice(true)}
+            className="px-3 py-1.5 text-xs font-medium bg-[var(--prism-success)] hover:bg-[var(--prism-success-dark)] text-white rounded transition-colors"
+          >
+            Test Device
+          </button>
+          <ImportExport onImport={handleImport} onExport={handleExport} />
+        </div>
       </div>
       
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 relative">
+        {/* Main Canvas */}
+        <div className="flex-1 flex flex-col relative">
           <Toolbar
             zoom={graphState.zoom}
             showGrid={showGrid}
@@ -226,7 +284,7 @@ export function GraphEditorView() {
             onRedo={handleRedo}
             onShowShortcuts={() => setShowShortcuts(true)}
           />
-          
+
           <Canvas
             graphState={graphState}
             showGrid={showGrid}
@@ -248,20 +306,35 @@ export function GraphEditorView() {
             onPanChange={(pan) => {
               setGraphState(prev => ({ ...prev, pan }));
             }}
+            onConnectionCreate={handleConnectionCreate}
+            onConnectionDelete={handleConnectionDelete}
           />
+
+          {/* Validation Panel at Bottom */}
+          {showValidation && (
+            <ValidationPanel
+              errors={errors}
+              graphState={graphState}
+              onErrorClick={(nodeId) => {
+                setGraphState(prev => ({
+                  ...prev,
+                  selectedNodeIds: [nodeId],
+                }));
+              }}
+              onClearErrors={() => setErrors([])}
+            />
+          )}
         </div>
-        
-        {errors.length > 0 && (
-          <ErrorPanel
-            errors={errors}
-            onErrorClick={(nodeId) => {
-              setGraphState(prev => ({
-                ...prev,
-                selectedNodeIds: [nodeId],
-              }));
-            }}
-            onClearErrors={() => setErrors([])}
-          />
+
+        {/* Property Panel on Right */}
+        {showPropertyPanel && (
+          <div className="w-80 border-l border-[var(--prism-bg-elevated)] overflow-hidden">
+            <PropertyPanel
+              node={getSelectedNode()}
+              onParameterChange={handleParameterChange}
+              onClose={() => setShowPropertyPanel(false)}
+            />
+          </div>
         )}
       </div>
       
@@ -283,6 +356,22 @@ export function GraphEditorView() {
           />
         </Suspense>
       )}
+
+      {/* Code Export Dialog */}
+      <CodeExport
+        open={showCodeExport}
+        onClose={() => setShowCodeExport(false)}
+        graphState={graphState}
+        patternName={patternName}
+      />
+
+      {/* Test Device Dialog */}
+      <TestDevice
+        open={showTestDevice}
+        onClose={() => setShowTestDevice(false)}
+        graphState={graphState}
+        patternName={patternName}
+      />
     </div>
   );
 }

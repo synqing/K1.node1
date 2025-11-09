@@ -1,0 +1,156 @@
+{
+  "version": "1.0",
+  "pattern_id": "lava",
+  "pattern_name": "Lava Pattern - Node Graph",
+  "description": "Static heat-map palette from black through red to white-hot, center-origin mapped",
+  "metadata": {
+    "author": "K1.node1 Pattern System",
+    "created": "2025-11-10",
+    "scope": "PoC - Static palette mapping",
+    "quality_gates": [
+      "120+ FPS",
+      "No state",
+      "Simple palette"
+    ],
+    "original_loc": 40
+  },
+  "state_variables": [],
+  "input_nodes": [
+    {
+      "node_id": "input_params",
+      "node_type": "builtin_struct",
+      "output_type": "PatternParameters",
+      "description": "Pattern parameters (brightness primarily used)"
+    }
+  ],
+  "computation_nodes": [
+    {
+      "node_id": "led_loop",
+      "node_type": "loop",
+      "description": "Iterate over all LEDs",
+      "loop_type": "for i in 0..NUM_LEDS-1",
+      "body": [
+        {
+          "node_id": "center_distance",
+          "node_type": "calculation",
+          "operation": "position = abs(i - NUM_LEDS/2.0f) / (NUM_LEDS/2.0f)",
+          "inputs": [
+            "i"
+          ],
+          "outputs": [
+            "position (0.0-1.0)"
+          ]
+        },
+        {
+          "node_id": "palette_lookup",
+          "node_type": "palette_operation",
+          "operation": "interpolate_palette(position, lava_palette)",
+          "palette": "lava",
+          "inputs": [
+            "position"
+          ],
+          "outputs": [
+            "color"
+          ]
+        },
+        {
+          "node_id": "brightness_apply",
+          "node_type": "scaling",
+          "operation": "color *= params.brightness",
+          "inputs": [
+            "color",
+            "params.brightness"
+          ],
+          "outputs": [
+            "final_color"
+          ]
+        },
+        {
+          "node_id": "led_assign",
+          "node_type": "output",
+          "operation": "leds[i] = final_color",
+          "inputs": [
+            "final_color"
+          ]
+        }
+      ]
+    }
+  ],
+  "output_nodes": [
+    {
+      "node_id": "background_overlay",
+      "node_type": "post_process",
+      "operation": "apply_background_overlay(params)",
+      "description": "Apply uniform background overlay"
+    }
+  ],
+  "palettes": {
+    "lava": [
+      {
+        "r": 0.0,
+        "g": 0.0,
+        "b": 0.0
+      },
+      {
+        "r": 0.07,
+        "g": 0.0,
+        "b": 0.0
+      },
+      {
+        "r": 0.44,
+        "g": 0.0,
+        "b": 0.0
+      },
+      {
+        "r": 0.56,
+        "g": 0.01,
+        "b": 0.0
+      },
+      {
+        "r": 0.69,
+        "g": 0.07,
+        "b": 0.0
+      },
+      {
+        "r": 0.84,
+        "g": 0.17,
+        "b": 0.01
+      },
+      {
+        "r": 1.0,
+        "g": 0.32,
+        "b": 0.02
+      },
+      {
+        "r": 1.0,
+        "g": 0.45,
+        "b": 0.02
+      },
+      {
+        "r": 1.0,
+        "g": 0.61,
+        "b": 0.02
+      },
+      {
+        "r": 1.0,
+        "g": 0.8,
+        "b": 0.02
+      },
+      {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 0.02
+      },
+      {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 0.28
+      },
+      {
+        "r": 1.0,
+        "g": 1.0,
+        "b": 1.0
+      }
+    ]
+  }
+}

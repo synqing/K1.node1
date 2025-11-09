@@ -1,0 +1,67 @@
+{
+  "version": "1.0",
+  "pattern_id": "twilight",
+  "pattern_name": "Twilight Pattern - Node Graph",
+  "description": "Peaceful transition palette from amber through purple to midnight blue",
+  "metadata": {
+    "author": "K1.node1 Pattern System",
+    "created": "2025-11-10",
+    "scope": "PoC - Static palette",
+    "original_loc": 54
+  },
+  "state_variables": [],
+  "input_nodes": [
+    {
+      "node_id": "input_params",
+      "node_type": "builtin_struct",
+      "output_type": "PatternParameters"
+    }
+  ],
+  "computation_nodes": [
+    {
+      "node_id": "palette_map_loop",
+      "node_type": "loop",
+      "loop_type": "center-origin palette interpolation",
+      "palette": "twilight"
+    }
+  ],
+  "palettes": {
+    "twilight": [
+      {
+        "r": 1.0,
+        "g": 0.65,
+        "b": 0.0
+      },
+      {
+        "r": 0.94,
+        "g": 0.5,
+        "b": 0.0
+      },
+      {
+        "r": 0.86,
+        "g": 0.31,
+        "b": 0.08
+      },
+      {
+        "r": 0.71,
+        "g": 0.24,
+        "b": 0.47
+      },
+      {
+        "r": 0.39,
+        "g": 0.16,
+        "b": 0.71
+      },
+      {
+        "r": 0.12,
+        "g": 0.08,
+        "b": 0.55
+      },
+      {
+        "r": 0.04,
+        "g": 0.06,
+        "b": 0.31
+      }
+    ]
+  }
+}

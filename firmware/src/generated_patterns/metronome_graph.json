@@ -1,0 +1,86 @@
+{
+  "version": "1.0",
+  "pattern_id": "metronome",
+  "pattern_name": "Metronome Pattern - Node Graph",
+  "description": "Beat-driven tempo-synced flash pattern with frequency coloring",
+  "metadata": {
+    "author": "K1.node1 Pattern System",
+    "created": "2025-11-10",
+    "scope": "PoC - Beat-driven state machine",
+    "quality_gates": [
+      "120+ FPS",
+      "Beat-synced",
+      "Tempo-driven"
+    ],
+    "original_loc": 61
+  },
+  "state_variables": [
+    {
+      "id": "last_beat",
+      "type": "float",
+      "description": "Timestamp of last detected beat"
+    }
+  ],
+  "input_nodes": [
+    {
+      "node_id": "input_time",
+      "node_type": "builtin_scalar",
+      "output_type": "float",
+      "description": "Frame time"
+    },
+    {
+      "node_id": "input_params",
+      "node_type": "builtin_struct",
+      "output_type": "PatternParameters",
+      "description": "Pattern parameters"
+    },
+    {
+      "node_id": "input_audio",
+      "node_type": "builtin_audio",
+      "available_when": "AUDIO_IS_AVAILABLE()",
+      "description": "Audio features for beat detection and frequency mapping"
+    }
+  ],
+  "computation_nodes": [
+    {
+      "node_id": "beat_detection",
+      "node_type": "audio_processing",
+      "operation": "detect beat event from AUDIO_KICK()",
+      "description": "Detect beat from audio kick feature"
+    },
+    {
+      "node_id": "beat_flash_calc",
+      "node_type": "calculation",
+      "operation": "time_since_beat = time - last_beat; flash = exp(-decay * time_since_beat)",
+      "description": "Calculate flash decay from beat time"
+    },
+    {
+      "node_id": "led_loop",
+      "node_type": "loop",
+      "description": "Iterate over all LEDs",
+      "loop_type": "for i in 0..NUM_LEDS-1",
+      "body": [
+        {
+          "node_id": "freq_map",
+          "node_type": "calculation",
+          "operation": "progress = i / NUM_LEDS; magnitude = interpolate_spectrum(progress)",
+          "description": "Map LED to spectrum frequency"
+        },
+        {
+          "node_id": "color_select",
+          "node_type": "palette_operation",
+          "operation": "color = palette(progress, flash * magnitude * params.brightness)",
+          "description": "Select color from palette scaled by beat flash"
+        },
+        {
+          "node_id": "led_assign",
+          "node_type": "output",
+          "operation": "leds[i] = color",
+          "inputs": [
+            "color"
+          ]
+        }
+      ]
+    }
+  ]
+}

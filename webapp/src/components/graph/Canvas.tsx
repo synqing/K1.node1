@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
-import { GraphState } from '../../lib/types';
+import { GraphState, GraphConnection } from '../../lib/types';
 import { Node } from './Node';
 
 interface CanvasProps {
@@ -11,6 +11,8 @@ interface CanvasProps {
   onNodeDelete: (nodeId: string) => void;
   onCanvasClick: () => void;
   onPanChange: (pan: { x: number; y: number }) => void;
+  onConnectionCreate?: (connection: GraphConnection) => void;
+  onConnectionDelete?: (connectionId: string) => void;
 }
 
 export function Canvas({
@@ -22,8 +24,11 @@ export function Canvas({
   onNodeDelete,
   onCanvasClick,
   onPanChange,
+  onConnectionCreate,
+  onConnectionDelete,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   
@@ -71,7 +76,44 @@ export function Canvas({
           }}
         />
       )}
-      
+
+      {/* Connections SVG */}
+      <svg
+        ref={svgRef}
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        style={{
+          zIndex: 1,
+        }}
+      >
+        <defs>
+          <linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgb(66, 153, 225)" stopOpacity={0.6} />
+            <stop offset="100%" stopColor="rgb(72, 187, 120)" stopOpacity={0.6} />
+          </linearGradient>
+        </defs>
+        {graphState.connections.map((conn) => {
+          const sourceNode = graphState.nodes.find(n => n.id === conn.source.nodeId);
+          const targetNode = graphState.nodes.find(n => n.id === conn.target.nodeId);
+          if (!sourceNode || !targetNode) return null;
+
+          const x1 = (sourceNode.position.x + 250) * graphState.zoom + graphState.pan.x;
+          const y1 = (sourceNode.position.y + 75) * graphState.zoom + graphState.pan.y;
+          const x2 = targetNode.position.x * graphState.zoom + graphState.pan.x;
+          const y2 = (targetNode.position.y + 75) * graphState.zoom + graphState.pan.y;
+
+          return (
+            <path
+              key={conn.id}
+              d={`M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`}
+              stroke="url(#connectionGradient)"
+              strokeWidth={2}
+              fill="none"
+              strokeLinecap="round"
+            />
+          );
+        })}
+      </svg>
+
       {/* Nodes */}
       <div
         style={{

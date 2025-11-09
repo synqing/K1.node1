@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "pattern_id": "perlin",
+  "pattern_name": "Perlin Pattern - Node Graph",
+  "description": "Smooth procedural noise-based animation with natural-looking transitions",
+  "metadata": {
+    "author": "K1.node1 Pattern System",
+    "created": "2025-11-10",
+    "scope": "PoC - Noise-driven spatial effects",
+    "original_loc": 76
+  },
+  "state_variables": [],
+  "input_nodes": [
+    {
+      "node_id": "input_time",
+      "node_type": "builtin_scalar",
+      "output_type": "float"
+    },
+    {
+      "node_id": "input_params",
+      "node_type": "builtin_struct",
+      "output_type": "PatternParameters"
+    }
+  ],
+  "computation_nodes": [
+    {
+      "node_id": "noise_loop",
+      "node_type": "loop",
+      "description": "Generate and interpolate Perlin noise across strip"
+    }
+  ]
+}

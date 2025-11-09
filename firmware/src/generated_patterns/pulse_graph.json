@@ -1,0 +1,124 @@
+{
+  "version": "1.0",
+  "pattern_id": "pulse",
+  "pattern_name": "Pulse Pattern - Node Graph",
+  "description": "Audio-driven wave spawning system with energy gates and traveling wave fronts",
+  "metadata": {
+    "author": "K1.node1 Pattern System",
+    "created": "2025-11-10",
+    "scope": "PoC - Audio-driven state machine",
+    "quality_gates": [
+      "120+ FPS",
+      "Audio reactive",
+      "Wave state management"
+    ],
+    "original_loc": 143
+  },
+  "state_variables": [
+    {
+      "id": "pulse_waves",
+      "type": "array",
+      "size": "MAX_PULSE_WAVES",
+      "element_type": "PulseWave",
+      "description": "Array of active wave fronts with position, speed, hue, brightness"
+    }
+  ],
+  "input_nodes": [
+    {
+      "node_id": "input_time",
+      "node_type": "builtin_scalar",
+      "output_type": "float",
+      "description": "Frame time for delta-time calculation"
+    },
+    {
+      "node_id": "input_params",
+      "node_type": "builtin_struct",
+      "output_type": "PatternParameters",
+      "description": "Pattern parameters (speed, softness, brightness, palette)"
+    },
+    {
+      "node_id": "input_audio",
+      "node_type": "builtin_audio",
+      "available_when": "AUDIO_IS_AVAILABLE()",
+      "description": "Audio features: VU, kick, novelty"
+    }
+  ],
+  "computation_nodes": [
+    {
+      "node_id": "audio_check",
+      "node_type": "conditional",
+      "condition": "!AUDIO_IS_AVAILABLE()",
+      "branches": {
+        "true": "ambient_fallback",
+        "false": "energy_gate_calc"
+      }
+    },
+    {
+      "node_id": "ambient_fallback",
+      "node_type": "rendering",
+      "operation": "fill_palette(params.palette_id, 0.5f)",
+      "description": "Fallback to ambient palette when no audio"
+    },
+    {
+      "node_id": "energy_gate_calc",
+      "node_type": "audio_processing",
+      "operation": "energy_gate = clamp(VU*0.8 + KICK*0.6 + NOVELTY*0.4, 0.0, 1.0)",
+      "description": "Calculate energy gate from multiple audio sources"
+    },
+    {
+      "node_id": "spawn_check",
+      "node_type": "conditional",
+      "condition": "energy_gate > spawn_threshold",
+      "branches": {
+        "true": "spawn_wave",
+        "false": "skip_spawn"
+      }
+    },
+    {
+      "node_id": "spawn_wave",
+      "node_type": "state_update",
+      "operation": "find first inactive wave and initialize with energy_gate params",
+      "description": "Spawn new wave on energy threshold"
+    },
+    {
+      "node_id": "led_clear",
+      "node_type": "memory_op",
+      "operation": "memset(leds, 0, NUM_LEDS * sizeof(CRGBF))",
+      "description": "Clear LED buffer for additive rendering"
+    },
+    {
+      "node_id": "wave_loop",
+      "node_type": "loop",
+      "description": "Update and render all active waves",
+      "loop_type": "for each active wave",
+      "body": [
+        {
+          "node_id": "update_wave",
+          "node_type": "calculation",
+          "operation": "wave.position += wave.speed * dt; wave.age++",
+          "description": "Advance wave position over time"
+        },
+        {
+          "node_id": "wave_brightness",
+          "node_type": "calculation",
+          "operation": "brightness = wave.brightness * exp(-decay_factor * wave.age)",
+          "description": "Apply exponential decay to wave brightness"
+        },
+        {
+          "node_id": "render_wave",
+          "node_type": "rendering",
+          "operation": "render gaussian-shaped wave centered at wave.position",
+          "description": "Render wave to LED buffer (additive)"
+        }
+      ]
+    }
+  ],
+  "output_nodes": [
+    {
+      "node_id": "background_overlay",
+      "node_type": "post_process",
+      "operation": "apply_background_overlay(params)",
+      "description": "Apply uniform background overlay"
+    }
+  ]
+}

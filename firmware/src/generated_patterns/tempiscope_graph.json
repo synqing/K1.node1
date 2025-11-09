@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "pattern_id": "tempiscope",
+  "pattern_name": "Tempiscope Pattern - Node Graph",
+  "description": "Temperature-driven audio visualization with thermal color mapping",
+  "metadata": {
+    "author": "K1.node1 Pattern System",
+    "created": "2025-11-10",
+    "scope": "PoC - Thermal audio visualization",
+    "original_loc": 92
+  },
+  "state_variables": [
+    {
+      "id": "thermal_buffer",
+      "type": "float_array",
+      "size": "NUM_LEDS",
+      "description": "Thermal values per LED"
+    }
+  ],
+  "input_nodes": [
+    {
+      "node_id": "input_params",
+      "node_type": "builtin_struct",
+      "output_type": "PatternParameters"
+    },
+    {
+      "node_id": "input_audio",
+      "node_type": "builtin_audio",
+      "output_type": "AudioDataSnapshot"
+    }
+  ],
+  "computation_nodes": [
+    {
+      "node_id": "thermal_update",
+      "node_type": "loop",
+      "description": "Update thermal buffer based on audio energy"
+    }
+  ]
+}
