@@ -193,6 +193,28 @@ show_tier3_info() {
 
 # Main execution flow
 main() {
+    # Optional override via env: CONDUCTOR_TIER=1|2
+    case "${CONDUCTOR_TIER:-auto}" in
+      1)
+        log_info "CONDUCTOR_TIER=1 set → forcing Tier 1 (Docker + PostgreSQL)"
+        if ! check_docker; then
+            log_error "Docker unavailable/unhealthy but CONDUCTOR_TIER=1 was requested"
+            exit 1
+        fi
+        start_tier1 && exit 0 || exit 1
+        ;;
+      2)
+        log_info "CONDUCTOR_TIER=2 set → forcing Tier 2 (Standalone JAR + SQLite)"
+        if ! check_java; then
+            log_error "Java 17+ unavailable but CONDUCTOR_TIER=2 was requested"
+            exit 1
+        fi
+        start_tier2 && exit 0 || exit 1
+        ;;
+      auto)
+        ;;
+    esac
+
     # Tier 1: Try Docker + PostgreSQL
     if check_docker; then
         log_info "Docker available - attempting Tier 1 (Docker + PostgreSQL)"

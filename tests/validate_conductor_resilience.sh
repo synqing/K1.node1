@@ -96,7 +96,7 @@ test_persistence() {
     timeout=60
     elapsed=0
     while [ $elapsed -lt $timeout ]; do
-        if curl -f -s http://localhost:8080/api/health > /dev/null 2>&1; then
+        if curl -f -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
             break
         fi
         sleep 2
@@ -145,7 +145,7 @@ test_single_task_baseline() {
     log_info "  Objective: Validate Task 1 execution <5 minutes"
 
     # Check Conductor health
-    if ! curl -f -s http://localhost:8080/api/health > /dev/null 2>&1; then
+    if ! curl -f -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
         log_fail "Test 3: Conductor not healthy - cannot run test"
         return 1
     fi
@@ -181,7 +181,7 @@ test_dependency_chain() {
     log_info "  Objective: Tasks 6→7→8 execute with proper dependency blocking"
 
     # Check Conductor health
-    if ! curl -f -s http://localhost:8080/api/health > /dev/null 2>&1; then
+    if ! curl -f -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
         log_fail "Test 4: Conductor not healthy - cannot run test"
         return 1
     fi
@@ -282,8 +282,8 @@ test_health_check() {
     log_info "  Objective: Verify all Conductor endpoints responding"
 
     # Health endpoint
-    if curl -f -s http://localhost:8080/api/health | grep -q '"healthy"'; then
-        log_info "  ✓ /api/health responding"
+    if curl -f -s http://localhost:8080/actuator/health | grep -q '"status":"UP"'; then
+        log_info "  ✓ /actuator/health responding"
     else
         log_fail "Test 7: Health endpoint not responding"
         return 1

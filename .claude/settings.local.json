@@ -16,7 +16,9 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(pkill:*)",
-      "Bash(platformio run:*)"
+      "Bash(platformio run:*)",
+      "Bash(./tests/validate_conductor_resilience.sh:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
