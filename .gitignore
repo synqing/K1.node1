@@ -6,6 +6,7 @@
 !.mcp.json
 !CLAUDE.md
 !DEPLOYMENT_ASSESSMENT_AND_STRATEGY.md
+!TASK_DISPATCHER_READY.md
 
 # Unignore firmware, webapp, orkes-service, and Conductor directories, then their contents
 !firmware/
