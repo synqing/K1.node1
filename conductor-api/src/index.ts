@@ -14,3 +14,6 @@ export * from './schemas/error-recovery.schemas';
 
 // Export all interfaces
 export * from './interfaces/error-recovery.interface';
+
+// Export all services
+export { CircuitBreakerService } from './services/circuit-breaker';
