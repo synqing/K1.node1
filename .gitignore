@@ -5,6 +5,7 @@
 !conductor.json
 !.mcp.json
 !CLAUDE.md
+!DEPLOYMENT_ASSESSMENT_AND_STRATEGY.md
 
 # Unignore firmware, webapp, orkes-service, and Conductor directories, then their contents
 !firmware/
@@ -39,6 +40,16 @@
 # Track development tools (.claude/)
 !.claude/
 !.claude/**
+
+# Track Conductor task dispatcher framework
+!.conductor/task-dispatcher.yaml
+!.conductor/README_TASK_DISPATCHER.md
+
+# Track ops scripts (build, deployment, agent spawning)
+!ops/scripts/agent-spawn.sh
+!ops/scripts/conductor-start.sh
+!ops/scripts/conductor-run.sh
+!ops/scripts/firmware-build-queue.sh
 
 # Typical build/caches to ignore inside tracked trees
 firmware/.pio/
