@@ -1,0 +1,5 @@
+{"config": {
+  "network": {"ssid": "MyNet", "dhcp": true, "ip": null},
+  "led": {"brightness": 0.8, "palette": "sunset"},
+  "audio": {"mic_gain": 12, "filters": [{"type": "hp", "freq": 120}, {"type": "lp", "freq": 8000}]}
+}}

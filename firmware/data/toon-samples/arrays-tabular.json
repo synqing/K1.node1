@@ -1,0 +1,5 @@
+{"events": [
+  {"ts": 1731123456, "lvl": "info", "code": 1001, "msg": "boot"},
+  {"ts": 1731123460, "lvl": "warn", "code": 2004, "msg": "wifi_retry"},
+  {"ts": 1731123465, "lvl": "info", "code": 1010, "msg": "ready"}
+]}

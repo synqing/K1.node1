@@ -74,6 +74,15 @@
 #define LED_DATA_PIN ( 5 )
 #define LED_DATA_PIN_2 ( 4 )   // Secondary LED strip output (dual output for LED duplication)
 
+// Soft timeout before considering an RMT frame "late"
+#ifndef LED_RMT_WAIT_TIMEOUT_MS
+#define LED_RMT_WAIT_TIMEOUT_MS 20
+#endif
+// Additional window used for graceful recovery when a soft timeout occurs
+#ifndef LED_RMT_WAIT_RECOVERY_MS
+#define LED_RMT_WAIT_RECOVERY_MS 50
+#endif
+
 // It won't void any kind of stupid warranty, but things will *definitely* break at this point if you change this number.
 #define NUM_LEDS ( 160 )
 
@@ -138,6 +147,9 @@ extern LedChannelConfig g_ch2_config;
 extern uint8_t rgb8_data[NUM_LEDS * 3];
 extern uint8_t raw_led_data[NUM_LEDS * 3];
 extern uint8_t raw_led_data_ch2[NUM_LEDS * 3];
+
+// Count of RMT wait timeouts (observed via diagnostics/UI)
+extern std::atomic<uint32_t> g_led_rmt_wait_timeouts;
 
 // Legacy RMT v1 transmit buffer and channel (used when only driver/rmt.h is available)
 #if !__has_include(<driver/rmt_tx.h>) && __has_include(<driver/rmt.h>)
@@ -311,11 +323,10 @@ IRAM_ATTR static inline void transmit_leds() {
     // If RMT v2 APIs are available, use them; otherwise, skip transmission gracefully
 #if __has_include(<driver/rmt_tx.h>)
     // Wait here if previous frame transmission has not yet completed (both channels)
-    // Reduced timeout for better performance - skip frame if taking too long
+    // Soft-timeout path keeps FPS high, recovery path preserves visual continuity under ISR jitter
     uint32_t t_wait0 = micros();
-    // Reduced timeout: 160 LEDs @ ~30us/LED ≈ 4.8ms + reset; 8ms should be sufficient
-    esp_err_t wait_result = rmt_tx_wait_all_done(tx_chan, pdMS_TO_TICKS(8));
-    esp_err_t wait_result_2 = rmt_tx_wait_all_done(tx_chan_2, pdMS_TO_TICKS(8));
+    esp_err_t wait_result = tx_chan ? rmt_tx_wait_all_done(tx_chan, pdMS_TO_TICKS(LED_RMT_WAIT_TIMEOUT_MS)) : ESP_OK;
+    esp_err_t wait_result_2 = tx_chan_2 ? rmt_tx_wait_all_done(tx_chan_2, pdMS_TO_TICKS(LED_RMT_WAIT_TIMEOUT_MS)) : ESP_OK;
     {
         uint32_t delta = (micros() - t_wait0);
         uint32_t tmp = ACCUM_RMT_WAIT_US;
@@ -323,17 +334,34 @@ IRAM_ATTR static inline void transmit_leds() {
         ACCUM_RMT_WAIT_US = tmp;
     }
     if (wait_result != ESP_OK || wait_result_2 != ESP_OK) {
-        // RMT transmission timeout: skip this frame to maintain high FPS
-        // Rate-limit warning to avoid log spam
+        g_led_rmt_wait_timeouts.fetch_add(1, std::memory_order_relaxed);
         static uint32_t last_warn_ms = 0;
         uint32_t now_ms = millis();
-        if (now_ms - last_warn_ms > 5000) {  // Reduced warning frequency
+        if (now_ms - last_warn_ms > 1000) {
             #if DEBUG_LED_TX
-            LOG_WARN(TAG_LED, "RMT transmission timeout (skipping frame for performance)");
+            LOG_WARN(TAG_LED, "RMT wait timeout (ch1=%d ch2=%d) -- entering recovery", (int)wait_result, (int)wait_result_2);
             #endif
             last_warn_ms = now_ms;
         }
-        return;
+
+        bool recovered = false;
+        for (int attempt = 0; attempt < 2 && !recovered; ++attempt) {
+            if (attempt == 1) {
+                // Give interrupt handlers a moment to drain before retrying
+                vTaskDelay(pdMS_TO_TICKS(1));
+            }
+            esp_err_t recover_1 = tx_chan ? rmt_tx_wait_all_done(tx_chan, pdMS_TO_TICKS(LED_RMT_WAIT_RECOVERY_MS)) : ESP_OK;
+            esp_err_t recover_2 = tx_chan_2 ? rmt_tx_wait_all_done(tx_chan_2, pdMS_TO_TICKS(LED_RMT_WAIT_RECOVERY_MS)) : ESP_OK;
+            recovered = (recover_1 == ESP_OK && recover_2 == ESP_OK);
+            wait_result = recover_1;
+            wait_result_2 = recover_2;
+        }
+        if (!recovered) {
+            #if DEBUG_LED_TX
+            LOG_WARN(TAG_LED, "RMT recovery failed (ch1=%d ch2=%d) -- dropping frame", (int)wait_result, (int)wait_result_2);
+            #endif
+            return;
+        }
     }
 #endif
 

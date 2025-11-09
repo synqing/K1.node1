@@ -75,7 +75,7 @@ Managing and maintaining documentation:
 | Decision | ADR File | Status |
 |----------|----------|--------|
 | Phase 2D1 Critical Fixes | [ADR-0009-phase-2d1-critical-fixes.md](./02-adr/ADR-0009-phase-2d1-critical-fixes.md) | Published |
-| Pattern Generation Safety | [ADR-0003-pattern-generation-safety.md](./02-adr/ADR-0003-pattern-generation-safety.md) | Published |
+| Parallel Execution | [ADR-0003-parallel-execution-model.md](./02-adr/ADR-0003-parallel-execution-model.md) | Published |
 | Parallel Execution | [ADR-0003-parallel-execution-model.md](./02-adr/ADR-0003-parallel-execution-model.md) | Published |
 | Documentation Governance | [ADR-0004-documentation-governance.md](./02-adr/ADR-0004-documentation-governance.md) | Published |
 
@@ -96,6 +96,7 @@ Managing and maintaining documentation:
 | Pattern Analysis | [05-analysis/](./05-analysis/) | Design pattern evaluation |
 | Feasibility Studies | [01-architecture/](./01-architecture/) | Technical feasibility |
 | Dependency Analysis | [05-analysis/](./05-analysis/) | Task dependencies |
+| MCP Integration Research | [K1NAnalysis_CLAUDE_DESKTOP_MCP_INTEGRATION_RESEARCH_v1.0_20251108.md](./05-analysis/K1NAnalysis_CLAUDE_DESKTOP_MCP_INTEGRATION_RESEARCH_v1.0_20251108.md) | Phase 4 Conductor-MCP planning |
 
 ### Governance & Standards
 | Standard | Document | Applies To |
@@ -167,6 +168,8 @@ docs/
 ├── 07-resources/                        ← Team resources & training
 │   ├── README.md
 │   ├── K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md          ← One-page cheat sheet ⭐
+│   ├── K1NRef_PHASE3_VALIDATION_TESTING_QUICK_GUIDE_v1.0_20251108.md  ← Phase 3 validation
+│   ├── K1NRef_PHASE4_CONDUCTOR_MCP_QUICK_GUIDE_v1.0_20251108.md    ← Phase 4 MCP integration
 │   └── [resource documents]
 ├── 08-governance/                       ← Policies & standards
 │   ├── README.md
