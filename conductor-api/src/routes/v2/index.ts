@@ -7,3 +7,5 @@ export { createBatchRouter, batchRetryErrors, batchResolveErrors, batchExecuteSc
 export type { BatchResponse, BatchItemResult } from './batch.js';
 
 export { createWebhookRouter } from './webhooks.js';
+
+export { createMetricsRouter, MetricsController } from './metrics.js';

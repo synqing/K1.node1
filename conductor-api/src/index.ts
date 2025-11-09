@@ -109,3 +109,27 @@ export {
   ErrorRecoveryController,
 } from './routes/v2/error-recovery.js';
 export type { RetryDatabase, CircuitBreakerStorage, DLQStorage } from './routes/v2/error-recovery.js';
+
+// Export metrics service (T14)
+export {
+  MetricsCollector,
+  getMetricsCollector,
+  createMetricsCollector,
+} from './services/metrics-collector.js';
+export type {
+  Counter,
+  Histogram,
+  Gauge,
+  TimeWindow,
+  ErrorRecoveryMetrics,
+  SchedulerMetrics,
+  WebhookMetrics,
+  SystemMetrics,
+  AggregatedMetrics,
+} from './services/metrics-collector.js';
+
+// Export metrics routes (T14)
+export {
+  createMetricsRouter,
+  MetricsController,
+} from './routes/v2/metrics.js';
