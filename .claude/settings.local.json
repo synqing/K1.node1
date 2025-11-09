@@ -33,7 +33,8 @@
       "Bash(bash ops/agents/task-8-codegen-optimized.sh:*)",
       "Bash(.conductor/templates/pattern.tmpl)",
       "Bash(.conductor/templates/codegen.hbs)",
-      "Bash(bash ops/agents/task-8-codegen-full-optimized.sh:*)"
+      "Bash(bash ops/agents/task-8-codegen-full-optimized.sh:*)",
+      "Bash(bash:*)"
     ],
     "deny": [],
     "ask": []
