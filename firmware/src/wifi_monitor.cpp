@@ -17,12 +17,12 @@ constexpr uint32_t WIFI_KEEPALIVE_INTERVAL_MS = 30000;  // Send keepalive every 
 constexpr uint32_t NETWORK_PAUSE_DEFAULT_MS = 500;      // Short pause before disconnect
 
 // Primary network (build defaults)
-char primary_ssid[64] = "VX220-013F";
-char primary_pass[64] = "3232AA90E0F24";
+char primary_ssid[64] = {0};  // Load from secure NVS or provisioning
+char primary_pass[64] = {0};  // Load from secure NVS or provisioning
 
 // Fallback network (secondary)
-char fallback_ssid[64] = "OPTUS_738CC0N";
-char fallback_pass[64] = "parrs45432vw";
+char fallback_ssid[64] = {0};  // Load from secure NVS or provisioning
+char fallback_pass[64] = {0};  // Load from secure NVS or provisioning
 
 // Currently active credentials
 char stored_ssid[64] = {0};

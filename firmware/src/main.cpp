@@ -66,8 +66,6 @@ void init_rmt_driver();
 // Updated per user request
 // SSID: OPTUS_738CC0N
 // Password: parrs45432vw
-#define WIFI_SSID "VX220-013F"
-#define WIFI_PASS "3232AA90E0F24"
 #define BEAT_EVENTS_DIAG 0
 // NUM_LEDS and LED_DATA_PIN are defined in led_driver.h
 
@@ -515,7 +513,7 @@ void setup() {
     // Initialize WiFi monitor/state machine
     wifi_monitor_on_connect(handle_wifi_connected);
     wifi_monitor_on_disconnect(handle_wifi_disconnected);
-    wifi_monitor_init(WIFI_SSID, WIFI_PASS);
+    wifi_monitor_init(nullptr, nullptr);  // Load from NVS or enter provisioning mode
 
     // Initialize OTA
     ArduinoOTA.setHostname("k1-reinvented");
