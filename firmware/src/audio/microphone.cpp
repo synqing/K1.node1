@@ -104,13 +104,13 @@ void acquire_sample_chunk() {
                                           new_samples_raw,
                                           CHUNK_SIZE * sizeof(uint32_t),
                                           &bytes_read,
-                                          portMAX_DELAY);
+                                          pdMS_TO_TICKS(100));
 #else
             i2s_result = i2s_read(I2S_PORT,
                                    new_samples_raw,
                                    CHUNK_SIZE * sizeof(uint32_t),
                                    &bytes_read,
-                                   portMAX_DELAY);
+                                   pdMS_TO_TICKS(100));
 #endif
             uint32_t i2s_block_us = micros() - i2s_start_us;
 
