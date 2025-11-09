@@ -44,9 +44,8 @@ void udp_echo_begin(uint16_t port) {
         "udp_echo",
         4096,
         nullptr,
-        3,
+        tskIDLE_PRIORITY,   // Yield to audio/GPU tasks and Wi-Fi handlers
         &s_udp_task_handle,
-        0  // Core 0 (render) side; low priority, tiny impact
+        0  // Core 0 alongside Wi-Fi stack
     );
 }
-

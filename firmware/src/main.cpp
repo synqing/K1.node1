@@ -92,6 +92,7 @@ static bool audio_debug_enabled = false;
 static inline void run_audio_pipeline_once();
 
 static bool network_services_started = false;
+static bool s_audio_task_running = false;
 
 // Calculate best BPM estimate from highest tempo bin magnitude
 float get_best_bpm() {
@@ -208,16 +209,16 @@ static inline void send_uart_sync_frame() {}
 #endif
 
 // ============================================================================
-// AUDIO TASK - Runs on Core 1 @ ~100 Hz (audio processing only)
+// AUDIO TASK - Runs on Core 0 @ ~100 Hz (audio processing only)
 // ============================================================================
-// This function runs on Core 1 and handles all audio processing
-// - Microphone sample acquisition (I2S, blocking - isolated to Core 1)
+// This function runs on Core 0 and handles all audio processing
+// - Microphone sample acquisition (I2S, blocking - isolated to Core 0)
 // - Goertzel frequency analysis (CPU-intensive)
 // - Chromagram computation (pitch class analysis)
 // - Beat detection and tempo tracking
-// - Lock-free buffer synchronization with Core 0
+// - Lock-free buffer synchronization with Core 1
 void audio_task(void* param) {
-    LOG_INFO(TAG_CORE1, "AUDIO_TASK Starting on Core 1");
+    LOG_INFO(TAG_CORE0, "AUDIO_TASK Starting on Core 0");
     
     while (true) {
         // If audio reactivity is disabled, invalidate snapshot and idle
@@ -237,7 +238,7 @@ void audio_task(void* param) {
             continue;
         }
 
-        // Process audio chunk (I2S blocking isolated to Core 1)
+        // Process audio chunk (I2S blocking isolated to Core 0)
         acquire_sample_chunk();        // Blocks on I2S if needed (acceptable here)
         calculate_magnitudes();        // ~15-25ms Goertzel computation
         get_chromagram();              // ~1ms pitch aggregation
@@ -325,7 +326,7 @@ void audio_task(void* param) {
             }
         }
 
-        // Lock-free buffer synchronization with Core 0
+        // Lock-free buffer synchronization with Core 1
         finish_audio_frame();          // ~0-5ms buffer swap
 
         // Yield to prevent CPU starvation
@@ -335,7 +336,7 @@ void audio_task(void* param) {
 }
 
 // ============================================================================
-// SINGLE-SHOT AUDIO PIPELINE (used by Core 1 main loop cadence)
+// SINGLE-SHOT AUDIO PIPELINE (fallback when audio_task is unavailable)
 // ============================================================================
 static inline void run_audio_pipeline_once() {
     // If audio reactivity is disabled, invalidate snapshot and return
@@ -421,15 +422,15 @@ static inline void run_audio_pipeline_once() {
 }
 
 // ============================================================================
-// GPU TASK - CORE 0 VISUAL RENDERING (NEW)
+// GPU TASK - CORE 1 VISUAL RENDERING (NEW)
 // ============================================================================
-// This function runs on Core 0 and handles all visual rendering
+// This function runs on Core 1 and handles all visual rendering
 // - Pattern rendering at 100+ FPS
 // - LED transmission via RMT
 // - FPS tracking and diagnostics
 // - Never waits for audio (reads latest available data)
 void loop_gpu(void* param) {
-    LOG_INFO(TAG_CORE0, "GPU_TASK Starting on Core 0");
+    LOG_INFO(TAG_CORE0, "GPU_TASK Starting on Core 1");
     
     static uint32_t start_time = millis();
     
@@ -600,17 +601,17 @@ void setup() {
     // ========================================================================
     // DUAL-CORE ARCHITECTURE ACTIVATION
     // ========================================================================
-    // Core 0: GPU rendering task (100+ FPS, never blocks)
-    // Core 1: Audio processing + network (main loop, can block on I2S)
+    // Core 0: Audio processing + network (shares core with Wi-Fi stack)
+    // Core 1: GPU rendering task (100+ FPS, never blocks)
     // Synchronization: Lock-free double buffer with sequence counters
     // ========================================================================
     LOG_INFO(TAG_CORE0, "Activating dual-core architecture...");
 
-    // Task handles for monitoring
+// Task handles for monitoring
     TaskHandle_t gpu_task_handle = NULL;
     TaskHandle_t audio_task_handle = NULL;
 
-    // Create GPU/Visual task on Core 0
+    // Create GPU/Visual task on Core 1
 #ifdef DYNAMIC_LED_CHANNELS
     // Phase 0: VisualScheduler parity mode (uses channel A only, falls back to global RMT handles)
     static RenderChannel g_channel_a;
@@ -628,7 +629,7 @@ void setup() {
         (void*)g_channels,  // Parameters (channel set)
         1,                  // Priority (same as audio - no preemption preference)
         &gpu_task_handle,   // Task handle for monitoring
-        0                   // Pin to Core 0
+        1                   // Pin to Core 1 (keeps GPU away from Wi-Fi stack)
     );
 #else
     // Legacy single-channel GPU loop
@@ -639,11 +640,11 @@ void setup() {
         NULL,               // Parameters
         1,                  // Priority (same as audio - no preemption preference)
         &gpu_task_handle,   // Task handle for monitoring
-        0                   // Pin to Core 0
+        1                   // Pin to Core 1 (keeps GPU away from Wi-Fi stack)
     );
 #endif
 
-    // Create audio processing task on Core 1
+    // Create audio processing task on Core 0
     // INCREASED STACK: 8KB -> 12KB (1,692 bytes margin was dangerously low)
     BaseType_t audio_result = xTaskCreatePinnedToCore(
         audio_task,         // Task function
@@ -652,7 +653,7 @@ void setup() {
         NULL,               // Parameters
         1,                  // Priority (same as GPU)
         &audio_task_handle, // Task handle for monitoring
-        1                   // Pin to Core 1
+        0                   // Pin to Core 0 (shares core with Wi-Fi/OTA)
     );
 
     // Validate task creation (CRITICAL: Must not fail)
@@ -668,12 +669,14 @@ void setup() {
         LOG_ERROR(TAG_CORE0, "System cannot continue. Rebooting...");
         delay(5000);
         esp_restart();
+    } else {
+        s_audio_task_running = true;
     }
 
     LOG_INFO(TAG_CORE0, "Dual-core tasks created successfully:");
-    LOG_INFO(TAG_GPU, "Core 0: GPU rendering (100+ FPS target)");
+    LOG_INFO(TAG_GPU, "Core 1: GPU rendering (100+ FPS target)");
     LOG_DEBUG(TAG_GPU, "Stack: 16KB (was 12KB, increased for safety)");
-    LOG_INFO(TAG_AUDIO, "Core 1: Audio processing + network");
+    LOG_INFO(TAG_AUDIO, "Core 0: Audio processing + network");
     LOG_DEBUG(TAG_AUDIO, "Stack: 12KB (was 8KB, increased for safety)");
     LOG_DEBUG(TAG_SYNC, "Synchronization: Lock-free with sequence counters + memory barriers");
     LOG_INFO(TAG_CORE0, "Ready!");
@@ -686,8 +689,8 @@ void setup() {
 // ============================================================================
 void loop() {
     // Core 1 main loop: Network services and system management
-    // Audio processing now handled by dedicated audio_task on Core 1
-    // Visual rendering now handled by dedicated loop_gpu on Core 0
+    // Audio processing now handled by dedicated audio_task on Core 0
+    // Visual rendering now handled by dedicated loop_gpu on Core 1
 
     // Debug mode toggle via keystroke
     if (Serial.available() > 0) {
@@ -720,11 +723,12 @@ void loop() {
     // Advance WiFi state machine so callbacks fire and reconnection logic runs
     wifi_monitor_loop();
 
-    // Run audio processing at fixed cadence to avoid throttling render FPS
-    static uint32_t last_audio_ms = 0;
-    const uint32_t audio_interval_ms = 20; // ~50 Hz audio processing
     uint32_t now_ms = millis();
-    if ((now_ms - last_audio_ms) >= audio_interval_ms) {
+
+    // Run audio processing inline only if the dedicated task failed to start
+    static uint32_t last_audio_ms = 0;
+    const uint32_t audio_interval_ms = 20; // ~50 Hz audio processing fallback
+    if (!s_audio_task_running && (now_ms - last_audio_ms) >= audio_interval_ms) {
         run_audio_pipeline_once();
         last_audio_ms = now_ms;
     }
@@ -750,22 +754,22 @@ void loop() {
         }
     }
 
-    // LED rendering is handled exclusively by loop_gpu task on Core 0
-    // This loop (Core 1) handles only network services and audio processing
+    // LED rendering is handled exclusively by loop_gpu task on Core 1
+    // This loop (Core 1) handles network services plus light audio/bookkeeping helpers
     
     // Send sync packet to s3z secondary device (if enabled)
     send_uart_sync_frame();
     heartbeat_logger_poll();
 
     // Small delay to prevent this loop from consuming too much CPU
-    // Core 0 (loop_gpu) handles all LED rendering at high FPS
+    // Core 1 (loop_gpu) handles all LED rendering at high FPS
     vTaskDelay(pdMS_TO_TICKS(5));
 }
 
 #endif  // UNIT_TEST
 
 // All patterns are included from generated_patterns.h
-// Audio processing now handled by dedicated audio_task on Core 1
+// Audio processing now handled by dedicated audio_task on Core 0
 // Gate UART daisy-chain sync behind a feature flag
 #ifndef ENABLE_UART_SYNC
 #define ENABLE_UART_SYNC 0

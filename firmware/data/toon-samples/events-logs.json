@@ -1,0 +1,5 @@
+{"logs": [
+  {"ts": 1731123456, "severity": "info", "event": "boot"},
+  {"ts": 1731123460, "severity": "warn", "event": "wifi_retry"},
+  {"ts": 1731123465, "severity": "info", "event": "ready"}
+]}

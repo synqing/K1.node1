@@ -294,3 +294,4 @@ void init_rmt_driver() {
 // Timestamp of last LED transmit start (micros)
 // Uses relaxed ordering for simple latency measurement timestamp capture
 std::atomic<uint32_t> g_last_led_tx_us{0};
+std::atomic<uint32_t> g_led_rmt_wait_timeouts{0};

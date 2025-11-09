@@ -1,0 +1,8 @@
+{
+  "name": "toon-tools",
+  "private": true,
+  "description": "Pinned TOON CLI for firmware tooling",
+  "devDependencies": {
+    "@toon-format/cli": "^0.8.0"
+  }
+}

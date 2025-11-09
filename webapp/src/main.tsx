@@ -5,7 +5,8 @@ import App from './App.tsx';
 import './index.css';
 import './styles/globals.css';
 import './lib/analysisClient';
-import './builder/register';
+// Builder.io integration is optional; uncomment to enable visual builder components
+// import './builder/register';
 
 // Optional: enable experimental design iteration styles
 if (import.meta.env.VITE_ENABLE_DESIGN_ITER === 'true') {

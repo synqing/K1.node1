@@ -121,6 +121,23 @@ Note: As of 2025-11-08, the Conductor documentation directory moved from `docs/C
 
 ## Related Documentation
 
+### Phase 4 Planning & Research
+
+**MCP Integration Research:**
+- **K1NAnalysis_RESEARCH_MCP_PROTOCOL_CAPABILITIES_v1.0_20251108.md** — Comprehensive MCP protocol research
+  - Located: `/docs/05-analysis/`
+  - Model Context Protocol specification (v2024-11-05)
+  - Tool definition schema and validation patterns
+  - Error handling best practices
+  - State management strategies
+  - TypeScript/Python implementation patterns
+  - Real-world examples (filesystem, git, database, task management)
+  - Recommendations for Conductor MCP server integration
+
+**Related Technical Analyses:**
+- **K1NAnalysis_ANALYSIS_CONDUCTOR_INTEGRATION_TECHNICAL_v1.0_20251108.md** — Conductor integration analysis
+- **K1NAnalysis_ANALYSIS_WORKFLOW_SCHEMA_AND_TASK_EXECUTION_v1.0_20251108.md** — Workflow schema analysis
+
 ### K1.node1 CI/CD Pipeline
 
 These were created in prior phases and work alongside Conductor hooks:
