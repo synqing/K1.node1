@@ -3,9 +3,9 @@
  * Tests for exponential/linear/fixed backoff, jitter, max delay, attempt tracking
  */
 
-import { RetryEngine, RetryDatabase } from '../services/retry-engine';
-import { RetryPolicy, RetryAttempt } from '../types/retry-policy.types';
-import { RetryScheduler } from '../workers/retry-scheduler';
+import { RetryEngine, RetryDatabase } from '../services/retry-engine.js';
+import { RetryPolicy, RetryAttempt } from '../types/retry-policy.types.js';
+import { RetryScheduler } from '../workers/retry-scheduler.js';
 
 /**
  * Mock Database Implementation for Testing

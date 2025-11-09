@@ -4,7 +4,7 @@
  * and database tracking of retry attempts
  */
 
-import { RetryPolicy, RetryAttempt } from '../types/retry-policy.types';
+import { RetryPolicy, RetryAttempt } from '../types/retry-policy.types.js';
 
 /**
  * Interface for database operations (abstraction)

@@ -4,8 +4,8 @@
  * Runs on a 30-second interval
  */
 
-import { RetryEngine, RetryDatabase } from '../services/retry-engine';
-import { RetryAttempt, RetryPolicy } from '../types/retry-policy.types';
+import { RetryEngine, RetryDatabase } from '../services/retry-engine.js';
+import { RetryAttempt, RetryPolicy } from '../types/retry-policy.types.js';
 
 /**
  * Interface for task execution
