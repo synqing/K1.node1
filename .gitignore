@@ -6,11 +6,13 @@
 !.mcp.json
 !CLAUDE.md
 
-# Unignore firmware, webapp, orkes-service, and Conductor directories, then their contents
+# Unignore firmware, webapp, orkes-service, conductor-api, and Conductor directories, then their contents
 !firmware/
 !firmware/**
 !webapp/
 !webapp/**
+!conductor-api/
+!conductor-api/**
 !orkes-service/
 !orkes-service/**
 !Conductor/
@@ -39,6 +41,10 @@
 # Track development tools (.claude/)
 !.claude/
 !.claude/**
+
+# Track docker configuration and migrations
+!docker/
+!docker/**
 
 # Typical build/caches to ignore inside tracked trees
 firmware/.pio/
