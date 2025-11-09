@@ -6,7 +6,7 @@
 
 import { EventEmitter } from 'events';
 import WebSocket from 'ws';
-import { Server } from 'express';
+import { Application } from 'express';
 import { createServer } from 'http';
 import { eventStreamer, WebSocketEventStreamer } from './event-streamer';
 import {
@@ -44,9 +44,9 @@ export interface WebSocketConfig {
  * Initialize WebSocket server with Express
  */
 export function initializeWebSocketServer(
-  app: Server,
+  app: Application,
   config: WebSocketConfig = {}
-): { wss: WebSocket.Server; server: Server } {
+): { wss: WebSocket.Server; server: any } {
   const path = config.path ?? '/ws';
   const port = config.port ?? 8080;
   const debug = config.debug ?? false;
@@ -72,7 +72,7 @@ export function initializeWebSocketServer(
   // Return both for flexibility
   return {
     wss,
-    server: httpServer as any,
+    server: httpServer,
   };
 }
 

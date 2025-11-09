@@ -9,3 +9,5 @@ export type { BatchResponse, BatchItemResult } from './batch.js';
 export { createWebhookRouter } from './webhooks.js';
 
 export { createMetricsRouter, MetricsController } from './metrics.js';
+
+export { createDashboardRouter } from './dashboard.js';
