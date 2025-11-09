@@ -34,7 +34,9 @@
       "Bash(.conductor/templates/pattern.tmpl)",
       "Bash(.conductor/templates/codegen.hbs)",
       "Bash(bash ops/agents/task-8-codegen-full-optimized.sh:*)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(create \"backup-task\" \"Daily Backup\" \"bash ops/agents/backup.sh\" \"cron\" \"0 2 * * *\" 8)",
+      "Bash(create \"webhook-processor\" \"Webhook Processing\" \"bash ops/agents/process-webhooks.sh\" \"event\" \"webhook.received\" 6)"
     ],
     "deny": [],
     "ask": []
