@@ -40,6 +40,10 @@
 !.claude/
 !.claude/**
 
+# Track database schemas and seeds
+!database/
+!database/**
+
 # Typical build/caches to ignore inside tracked trees
 firmware/.pio/
 firmware/.pio_home/
