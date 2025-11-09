@@ -18,7 +18,18 @@
       "Bash(pkill:*)",
       "Bash(platformio run:*)",
       "Bash(./tests/validate_conductor_resilience.sh:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git push:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(chmod:*)",
+      "Skill(using-superpowers)",
+      "Bash(nvm use:*)",
+      "Bash(source ~/.nvm/nvm.sh)",
+      "Bash(npm run dev:*)",
+      "Bash(./tests/run-baseline-profile.sh:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []
