@@ -40,6 +40,18 @@
 !.claude/
 !.claude/**
 
+# Track database schemas and seeds
+!database/
+!database/**
+
+# Track conductor-api source (T3 task)
+!conductor-api/
+!conductor-api/src/
+!conductor-api/src/**
+conductor-api/dist/
+conductor-api/node_modules/
+conductor-api/.git
+
 # Typical build/caches to ignore inside tracked trees
 firmware/.pio/
 firmware/.pio_home/
