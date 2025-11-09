@@ -6,12 +6,24 @@
 export * from './types/scheduler.types.js';
 // Export retry policy types
 export * from './types/retry-policy.types.js';
+// Export circuit breaker types
+export * from './types/circuit-breaker.types.js';
+// Export DLQ types
+export * from './types/dlq.types.js';
+// Export webhook types
+export * from './types/webhook.types.js';
 // Export scheduler utilities
 export { CronParser, validateCronExpression, getNextExecutionTime, getPreviousExecutionTime } from './utils/cron-parser.js';
 // Export scheduler services
 export { SchedulerCoreService, createSchedulerService } from './services/scheduler-core.js';
 // Export retry engine service
 export { RetryEngine, } from './services/retry-engine.js';
+// Export circuit breaker service
+export { CircuitBreaker, } from './services/circuit-breaker.js';
+// Export DLQ service
+export { DeadLetterQueue, } from './services/dlq.js';
+// Export webhook service
+export { WebhookService, createWebhookService, } from './services/webhook-service.js';
 // Export scheduler workers
 export { ScheduleExecutor, createScheduleExecutor } from './workers/schedule-executor.js';
 // Export retry scheduler worker
@@ -23,4 +35,8 @@ export { v2ErrorHandler, asyncHandler, errorBoundary, handleValidationError, not
 export { createSchedulingRouter, default as schedulingRouter } from './routes/v2-scheduling.js';
 // Export batch operations routes (T12)
 export { createBatchRouter, batchRetryErrors, batchResolveErrors, batchExecuteSchedules, batchResolveDLQ, BATCH_CONFIG } from './routes/v2/batch.js';
+// Export webhook routes (T11)
+export { createWebhookRouter } from './routes/v2/webhooks.js';
+// Export error recovery routes (T9)
+export { createErrorRecoveryRouter, ErrorRecoveryController, } from './routes/v2/error-recovery.js';
 //# sourceMappingURL=index.js.map

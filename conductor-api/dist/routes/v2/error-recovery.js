@@ -1,219 +1,304 @@
 /**
- * Error Recovery Routes (v2)
- * Handles error retry attempts and resolution
- * Task T3: API v2 Router Scaffolding
+ * Error Recovery Endpoints (v2)
+ * Implements error recovery, retry management, circuit breaker control, and DLQ operations
  */
-import { Router } from 'express';
-import { requireScopesV2, requireAuthV2, SCOPES_V2, } from '../../middleware/v2-authentication';
-const router = Router();
+import { RetryEngine } from '../../services/retry-engine.js';
+import { CircuitBreaker } from '../../services/circuit-breaker.js';
+import { DeadLetterQueue } from '../../services/dlq.js';
 /**
- * Request validation stub
- * In production, use a library like Joi or Zod
+ * Error Recovery Controller
+ * Handles all error recovery related HTTP endpoints
  */
-const validateRetryRequest = (body) => {
-    const errors = [];
-    if (!body.error_id)
-        errors.push('error_id is required');
-    if (body.retry_policy && !['standard', 'aggressive', 'conservative'].includes(body.retry_policy)) {
-        errors.push('retry_policy must be one of: standard, aggressive, conservative');
+export class ErrorRecoveryController {
+    constructor(retryDb, circuitBreakerStorage, dlqStorage, circuitBreakerConfig) {
+        this.retryEngine = new RetryEngine(retryDb);
+        this.circuitBreaker = new CircuitBreaker(circuitBreakerStorage, circuitBreakerConfig);
+        this.dlq = new DeadLetterQueue(dlqStorage);
     }
-    if (body.max_attempts && (typeof body.max_attempts !== 'number' || body.max_attempts < 1)) {
-        errors.push('max_attempts must be a positive integer');
+    /**
+     * POST /v2/errors/retry
+     * Create a retry attempt for a failed task
+     */
+    async createRetry(req, res, next) {
+        try {
+            const { taskId, retryPolicy, attemptNumber = 0, errorMessage = 'Unknown error' } = req.body;
+            // Validate required fields
+            if (!taskId) {
+                res.status(400).json({
+                    success: false,
+                    error: 'taskId is required',
+                    code: 'INVALID_REQUEST',
+                    timestamp: new Date(),
+                });
+                return;
+            }
+            if (!retryPolicy) {
+                res.status(400).json({
+                    success: false,
+                    error: 'retryPolicy is required',
+                    code: 'INVALID_REQUEST',
+                    timestamp: new Date(),
+                });
+                return;
+            }
+            // Validate retry policy
+            if (!this.isValidRetryPolicy(retryPolicy)) {
+                res.status(400).json({
+                    success: false,
+                    error: 'Invalid retry policy configuration',
+                    code: 'INVALID_POLICY',
+                    timestamp: new Date(),
+                });
+                return;
+            }
+            // Check if we can retry
+            if (!this.retryEngine.canRetry(attemptNumber, retryPolicy)) {
+                res.status(409).json({
+                    success: false,
+                    error: 'Maximum retry attempts exceeded',
+                    code: 'MAX_RETRIES_EXCEEDED',
+                    timestamp: new Date(),
+                });
+                return;
+            }
+            // Check if error is retryable
+            if (!this.retryEngine.isRetryableError(errorMessage, retryPolicy)) {
+                res.status(400).json({
+                    success: false,
+                    error: 'Error is not retryable based on policy',
+                    code: 'NON_RETRYABLE_ERROR',
+                    timestamp: new Date(),
+                });
+                return;
+            }
+            // Create retry attempt
+            const retryAttempt = await this.retryEngine.createRetryAttempt(taskId, attemptNumber, errorMessage, retryPolicy);
+            res.status(201).json({
+                success: true,
+                data: retryAttempt,
+                timestamp: new Date(),
+            });
+        }
+        catch (error) {
+            next(error);
+        }
     }
+    /**
+     * GET /v2/errors/retry/:id
+     * Get retry details and history
+     */
+    async getRetry(req, res, next) {
+        try {
+            const { id } = req.params;
+            if (!id) {
+                res.status(400).json({
+                    success: false,
+                    error: 'Retry ID is required',
+                    code: 'INVALID_REQUEST',
+                    timestamp: new Date(),
+                });
+                return;
+            }
+            // In a real implementation, this would fetch from database
+            // For now, we'll return a structured response
+            res.status(200).json({
+                success: true,
+                data: {
+                    id,
+                    message: 'Retry details would be fetched from database',
+                    status: 'pending',
+                    createdAt: new Date(),
+                },
+                timestamp: new Date(),
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    /**
+     * POST /v2/errors/resolve
+     * Mark an error as resolved
+     */
+    async resolveError(req, res, next) {
+        try {
+            const { taskId, reason } = req.body;
+            if (!taskId) {
+                res.status(400).json({
+                    success: false,
+                    error: 'taskId is required',
+                    code: 'INVALID_REQUEST',
+                    timestamp: new Date(),
+                });
+                return;
+            }
+            if (!reason) {
+                res.status(400).json({
+                    success: false,
+                    error: 'reason is required',
+                    code: 'INVALID_REQUEST',
+                    timestamp: new Date(),
+                });
+                return;
+            }
+            // Resolve entries in DLQ for this task
+            const entries = await this.dlq.getEntriesByTaskId(taskId);
+            for (const entry of entries) {
+                if (!entry.resolvedAt) {
+                    await this.dlq.resolveEntry(entry.id, reason);
+                }
+            }
+            res.status(200).json({
+                success: true,
+                data: {
+                    taskId,
+                    resolvedCount: entries.filter((e) => !e.resolvedAt).length,
+                    reason,
+                    timestamp: new Date(),
+                },
+                timestamp: new Date(),
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    /**
+     * GET /v2/errors/stats
+     * Get error recovery statistics
+     */
+    async getStats(req, res, next) {
+        try {
+            // Get DLQ stats
+            const dlqStats = await this.dlq.getStats();
+            // Get circuit breaker states
+            const cbStates = await this.circuitBreaker.getAllStates();
+            // Calculate active retries count (would be from database in real implementation)
+            const pendingRetries = 0; // Placeholder
+            res.status(200).json({
+                success: true,
+                data: {
+                    activeRetries: pendingRetries,
+                    dlqStats: {
+                        totalEntries: dlqStats.totalEntries,
+                        unresolvedEntries: dlqStats.unresolvedEntries,
+                        resolvedEntries: dlqStats.resolvedEntries,
+                        oldestEntryAgeMs: dlqStats.oldestEntryAge,
+                        averageRetryCount: dlqStats.averageRetryCount,
+                    },
+                    circuitBreakers: {
+                        total: cbStates.length,
+                        open: cbStates.filter((s) => s.state === 'open').length,
+                        halfOpen: cbStates.filter((s) => s.state === 'half_open').length,
+                        closed: cbStates.filter((s) => s.state === 'closed').length,
+                        states: cbStates.map((s) => ({
+                            serviceName: s.serviceName,
+                            state: s.state,
+                            failureCount: s.failureCount,
+                            lastFailureAt: s.lastFailureAt,
+                        })),
+                    },
+                },
+                timestamp: new Date(),
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    /**
+     * POST /v2/errors/circuit-breaker/:service
+     * Update circuit breaker state
+     */
+    async updateCircuitBreaker(req, res, next) {
+        try {
+            const { service } = req.params;
+            const { action } = req.body;
+            if (!service) {
+                res.status(400).json({
+                    success: false,
+                    error: 'Service name is required',
+                    code: 'INVALID_REQUEST',
+                    timestamp: new Date(),
+                });
+                return;
+            }
+            if (!action || !['reset', 'open', 'close'].includes(action)) {
+                res.status(400).json({
+                    success: false,
+                    error: 'Action must be one of: reset, open, close',
+                    code: 'INVALID_ACTION',
+                    timestamp: new Date(),
+                });
+                return;
+            }
+            let result = null;
+            switch (action) {
+                case 'reset':
+                    await this.circuitBreaker.reset(service);
+                    result = await this.circuitBreaker.getState(service);
+                    break;
+                case 'open':
+                    await this.circuitBreaker.open(service);
+                    result = await this.circuitBreaker.getState(service);
+                    break;
+                case 'close':
+                    await this.circuitBreaker.close(service);
+                    result = await this.circuitBreaker.getState(service);
+                    break;
+            }
+            res.status(200).json({
+                success: true,
+                data: {
+                    serviceName: service,
+                    action,
+                    state: result,
+                    timestamp: new Date(),
+                },
+                timestamp: new Date(),
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    /**
+     * Validate retry policy structure
+     */
+    isValidRetryPolicy(policy) {
+        if (typeof policy.maxRetries !== 'number' || policy.maxRetries < 0) {
+            return false;
+        }
+        if (typeof policy.initialDelayMs !== 'number' || policy.initialDelayMs < 0) {
+            return false;
+        }
+        if (typeof policy.maxDelayMs !== 'number' || policy.maxDelayMs < 0) {
+            return false;
+        }
+        if (!['exponential', 'linear', 'fixed'].includes(policy.strategy)) {
+            return false;
+        }
+        return true;
+    }
+}
+/**
+ * Create error recovery router
+ */
+export function createErrorRecoveryRouter(retryDb, circuitBreakerStorage, dlqStorage, circuitBreakerConfig) {
+    const controller = new ErrorRecoveryController(retryDb, circuitBreakerStorage, dlqStorage, circuitBreakerConfig);
     return {
-        valid: errors.length === 0,
-        errors: errors.length > 0 ? errors : undefined,
+        // POST /v2/errors/retry - Create retry attempt
+        'POST /v2/errors/retry': (req, res, next) => controller.createRetry(req, res, next),
+        // GET /v2/errors/retry/:id - Get retry details
+        'GET /v2/errors/retry/:id': (req, res, next) => controller.getRetry(req, res, next),
+        // POST /v2/errors/resolve - Mark error resolved
+        'POST /v2/errors/resolve': (req, res, next) => controller.resolveError(req, res, next),
+        // GET /v2/errors/stats - Get statistics
+        'GET /v2/errors/stats': (req, res, next) => controller.getStats(req, res, next),
+        // POST /v2/errors/circuit-breaker/:service - Update circuit breaker
+        'POST /v2/errors/circuit-breaker/:service': (req, res, next) => controller.updateCircuitBreaker(req, res, next),
     };
-};
-const formatResponse = (status, data, error, correlationId) => {
-    const response = {
-        status,
-        timestamp: new Date().toISOString(),
-    };
-    if (status === 'success' && data) {
-        response.data = data;
-    }
-    if (status === 'error' && error) {
-        response.error = error;
-    }
-    if (correlationId) {
-        response.correlation_id = correlationId;
-    }
-    return response;
-};
-// ==================== Error Recovery Endpoints ====================
-/**
- * POST /v2/errors/retry
- * Create a new retry attempt for an error
- */
-router.post('/retry', requireAuthV2, requireScopesV2(SCOPES_V2.ERROR_RECOVERY_WRITE), async (req, res) => {
-    try {
-        const { error_id, retry_policy = 'standard', max_attempts = 3 } = req.body;
-        const correlationId = req.correlationId;
-        // Validate request
-        const validation = validateRetryRequest(req.body);
-        if (!validation.valid) {
-            return res.status(400).json(formatResponse('error', undefined, {
-                code: 'VALIDATION_ERROR',
-                message: 'Request validation failed',
-                status: 400,
-                details: { errors: validation.errors },
-            }, correlationId));
-        }
-        // Simulate creating retry attempt
-        const retryAttempt = {
-            retry_id: `retry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            error_id,
-            retry_policy,
-            max_attempts,
-            attempt_count: 1,
-            status: 'queued',
-            next_retry_at: new Date(Date.now() + 5000).toISOString(),
-            created_at: new Date().toISOString(),
-            created_by: req.user?.id || req.client?.id || 'unknown',
-        };
-        res.status(201).json(formatResponse('success', retryAttempt, undefined, correlationId));
-    }
-    catch (error) {
-        const correlationId = req.correlationId;
-        console.error('[Error Recovery] POST /retry failed:', error);
-        res.status(500).json(formatResponse('error', undefined, {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to create retry attempt',
-            status: 500,
-        }, correlationId));
-    }
-});
-/**
- * GET /v2/errors/retry/:id
- * Retrieve a specific retry attempt
- */
-router.get('/retry/:id', requireScopesV2(SCOPES_V2.ERROR_RECOVERY_READ), async (req, res) => {
-    try {
-        const { id } = req.params;
-        const correlationId = req.correlationId;
-        // Validate ID format
-        if (!id || id.length === 0) {
-            return res.status(400).json(formatResponse('error', undefined, {
-                code: 'INVALID_REQUEST',
-                message: 'Retry ID is required',
-                status: 400,
-            }, correlationId));
-        }
-        // Simulate fetching retry attempt (replace with DB query)
-        const retryAttempt = {
-            retry_id: id,
-            error_id: 'err-12345',
-            retry_policy: 'standard',
-            max_attempts: 3,
-            attempt_count: 2,
-            status: 'in_progress',
-            next_retry_at: new Date(Date.now() + 10000).toISOString(),
-            created_at: new Date(Date.now() - 30000).toISOString(),
-            updated_at: new Date().toISOString(),
-            history: [
-                {
-                    attempt: 1,
-                    status: 'failed',
-                    error: 'Connection timeout',
-                    timestamp: new Date(Date.now() - 30000).toISOString(),
-                },
-                {
-                    attempt: 2,
-                    status: 'in_progress',
-                    timestamp: new Date().toISOString(),
-                },
-            ],
-        };
-        res.json(formatResponse('success', retryAttempt, undefined, correlationId));
-    }
-    catch (error) {
-        const correlationId = req.correlationId;
-        console.error('[Error Recovery] GET /retry/:id failed:', error);
-        res.status(500).json(formatResponse('error', undefined, {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to retrieve retry attempt',
-            status: 500,
-        }, correlationId));
-    }
-});
-/**
- * POST /v2/errors/resolve
- * Mark an error as resolved
- */
-router.post('/resolve', requireAuthV2, requireScopesV2(SCOPES_V2.ERROR_RECOVERY_WRITE), async (req, res) => {
-    try {
-        const { error_id, resolution_type = 'manual', notes } = req.body;
-        const correlationId = req.correlationId;
-        // Validate request
-        if (!error_id) {
-            return res.status(400).json(formatResponse('error', undefined, {
-                code: 'VALIDATION_ERROR',
-                message: 'error_id is required',
-                status: 400,
-            }, correlationId));
-        }
-        if (!['manual', 'automatic', 'timeout'].includes(resolution_type)) {
-            return res.status(400).json(formatResponse('error', undefined, {
-                code: 'VALIDATION_ERROR',
-                message: 'resolution_type must be one of: manual, automatic, timeout',
-                status: 400,
-            }, correlationId));
-        }
-        // Simulate marking error as resolved
-        const resolution = {
-            error_id,
-            resolution_type,
-            notes: notes || null,
-            resolved_by: req.user?.id || req.client?.id || 'system',
-            resolved_at: new Date().toISOString(),
-            status: 'resolved',
-        };
-        res.status(202).json(formatResponse('success', resolution, undefined, correlationId));
-    }
-    catch (error) {
-        const correlationId = req.correlationId;
-        console.error('[Error Recovery] POST /resolve failed:', error);
-        res.status(500).json(formatResponse('error', undefined, {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to resolve error',
-            status: 500,
-        }, correlationId));
-    }
-});
-/**
- * GET /v2/errors/stats
- * Get error recovery statistics
- */
-router.get('/stats', requireScopesV2(SCOPES_V2.ERROR_RECOVERY_READ), async (req, res) => {
-    try {
-        const correlationId = req.correlationId;
-        // Simulate fetching stats (replace with aggregated DB queries)
-        const stats = {
-            total_errors: 1250,
-            total_retries: 1200,
-            successful_resolutions: 1150,
-            pending_resolutions: 50,
-            failed_permanently: 100,
-            success_rate: 0.92,
-            average_resolution_time_ms: 45000,
-            by_policy: {
-                standard: { count: 950, success_rate: 0.94 },
-                aggressive: { count: 200, success_rate: 0.88 },
-                conservative: { count: 100, success_rate: 0.98 },
-            },
-        };
-        res.json(formatResponse('success', stats, undefined, correlationId));
-    }
-    catch (error) {
-        const correlationId = req.correlationId;
-        console.error('[Error Recovery] GET /stats failed:', error);
-        res.status(500).json(formatResponse('error', undefined, {
-            code: 'INTERNAL_ERROR',
-            message: 'Failed to fetch error statistics',
-            status: 500,
-        }, correlationId));
-    }
-});
-export default router;
+}
+// Export service classes and types for standalone usage
+export { CircuitBreaker, DeadLetterQueue, RetryEngine };
 //# sourceMappingURL=error-recovery.js.map

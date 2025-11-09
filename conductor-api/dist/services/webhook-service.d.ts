@@ -16,6 +16,10 @@ export declare class WebhookService extends EventEmitter implements IWebhookServ
     private isProcessing;
     constructor(database: WebhookDatabase, httpClient: HttpClient);
     /**
+     * Generate unique ID for webhooks and deliveries
+     */
+    private generateId;
+    /**
      * Register a new webhook
      */
     registerWebhook(request: CreateWebhookRequest): Promise<Webhook>;

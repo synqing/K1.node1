@@ -4,9 +4,8 @@
  * and retry logic with exponential backoff
  */
 
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
 import {
   IWebhookService,
   WebhookDatabase,
@@ -50,11 +49,18 @@ export class WebhookService extends EventEmitter implements IWebhookService {
   }
 
   /**
+   * Generate unique ID for webhooks and deliveries
+   */
+  private generateId(prefix: string): string {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
    * Register a new webhook
    */
   async registerWebhook(request: CreateWebhookRequest): Promise<Webhook> {
     const webhook: Webhook = {
-      id: uuidv4(),
+      id: this.generateId('wh'),
       eventType: request.eventType,
       url: request.url,
       headers: request.headers,
@@ -98,9 +104,24 @@ export class WebhookService extends EventEmitter implements IWebhookService {
     }
 
     const updates: Partial<Webhook> = {
-      ...request,
       updatedAt: new Date(),
     };
+
+    if (request.url !== undefined) {
+      updates.url = request.url;
+    }
+    if (request.headers !== undefined) {
+      updates.headers = request.headers;
+    }
+    if (request.enabled !== undefined) {
+      updates.enabled = request.enabled;
+    }
+    if (request.secret !== undefined) {
+      updates.secret = request.secret;
+    }
+    if (request.metadata !== undefined) {
+      updates.metadata = request.metadata;
+    }
 
     if (request.retryPolicy) {
       updates.retryPolicy = {
@@ -138,7 +159,7 @@ export class WebhookService extends EventEmitter implements IWebhookService {
 
     for (const webhook of webhooks) {
       const delivery: WebhookDelivery = {
-        id: uuidv4(),
+        id: this.generateId('del'),
         webhookId: webhook.id,
         eventType: event.eventType,
         eventData: event.data,

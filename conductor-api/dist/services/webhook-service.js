@@ -5,7 +5,6 @@
  */
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
 import { WebhookDeliveryStatus, } from '../types/webhook.types.js';
 /**
  * Default retry policy for webhooks
@@ -29,11 +28,17 @@ export class WebhookService extends EventEmitter {
         this.httpClient = httpClient;
     }
     /**
+     * Generate unique ID for webhooks and deliveries
+     */
+    generateId(prefix) {
+        return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+    /**
      * Register a new webhook
      */
     async registerWebhook(request) {
         const webhook = {
-            id: uuidv4(),
+            id: this.generateId('wh'),
             eventType: request.eventType,
             url: request.url,
             headers: request.headers,
@@ -106,7 +111,7 @@ export class WebhookService extends EventEmitter {
         });
         for (const webhook of webhooks) {
             const delivery = {
-                id: uuidv4(),
+                id: this.generateId('del'),
                 webhookId: webhook.id,
                 eventType: event.eventType,
                 eventData: event.data,
