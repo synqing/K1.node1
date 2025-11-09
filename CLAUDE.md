@@ -153,7 +153,25 @@ These role capsules provide minimal, high-signal guidance. Full specialty materi
 ### Documentation Curator
 - Inputs: new/updated docs, PRs.
 - Outputs: filed/moved/linked artifacts, updated `docs/05-analysis/tab5/K1NAnalysis_INDEX_TAB5_v1.0_20251108.md`.
-- Do: de-duplicate and compress; Don’t: retain stale forks of the same topic.
+- Do: de-duplicate and compress; Don't: retain stale forks of the same topic.
+
+### Telemetry Architect
+- Inputs: subsystem constraints, diagnostic requirements, performance budgets.
+- Outputs: probe specifications in `.claude-plugin/plugins/*/skills/`, REST endpoint scaffolds in `docs/06-reference/`.
+- Do: guard probe overhead (<<1% per frame); expose `/api/*` diagnostics; use atomic counters in hot paths.
+- Don't: log in IRAM hot paths; skip validation on probe overhead.
+
+### IDF Compliance Guardian
+- Inputs: code changes, IDF version targets, platform pinning in `platformio.ini`.
+- Outputs: validation report with `__has_include` guard requirements, strict/relaxed mode flags, ADR recommendations.
+- Do: enforce compile-time gating via `__has_include`; refuse silent feature downgrades.
+- Don't: allow runtime API fallbacks without feature-gating; skip build signature validation.
+
+### RMT Synchronization Specialist
+- Inputs: RMT timing requirements, dual-channel LED configs, refill probe specs.
+- Outputs: ADR with sync strategy, instrumentation spec, test patterns in `.claude-plugin/plugins/rmt-led-control/`.
+- Do: trace refill gaps, validate `mem_block_symbols >= 256`, bound timeouts; provide before/after telemetry.
+- Don't: perform `memset` in hot path; skip probe validation before merge; merge without metric deltas.
 
 ---
 
@@ -233,6 +251,35 @@ Decision: PASS → Ready for deployment; CONDITIONAL (≤2 misses) → escalate;
 
 Notes:
 - These guides were split out to reduce size and improve focus for Claude Code Agents. They remain available under the paths above.
+
+---
+
+## Plugin Architecture & Skill Tiers (Phase 5.3+)
+
+**Metadata-Driven Plugins:** `.claude-plugin/K1-marketplace.json` organizes firmware subsystems as isolated plugins (firmware-toolchain, rmt-led-control, i2s-audio, diagnostics-telemetry, testing-automation). Each plugin loads only its agents, skills, and commands; reduces context bloat and enables phase-specific loading.
+
+**Three-Tier Skills:** Each skill has:
+- **Tier 1 (Metadata):** Name, activation criteria, related agents (always loaded)
+- **Tier 2 (Instructions):** Core rules, patterns, validation checklist (loaded when activated)
+- **Tier 3 (Resources):** Examples, test patterns, ADR templates (loaded on-demand)
+
+Token savings: 40–60% for focused subsystem work vs. loading all guidance upfront.
+
+**Skills Available:**
+- `idf-feature-gating` — `__has_include` guards, strict/relaxed mode
+- `platform-pinning` — Toolchain version management, build signatures
+- `rmt-dual-channel-sync` — WS2812 synchronization, refill probes, buffer geometry
+- `hot-path-telemetry` — Zero-cost atomic accumulators, timing probes, DEBUG gating
+- `i2s-legacy-api-handling` — Deprecated API migration (IDF4 → IDF5)
+- `firmware-diagnostic-endpoints` — REST API scaffolding, heartbeat structure
+- `zero-cost-probe-design` — Measurement without regression
+- `compilation-safety-gating` — static_assert patterns, feature guards
+
+**Workflow vs. Tool Decision:**
+- **Workflow:** Multi-agent orchestration (e.g., `phase-5-3-rmt-stability` coordinates architect → engineer → reviewer → deployment)
+- **Tool:** Single-purpose utility (e.g., `idf-environment-check` validates toolchain only)
+
+See: `.claude-plugin/K1-marketplace.json` for registry; `.claude-plugin/plugins/*/agents/` for agent definitions; `.claude-plugin/plugins/*/skills/` for skill implementations.
 
 ---
 

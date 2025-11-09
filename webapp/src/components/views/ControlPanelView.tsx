@@ -312,9 +312,17 @@ export function ControlPanelView({ connectionState }: Props) {
         toast.warning('Palettes unsupported by current firmware');
         return;
       }
-      const maxIndex = Math.max(0, (palettes?.length || 1) - 1);
-      const clamped = Math.max(0, Math.min(Number(paletteId), maxIndex));
-      debouncedPostParamsGeneral({ palette_id: clamped });
+      // Validate that the selected palette_id exists in current palettes
+      const paletteExists = palettes?.some((p) => p.id === paletteId);
+      if (!paletteExists && palettes && palettes.length > 0) {
+        setIsSyncing(false);
+        toast.warning('Palette not available', {
+          description: `Palette ID ${paletteId} not found in device. Verify device palette list.`,
+        });
+        return;
+      }
+      // Send exact palette ID without remapping/clamping
+      debouncedPostParamsGeneral({ palette_id: paletteId });
     } else if (hsv) {
       const supportsHSV = !!fwParams
         && typeof fwParams.color === 'number'

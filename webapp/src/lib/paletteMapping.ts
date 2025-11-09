@@ -7,12 +7,12 @@ export const UI_TO_FIRMWARE_PALETTE_ID: Record<string, number> = {
   Ocean: 8,               // Ocean Breeze 068
   Cyber: 3,               // RGI 15
   Neon: 21,               // Fuschia 7
-  Fire: 23,               // Sunset Yellow
+  Fire: 24,               // Fire (corrected from 23)
   Forest: 12,             // Landscape 64
-  Lavender: 20,           // Violette
+  Lavender: 27,           // Pink Purple (corrected from 20)
   Depart: 11,             // Departure
   Vapor: 14,              // Rainbow Sherbet (vaporwave pastel)
-  Lava: 4,                // Retro 2 (red/orange)
+  Lava: 23,                // Lava (corrected from 4)
   Arctic: 2,              // Ocean Breeze 036 (icy blue)
   PRISM: 16,              // GR64 Hult (spectral gradient)
 };
