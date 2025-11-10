@@ -28,14 +28,20 @@ Phase 0 scaffolding has established dual-channel RMT infrastructure with `Render
 
 ## Current State Analysis
 
-### Memory Layout (NUM_LEDS = 180)
+### Hardware Configuration
+
+**Actual Device:** 2 PCBs × 160 LEDs per PCB = **320 LEDs total**
+
+**CRITICAL NOTE:** Code currently has `NUM_LEDS = 180` (led_driver.h:88) which does NOT match hardware. This must be corrected to `NUM_LEDS = 160` per the actual PCB configuration.
+
+### Memory Layout (160 LEDs per channel, 320 total)
 
 Per RenderChannel:
-- Float buffer: 180 × sizeof(CRGBF) = 180 × 12 = **2160 bytes**
-- Packed buffer: 180 × 3 = **540 bytes**
-- **Total per channel: 2700 bytes**
+- Float buffer: 160 × sizeof(CRGBF) = 160 × 12 = **1920 bytes**
+- Packed buffer: 160 × 3 = **480 bytes**
+- **Total per channel: 2400 bytes**
 
-Dual-channel total: **5400 bytes** (~5.3KB) - acceptable for ESP32-S3 (512KB SRAM)
+Dual-channel total: **4800 bytes** (~4.7KB) - acceptable for ESP32-S3 (512KB SRAM, <1% usage)
 
 ### Current Phase 0 Implementation (Copy Strategy)
 
@@ -55,7 +61,7 @@ for (uint16_t i = 0; i < NUM_LEDS; ++i) {
 - PatternRenderContext points to single global buffer
 - Scheduler copies to per-channel `RenderChannel::frame[]` after rendering
 - Each channel can apply independent post-processing (brightness, dithering)
-- Copy overhead: ~2160 bytes × 2 channels = **~4.3KB per frame**
+- Copy overhead: ~1920 bytes × 2 channels = **~3.8KB per frame**
 
 ### Constraints & Requirements
 
@@ -68,9 +74,9 @@ for (uint16_t i = 0; i < NUM_LEDS; ++i) {
 **Soft Constraints:**
 - Target 60 FPS → 16.67ms budget per frame
 - Current render: ~2-4ms typical
-- Copy overhead: ~200-400µs (measured empirically)
-- Quantize: ~500-800µs
-- RMT TX: ~600µs (hardware paced)
+- Copy overhead: ~180-350µs (160 LEDs, measured empirically)
+- Quantize: ~450-700µs (160 LEDs)
+- RMT TX: ~530µs (160 LEDs × 30µs reset, hardware paced)
 
 **Functional Requirements:**
 - Independent per-channel brightness/dithering
@@ -123,6 +129,7 @@ Three rendering modes based on pattern capabilities:
 - ❌ Incompatible with independent per-channel brightness/dithering
 - ❌ No memory savings (still need separate packed buffers for RMT)
 - ❌ Cache locality worse (alternating channel access)
+- ❌ Doesn't match hardware (2 PCBs of 160 LEDs each, not interleaved)
 
 ### Why Not Option C (Frame Manager)?
 
@@ -141,8 +148,8 @@ Three rendering modes based on pattern capabilities:
 - ✅ Independent post-processing per channel (brightness, dithering)
 
 **Copy Strategy Costs:**
-- ⚠️ ~200-400µs overhead per channel (acceptable within 16.67ms budget)
-- ⚠️ ~4.3KB memory bandwidth per frame (negligible for ESP32-S3)
+- ⚠️ ~180-350µs overhead per channel (acceptable within 16.67ms budget)
+- ⚠️ ~3.8KB memory bandwidth per frame (negligible for ESP32-S3)
 
 **Direct Render Benefits:**
 - ✅ Zero-copy for dual-aware patterns
@@ -184,7 +191,7 @@ for (uint8_t ci = 0; ci < 2; ++ci) {
     RenderChannel* ch = channels[ci];
     if (!ch || !ch->enabled) continue;
 
-    memcpy(ch->frame, leds, NUM_LEDS * sizeof(CRGBF));  // Fast copy
+    memcpy(ch->frame, leds, NUM_LEDS * sizeof(CRGBF));  // Fast copy (160 LEDs × 12 bytes = 1920 bytes)
     quantize_frame(*ch, params);
     rmt_transmit(ch->tx_handle, ch->encoder, ch->packed, ...);
 }
@@ -216,7 +223,7 @@ for (uint8_t ci = 0; ci < 2; ++ci) {
 
 **Copy Optimization:**
 - Use `memcpy()` instead of loop (4x faster on ESP32-S3)
-- DMA-based copy for large buffers (if bandwidth becomes bottleneck)
+- DMA-based copy for large buffers (unlikely needed for 1920 bytes)
 
 **Mirrored Pattern Optimization:**
 ```cpp
@@ -224,7 +231,7 @@ if (pattern->is_mirrored && channels[0] && channels[1]) {
     // Render once to channel A
     pattern->draw(ctx_for_channel_a);
 
-    // Fast copy A → B (single memcpy)
+    // Fast copy A → B (single memcpy, 1920 bytes)
     memcpy(channels[1]->frame, channels[0]->frame, NUM_LEDS * sizeof(CRGBF));
 
     // Quantize both (may differ due to per-channel brightness/dither)
@@ -237,27 +244,29 @@ if (pattern->is_mirrored && channels[0] && channels[1]) {
 
 ## Performance Analysis
 
+### Hardware Configuration: 160 LEDs per channel (320 total)
+
 ### Baseline (Current Phase 0 Copy Strategy)
 
 Per-frame budget (60 FPS = 16.67ms):
 - Render: ~3ms (pattern dependent)
-- Copy: ~0.4ms (200µs × 2 channels)
-- Quantize: ~1.2ms (600µs × 2 channels)
-- RMT TX: ~1.2ms (600µs × 2 channels, hardware paced)
+- Copy: ~0.7ms (350µs × 2 channels, 160 LEDs each)
+- Quantize: ~1.4ms (700µs × 2 channels, 160 LEDs each)
+- RMT TX: ~1.1ms (530µs × 2 channels, 160 LEDs each, hardware paced)
 - Wait: ~8ms (bounded timeout)
-- **Total: ~13.8ms** (17% margin)
+- **Total: ~14.2ms** (15% margin) ✅
 
 ### With memcpy Optimization
 
-- Copy: ~0.1ms (50µs × 2 channels using memcpy)
-- **Total: ~13.5ms** (19% margin)
+- Copy: ~0.18ms (90µs × 2 channels using memcpy, 160 LEDs each)
+- **Total: ~13.7ms** (18% margin) ✅
 
 ### Direct Render (Zero-Copy)
 
 - Copy: **0ms** (eliminated)
-- **Total: ~13.1ms** (21% margin)
+- **Total: ~13.0ms** (22% margin) ✅
 
-**Verdict:** Copy overhead is negligible. Hybrid approach provides flexibility without performance penalty.
+**Verdict:** Copy overhead is acceptable (~350µs per channel). Hybrid approach provides flexibility without performance penalty. All modes maintain >15% timing margin.
 
 ---
 
@@ -413,7 +422,7 @@ Per-frame budget (60 FPS = 16.67ms):
 struct PatternRenderContext {
     // === Backward Compatible Fields (always present) ===
     CRGBF* const leds;              // Primary render target (global buffer or channel A)
-    const int num_leds;             // LED count (always NUM_LEDS = 180)
+    const int num_leds;             // LED count (always NUM_LEDS = 160 per actual hardware)
     const float time;               // Animation time in seconds
     const PatternParameters& params;
     const AudioDataSnapshot& audio_snapshot;
@@ -526,5 +535,8 @@ void visual_scheduler_render_frame(RenderChannel** channels, const PatternInfo* 
 - Phase 0 Scaffolding: firmware/src/visual_scheduler.cpp
 - Current Context: firmware/src/pattern_render_context.h
 - Channel Structure: firmware/src/render_channel.h
-- RMT Configuration: firmware/src/led_driver.h:88 (NUM_LEDS = 180)
+- RMT Configuration: firmware/src/led_driver.h:88
+  - **WARNING:** Code shows NUM_LEDS = 180, but actual hardware is 160 LEDs per PCB (320 total)
+  - This mismatch must be corrected before production deployment
 - CLAUDE.md RMT Guidelines: Section "Firmware/ESP-IDF Guardrails & Playbook"
+- Hardware Specification: 2 PCBs × 160 WS2812 LEDs each = 320 total
