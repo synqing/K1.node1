@@ -1985,6 +1985,111 @@ void draw_snapwave(float time, const PatternParameters& params) {
     apply_background_overlay(params);
 }
 
+/**
+ * Pattern: PRISM - Correct Hero Demo Pattern
+ *
+ * Spectrum visualization with beat-synchronized energy response.
+ * Uses palette-based coloring + saturation modulation + integrated trail.
+ *
+ * Based on Emotiscope design principles:
+ * - Palette system for vibrant color mapping
+ * - Perceptual sqrt response curve
+ * - Saturation modulation (0.6-1.0 range based on magnitude)
+ * - Colored trail glow (integrated, not bolted-on white)
+ * - Energy gating for beat synchronization
+ */
+static float prism_trail[NUM_LEDS] = {0.0f};
+
+void draw_prism(float time, const PatternParameters& params) {
+    PATTERN_AUDIO_START();
+
+    // STEP 1: Decay trail buffer
+    float trail_decay = 0.93f + 0.05f * clip_float(params.softness);  // 0.93-0.98
+    for (int i = 0; i < NUM_LEDS; i++) {
+        prism_trail[i] *= trail_decay;
+    }
+
+    if (!AUDIO_IS_AVAILABLE()) {
+        // Idle: Gentle breathing animation with palette
+        for (int i = 0; i < NUM_LEDS; i++) {
+            float progress = (float)i / NUM_LEDS;
+            float breath = 0.5f + 0.3f * sinf(time * params.speed + progress * 3.14159f);
+            CRGBF color = color_from_palette(params.palette_id, progress, breath * params.brightness);
+            prism_trail[i] = fmaxf(prism_trail[i], breath * 0.3f);
+            leds[i] = color;
+        }
+        apply_background_overlay(params);
+        return;
+    }
+
+    // Energy gate: beat detection via VU + novelty
+    float energy_level = fminf(1.0f, (AUDIO_VU * 0.8f) + (AUDIO_NOVELTY * 0.3f));
+    float beat_threshold = 0.3f + 0.5f * clip_float(params.custom_param_1);
+    float beat_factor = beat_gate(energy_level > beat_threshold ? energy_level : 0.0f);
+    float energy_boost = 1.0f + beat_factor * 0.6f;
+
+    // Age-based decay for smooth silence transition
+    float age_ms = (float)AUDIO_AGE_MS();
+    float age_factor = 1.0f - fminf(age_ms, 500.0f) / 500.0f;
+    age_factor = fmaxf(0.0f, age_factor);
+
+    // STEP 2: Render spectrum with center-origin mirroring
+    int half_leds = NUM_LEDS / 2;
+    for (int i = 0; i < half_leds; i++) {
+        float progress = (float)i / (float)half_leds;
+        float magnitude = clip_float(AUDIO_SPECTRUM_INTERP(progress));
+
+        // PERCEPTUAL MAPPING
+        magnitude = response_sqrt(magnitude) * energy_boost * age_factor;
+        magnitude = fmaxf(0.0f, fminf(1.0f, magnitude));
+
+        // COLOR FROM PALETTE (not raw HSV!)
+        CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
+
+        // SATURATION MODULATION: colors intensify on peaks
+        if (magnitude > 0.1f) {
+            HSVF hsv_color = rgb_to_hsv(color);
+            hsv_color.s = 0.7f + (magnitude * 0.3f);  // 0.7-1.0 range
+            color = hsv(hsv_color.h, hsv_color.s, hsv_color.v);
+        }
+
+        // Apply brightness
+        color.r *= params.brightness;
+        color.g *= params.brightness;
+        color.b *= params.brightness;
+
+        // Mirror from center
+        int left_idx = half_leds - 1 - i;
+        int right_idx = half_leds + i;
+
+        leds[left_idx] = color;
+        leds[right_idx] = color;
+
+        // Update trail with current magnitude
+        prism_trail[left_idx] = fmaxf(prism_trail[left_idx], magnitude);
+        prism_trail[right_idx] = fmaxf(prism_trail[right_idx], magnitude);
+    }
+
+    // STEP 3: Apply colored trail glow (integrated, not white)
+    float trail_strength = 0.1f + 0.15f * clip_float(params.custom_param_2);  // 0.1-0.25 range
+    for (int i = 0; i < NUM_LEDS; i++) {
+        if (prism_trail[i] > 0.05f) {
+            // Get HSV of current color
+            HSVF hsv_current = rgb_to_hsv(leds[i]);
+
+            // Create colored trail (preserve hue, reduce saturation & brightness for subtle glow)
+            CRGBF trail_color = hsv(hsv_current.h, hsv_current.s * 0.6f, prism_trail[i] * trail_strength);
+
+            // Blend trail with current LED
+            leds[i].r = fminf(1.0f, leds[i].r + trail_color.r);
+            leds[i].g = fminf(1.0f, leds[i].g + trail_color.g);
+            leds[i].b = fminf(1.0f, leds[i].b + trail_color.b);
+        }
+    }
+
+    apply_background_overlay(params);
+}
+
 // ============================================================================
 // PATTERN REGISTRY
 // ============================================================================
@@ -2013,6 +2118,13 @@ const PatternInfo g_pattern_registry[] = {
 		false
 	},
 	// Domain 2: Audio-Reactive Patterns
+	{
+		"Prism",
+		"prism",
+		"★ DEMO ★ Palette spectrum + saturation modulation + colored trails",
+		draw_prism,
+		true
+	},
 	{
 		"Spectrum",
 		"spectrum",
