@@ -120,7 +120,7 @@ describe('DeviceManager', () => {
         />
       );
       
-      const input = screen.getByPlaceholderText(/192.168.1.103/);
+      const input = screen.getByLabelText(/Device IP Address/i);
       const connectButton = screen.getByRole('button', { name: /connect/i });
       
       // Test invalid IP
@@ -150,7 +150,7 @@ describe('DeviceManager', () => {
         />
       );
       
-      const input = screen.getByPlaceholderText(/192.168.1.103/);
+      const input = screen.getByLabelText(/Device IP Address/i);
       
       // Test IPv6 without brackets
       await user.type(input, 'fe80::1');
@@ -177,7 +177,7 @@ describe('DeviceManager', () => {
         />
       );
       
-      const input = screen.getByPlaceholderText(/192.168.1.103/);
+      const input = screen.getByLabelText(/Device IP Address/i);
       const connectButton = screen.getByRole('button', { name: /connect/i });
       
       await user.type(input, '192.168.1.103');
@@ -198,7 +198,7 @@ describe('DeviceManager', () => {
         />
       );
       
-      const input = screen.getByPlaceholderText(/192.168.1.103/);
+      const input = screen.getByLabelText(/Device IP Address/i);
       const connectButton = screen.getByRole('button', { name: /connect/i });
       
       await user.type(input, '192.168.1.103');
@@ -343,7 +343,7 @@ describe('DeviceManager', () => {
       );
       
       // Enable auto-reconnect and trigger a failed connection
-      const input = screen.getByPlaceholderText(/192.168.1.103/);
+      const input = screen.getByLabelText(/Device IP Address/i);
       const connectButton = screen.getByRole('button', { name: /connect/i });
       
       await user.type(input, '192.168.1.103');
@@ -369,7 +369,7 @@ describe('DeviceManager', () => {
         />
       );
       
-      const input = screen.getByPlaceholderText(/192.168.1.103/);
+      const input = screen.getByLabelText(/Device IP Address/i);
       const connectButton = screen.getByRole('button', { name: /connect/i });
       
       await user.type(input, '192.168.1.103');
@@ -394,7 +394,7 @@ describe('DeviceManager', () => {
         />
       );
       
-      const input = screen.getByPlaceholderText(/192.168.1.103/);
+      const input = screen.getByLabelText(/Device IP Address/i);
       const connectButton = screen.getByRole('button', { name: /connect/i });
       
       // First connection fails
@@ -498,7 +498,7 @@ describe('DeviceManager', () => {
         />
       );
       
-      const input = screen.getByPlaceholderText(/192.168.1.103/);
+      const input = screen.getByLabelText(/Device IP Address/i);
       
       // Tab to input and type
       await user.tab();

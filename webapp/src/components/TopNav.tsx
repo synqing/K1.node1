@@ -5,8 +5,8 @@ import { Button } from './ui/button';
 import { useEffect, useState } from 'react';
 
 interface TopNavProps {
-  currentView: 'control' | 'analysis' | 'profiling' | 'terminal' | 'graph' | 'api';
-  onViewChange: (view: 'control' | 'analysis' | 'profiling' | 'terminal' | 'graph' | 'api') => void;
+  currentView: 'control' | 'analysis' | 'profiling' | 'terminal' | 'node' | 'api';
+  onViewChange: (view: 'control' | 'analysis' | 'profiling' | 'terminal' | 'node' | 'api') => void;
   connected: boolean;
   deviceIp?: string;
   defaultIp?: string;
@@ -38,7 +38,7 @@ export function TopNav({ currentView, onViewChange, connected, deviceIp, default
         <div className="h-6 w-px bg-[var(--prism-bg-elevated)] mx-2" />
         
         <nav className="flex gap-1">
-          {([ 'control', 'analysis', 'profiling', 'terminal', 'graph', ...(showApiIndex ? ['api'] as const : []) ]).map((view) => (
+          {([ 'control', 'analysis', 'profiling', 'terminal', 'node', ...(showApiIndex ? ['api'] as const : []) ]).map((view) => (
             <button
               key={view}
               onMouseEnter={() => {
@@ -52,8 +52,8 @@ export function TopNav({ currentView, onViewChange, connected, deviceIp, default
                   void import('recharts');
                 } else if (view === 'terminal') {
                   void import('./views/TerminalView');
-                } else if (view === 'graph') {
-                  void import('./views/GraphEditorView');
+                } else if (view === 'node') {
+                  void import('./views/NodeEditorView');
                   // Defer Radix UI until needed; prefetch on hover
                   void import('@radix-ui/react-dialog');
                   void import('@radix-ui/react-tabs');

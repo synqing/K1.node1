@@ -16,19 +16,17 @@ from typing import Any, Dict, List
 
 
 def emit_header(num_leds: int) -> str:
-    """Emit C++ header with includes and constants."""
+    """Emit C++ header with includes and new optimized function signature."""
     return f'''#include "graph_runtime.h"
 #include "../stateful_nodes.h"
 #include "../parameters.h"
 #include "../pattern_audio_interface.h"
 
-extern "C" void pattern_bloom_render(
-    uint32_t frame_count,
-    const AudioDataSnapshot& audio,
-    const PatternParameters& params,
-    PatternState& state,
-    PatternOutput& out
-) {{
+extern CRGBF leds[NUM_LEDS];
+
+void draw_bloom_generated(float time, const PatternParameters& params) {{
+    PATTERN_AUDIO_START();
+    static PatternState state; // For nodes that require state
     static constexpr int PATTERN_NUM_LEDS = {num_leds};
 
     // Temporary buffers for intermediate stages
@@ -94,15 +92,15 @@ def emit_mirror_node(node: Dict[str, Any], num_leds: int) -> str:
 
 
 def emit_led_output_node(node: Dict[str, Any], num_leds: int) -> str:
-    """Emit LedOutput terminal (clamp and write to output)."""
-    return f"""    // Terminal: LedOutput
-    // Clamp and quantize final buffer to 8-bit RGB
+    """Emit LedOutput terminal (optimized to write to global leds buffer)."""
+    return f"""    // Terminal: LedOutput (OPTIMIZED)
+    // Clamp and write final buffer to global leds array, applying brightness
     const CRGBF* final_buf = tmp_rgb1;
     for (int i = 0; i < PATTERN_NUM_LEDS; ++i) {{
-        CRGBF c = clamped_rgb(final_buf[i]);
-        out.leds[i][0] = (uint8_t)std::floor(c.r * 255.0f + 0.5f);
-        out.leds[i][1] = (uint8_t)std::floor(c.g * 255.0f + 0.5f);
-        out.leds[i][2] = (uint8_t)std::floor(c.b * 255.0f + 0.5f);
+        CRGBF final_color = clamped_rgb(final_buf[i]);
+        leds[i].r = final_color.r * params.brightness;
+        leds[i].g = final_color.g * params.brightness;
+        leds[i].b = final_color.b * params.brightness;
     }}
 """
 

@@ -8,7 +8,7 @@ const SAMPLE_DIFF = {
   changed: ['ColorMapper (gain 1.2 → 1.4)'],
 };
 
-export function GraphPresetCard() {
+export function NodePresetCard() {
   return (
     <Card
       className="space-y-4 border p-4"
@@ -23,7 +23,7 @@ export function GraphPresetCard() {
             className="font-['Bebas_Neue',sans-serif] uppercase tracking-wide"
             style={{ color: 'var(--color-prism-text-primary)' }}
           >
-            Recommended Graph Template
+            Recommended Node Template
           </h4>
           <p
             className="text-sm"
@@ -64,7 +64,7 @@ export function GraphPresetCard() {
       <div className="flex flex-wrap gap-2">
         <Button size="sm">Apply template</Button>
         <Button size="sm" variant="secondary">
-          Customise in graph editor
+          Customise in node editor
         </Button>
         <Button size="sm" variant="outline">
           Simulate improvements

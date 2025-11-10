@@ -18,6 +18,8 @@ struct PatternParameters {
     float warmth;              // 0.0 - 1.0 (incandescent filter amount)
     float background;          // 0.0 - 1.0 (ambient background level)
     float dithering;           // 0.0 - 1.0 (temporal dithering enable: 0=off, 1=on)
+    float mirror_mode;         // 0.0 - 1.0 (0 = disable mirroring, 1 = enable)
+    float led_offset;          // -NUM_LEDS .. +NUM_LEDS (logical → physical shift)
 
     // Pattern-specific controls
     float speed;               // 0.0 - 1.0 (animation speed multiplier)
@@ -55,6 +57,8 @@ inline PatternParameters get_default_params() {
     params.warmth = 0.0f;          // Emotiscope: warmth default = 0.0
     params.background = 0.0f;       // No ambient background by default (clean visual separation)
     params.dithering = 1.0f;       // Temporal dithering enabled by default
+    params.mirror_mode = 1.0f;      // Centre-origin mirroring enabled
+    params.led_offset = 0.0f;       // No logical shift
     // Pattern-specific
     params.speed = 0.5f;           // Emotiscope: speed default = 0.5
     params.palette_id = 0;         // Will be set per-pattern

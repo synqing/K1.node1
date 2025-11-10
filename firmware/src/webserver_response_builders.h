@@ -104,6 +104,16 @@ static void apply_params_json(const JsonObjectConst& root) {
     if (root.containsKey("warmth")) updated.warmth = root["warmth"].as<float>();
     if (root.containsKey("background")) updated.background = root["background"].as<float>();
     if (root.containsKey("dithering")) updated.dithering = root["dithering"].as<float>();
+    if (root.containsKey("mirror_mode")) {
+        if (root["mirror_mode"].is<bool>()) {
+            updated.mirror_mode = root["mirror_mode"].as<bool>() ? 1.0f : 0.0f;
+        } else {
+            updated.mirror_mode = root["mirror_mode"].as<float>();
+        }
+    }
+    if (root.containsKey("led_offset")) {
+        updated.led_offset = root["led_offset"].as<float>();
+    }
     if (root.containsKey("speed")) updated.speed = root["speed"].as<float>();
     if (root.containsKey("palette_id")) updated.palette_id = root["palette_id"].as<uint8_t>();
     if (root.containsKey("custom_param_1")) updated.custom_param_1 = root["custom_param_1"].as<float>();

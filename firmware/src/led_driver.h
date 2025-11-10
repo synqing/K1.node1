@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <string.h>
+#include <math.h>
 
 // Prefer ESP-IDF v5 split RMT headers; otherwise provide minimal stubs to allow compilation
 #if __has_include(<driver/rmt_tx.h>)
@@ -84,14 +85,14 @@
 #endif
 
 // It won't void any kind of stupid warranty, but things will *definitely* break at this point if you change this number.
-#define NUM_LEDS ( 180 )
+#define NUM_LEDS ( 160 )
 
 // CENTER-ORIGIN ARCHITECTURE (Mandatory for all patterns)
 // All effects MUST radiate from center point, never edge-to-edge
 // NO rainbows, NO linear gradients - only radial/symmetric effects
-#define STRIP_CENTER_POINT ( 89 )   // Physical LED at center (NUM_LEDS/2 - 1)
-#define STRIP_HALF_LENGTH ( 90 )    // Distance from center to each edge
-#define STRIP_LENGTH ( 180 )        // Total span (must equal NUM_LEDS)
+#define STRIP_CENTER_POINT ( 79 )   // Physical LED at center (160/2 - 1)
+#define STRIP_HALF_LENGTH ( 80 )    // Distance from center to each edge
+#define STRIP_LENGTH ( 160 )        // Total span (must equal NUM_LEDS)
 
 static_assert(STRIP_LENGTH == NUM_LEDS, "STRIP_LENGTH must equal NUM_LEDS");
 static_assert(STRIP_CENTER_POINT == (NUM_LEDS/2 - 1), "STRIP_CENTER_POINT must be center index (NUM_LEDS/2 - 1)");
@@ -304,11 +305,19 @@ inline void quantize_color(bool temporal_dithering) {
     }
 }
 
-inline void pack_channel_bytes(const uint8_t* rgb, uint8_t* out, const LedChannelConfig& cfg) {
+inline uint16_t remap_led_index(uint16_t logical_index, int16_t offset_px) {
+    int32_t idx = static_cast<int32_t>(logical_index) + static_cast<int32_t>(offset_px);
+    idx %= NUM_LEDS;
+    if (idx < 0) idx += NUM_LEDS;
+    return static_cast<uint16_t>(idx);
+}
+
+inline void pack_channel_bytes(const uint8_t* rgb, uint8_t* out, const LedChannelConfig& cfg, int16_t led_offset_px) {
     const uint16_t n = cfg.length;
     const uint16_t off = cfg.offset;
     for (uint16_t i = 0; i < n; ++i) {
-        const uint16_t src = (uint16_t)(i + off);
+        const uint16_t logical = static_cast<uint16_t>(i + off);
+        const uint16_t src = remap_led_index(logical, led_offset_px);
         const uint16_t base_src = src * 3;
         const uint16_t base_out = i * 3;
         out[base_out + 0] = rgb[base_src + cfg.map[0]];
@@ -320,6 +329,10 @@ inline void pack_channel_bytes(const uint8_t* rgb, uint8_t* out, const LedChanne
 // IRAM_ATTR function must be in header for memory placement
 // Made static to ensure internal linkage (each TU gets its own copy)
 IRAM_ATTR static inline void transmit_leds() {
+    const PatternParameters& tx_params = get_params();
+    int16_t led_offset_px = static_cast<int16_t>(lroundf(tx_params.led_offset));
+    if (led_offset_px > NUM_LEDS) led_offset_px = NUM_LEDS;
+    if (led_offset_px < -NUM_LEDS) led_offset_px = -NUM_LEDS;
     // If RMT v2 APIs are available, use them; otherwise, skip transmission gracefully
 #if __has_include(<driver/rmt_tx.h>)
     // Wait here if previous frame transmission has not yet completed (both channels)
@@ -414,14 +427,14 @@ IRAM_ATTR static inline void transmit_leds() {
     #endif
 
     // Pack per-channel bytes based on mapping (channel 1 always packed)
-    pack_channel_bytes(rgb8_data, raw_led_data, g_ch1_config);
+    pack_channel_bytes(rgb8_data, raw_led_data, g_ch1_config, led_offset_px);
     bool use_ch2_alias = (g_ch2_config.map[0] == g_ch1_config.map[0] &&
                           g_ch2_config.map[1] == g_ch1_config.map[1] &&
                           g_ch2_config.map[2] == g_ch1_config.map[2] &&
                           g_ch2_config.length == g_ch1_config.length &&
                           g_ch2_config.offset == g_ch1_config.offset);
     if (!use_ch2_alias) {
-        pack_channel_bytes(rgb8_data, raw_led_data_ch2, g_ch2_config);
+        pack_channel_bytes(rgb8_data, raw_led_data_ch2, g_ch2_config, led_offset_px);
     }
 
     const uint8_t* ch2_data = use_ch2_alias ? raw_led_data : raw_led_data_ch2;
@@ -462,14 +475,14 @@ IRAM_ATTR static inline void transmit_leds() {
 #if __has_include(<driver/rmt.h>)
     // Legacy RMT v1 fallback (ESP-IDF v4, Arduino core 2.x)
     // 1) Pack mapped bytes for each channel
-    pack_channel_bytes(rgb8_data, raw_led_data, g_ch1_config);
+    pack_channel_bytes(rgb8_data, raw_led_data, g_ch1_config, led_offset_px);
     bool use_ch2_alias = (g_ch2_config.map[0] == g_ch1_config.map[0] &&
                           g_ch2_config.map[1] == g_ch1_config.map[1] &&
                           g_ch2_config.map[2] == g_ch1_config.map[2] &&
                           g_ch2_config.length == g_ch1_config.length &&
                           g_ch2_config.offset == g_ch1_config.offset);
     if (!use_ch2_alias) {
-        pack_channel_bytes(rgb8_data, raw_led_data_ch2, g_ch2_config);
+        pack_channel_bytes(rgb8_data, raw_led_data_ch2, g_ch2_config, led_offset_px);
     }
 
     // 2) Encode GRB bytes into RMT items at ~800 kHz timing using clk_div=2 (25 ns ticks)

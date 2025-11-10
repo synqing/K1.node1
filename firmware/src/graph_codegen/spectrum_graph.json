@@ -16,7 +16,7 @@
     }
   },
   "led_config": {
-    "num_leds": 180,
+    "num_leds": 160,
     "strip_layout": "center_origin"
   },
   "nodes": [
@@ -82,7 +82,7 @@
       "description": "Create symmetric visualization from center",
       "parameters": {
         "axis": "vertical",
-        "center_index": 90
+        "center_index": 80
       },
       "inputs": ["colors_led_buffer"],
       "outputs": ["colors_mirrored"]
@@ -149,7 +149,7 @@
     {
       "id": "led_trail",
       "type": "BufferPersist",
-      "size": 180,
+      "size": 160,
       "decay_factor": 0.92,
       "used_by": "led_output"
     }

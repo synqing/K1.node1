@@ -9,10 +9,7 @@
 let baseUrl: string = (() => {
   const fromEnv = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ORKES_SERVICE_BASE_URL) || undefined;
   if (fromEnv) return fromEnv;
-  if (typeof window !== 'undefined') {
-    // Default to local dev service if running in browser
-    return 'http://localhost:4002/api/workflows';
-  }
+  // Default to same-origin proxy path so Vite can forward `/api` → backend
   return '/api/workflows';
 })();
 
@@ -117,4 +114,3 @@ export interface PatternCompilationInput {
 export function executePatternCompilation(input: PatternCompilationInput) {
   return orkesClient.execute({ workflowName: 'k1_pattern_compilation', input });
 }
-

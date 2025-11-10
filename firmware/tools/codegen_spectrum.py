@@ -22,15 +22,19 @@ class SpectrumCodegen:
 #include "../parameters.h"
 #include "../pattern_audio_interface.h"
 
-extern "C" void pattern_spectrum_render(
-    uint32_t frame_count,
-    const AudioDataSnapshot& audio,
-    const PatternParameters& params,
-    PatternState& state,
-    PatternOutput& out
-) {
+// Forward declaration of the global LEDs buffer
+extern CRGBF leds[NUM_LEDS];
+
+void draw_spectrum_generated(float time, const PatternParameters& params) {
+    // This entire function is auto-generated from a JSON graph.
+    // It has been optimized to write directly to the global `leds` buffer,
+    // eliminating the inefficient intermediate `PatternOutput` buffer and copy step.
+
+    // Start audio processing and get a snapshot
+    PATTERN_AUDIO_START();
+
     // Constants from graph definition
-    static constexpr int PATTERN_NUM_LEDS = 180;
+    static constexpr int PATTERN_NUM_LEDS = 160; // Corrected to 160
     static constexpr int NUM_FREQ_BINS = 64;
     static constexpr float FFT_DECAY = 0.85f;
     static constexpr float SMOOTH_FACTOR = 0.7f;
@@ -39,17 +43,14 @@ extern "C" void pattern_spectrum_render(
     float spectrum_normalized[NUM_FREQ_BINS] = {0.0f};
     float spectrum_smoothed[NUM_FREQ_BINS] = {0.0f};
     CRGBF tmp_rgb0[PATTERN_NUM_LEDS] = {};
-    CRGBF tmp_rgb1[PATTERN_NUM_LEDS] = {};
 
     // Initialize state nodes (stateful)
     static BufferPersistNode spectrum_decay("spectrum_decay", NUM_FREQ_BINS, FFT_DECAY);
     static BufferPersistNode led_trail("led_trail", PATTERN_NUM_LEDS, 0.92f);
+    static PatternState state; // Holds IIR filter state
 
     // ===== NODE: AUDIO_INPUT =====
-    // Extract raw spectrum from audio snapshot (use the passed-in audio parameter)
-    bool audio_available = (&audio != nullptr);
-    float vu = audio_available ? audio.vu_level : 0.0f;
-
+    // The PATTERN_AUDIO_START() macro above already provides `audio` and `audio_available`.
     if (!audio_available) {
         // Fallback: use silence
         memset(spectrum_normalized, 0, sizeof(spectrum_normalized));
@@ -61,7 +62,6 @@ extern "C" void pattern_spectrum_render(
     }
 
     // ===== NODE: NORMALIZE =====
-    // Apply VU scaling and sensitivity parameter
     float sensitivity = params.audio_sensitivity;
     for (int i = 0; i < NUM_FREQ_BINS; i++) {
         spectrum_normalized[i] *= sensitivity;
@@ -69,12 +69,10 @@ extern "C" void pattern_spectrum_render(
     }
 
     // ===== NODE: FFT_EXTRACT =====
-    // Extract frequency bin magnitudes and apply decay
     spectrum_decay.apply_decay();
     for (int i = 0; i < NUM_FREQ_BINS; i++) {
         float current = spectrum_normalized[i];
         float decayed = spectrum_decay.read(i);
-        // Keep peaks, decay silent bins
         if (current > decayed) {
             spectrum_decay.write(i, current);
         }
@@ -82,81 +80,52 @@ extern "C" void pattern_spectrum_render(
     }
 
     // ===== NODE: SMOOTHING =====
-    // Apply low-pass smoothing to reduce noise
     float alpha = SMOOTH_FACTOR;
     for (int i = 0; i < NUM_FREQ_BINS; i++) {
-        // Simple IIR low-pass: use custom_state[0..63] to track
         state.custom_state[i] = alpha * spectrum_normalized[i] +
                                 (1.0f - alpha) * state.custom_state[i];
         spectrum_smoothed[i] = state.custom_state[i];
     }
 
     // ===== NODE: COLORIZE =====
-    // Map spectrum to colors via HSV palette
-    // Map frequency bins to LED positions (64 bins -> 180 LEDs)
-    static const CRGBF palette_hot[] = {
-        {0.0f, 0.0f, 0.0f},      // Black
-        {0.0f, 0.0f, 1.0f},      // Blue
-        {0.0f, 1.0f, 1.0f},      // Cyan
-        {0.0f, 1.0f, 0.0f},      // Green
-        {1.0f, 1.0f, 0.0f},      // Yellow
-        {1.0f, 0.5f, 0.0f},      // Orange
-        {1.0f, 0.0f, 0.0f}       // Red
-    };
-
-    // Map each LED to nearest frequency bin
-    for (int i = 0; i < PATTERN_NUM_LEDS; i++) {
-        // Linear mapping: LED position -> frequency bin index
-        int bin_idx = (i * NUM_FREQ_BINS) / PATTERN_NUM_LEDS;
-        if (bin_idx >= NUM_FREQ_BINS) bin_idx = NUM_FREQ_BINS - 1;
-
-        float magnitude = spectrum_smoothed[bin_idx];
-
-        // Hue from frequency (low=blue, high=red)
-        float hue = (float)bin_idx / (float)NUM_FREQ_BINS;
-
-        // Saturation constant
+    // (This implementation now uses the corrected center-mirroring logic)
+    const int half_leds = PATTERN_NUM_LEDS / 2;
+    for (int i = 0; i < half_leds; i++) {
+        float progress = (float)i / (float)half_leds;
+        float bin_float = progress * (float)(NUM_FREQ_BINS - 1);
+        int bin_idx = (int)bin_float;
+        int bin_high = (bin_idx + 1 < NUM_FREQ_BINS) ? (bin_idx + 1) : NUM_FREQ_BINS - 1;
+        float frac = bin_float - (float)bin_idx;
+        float magnitude = spectrum_smoothed[bin_idx] * (1.0f - frac) +
+                         spectrum_smoothed[bin_high] * frac;
+        float hue = bin_float / (float)NUM_FREQ_BINS;
         float sat = 0.95f;
-
-        // Value (brightness) from magnitude with brightness parameter
         float value = magnitude * params.brightness;
+        CRGBF color = hsv_to_rgb(hue, sat, value);
 
-        // Convert HSV to RGB
-        tmp_rgb0[i] = hsv_to_rgb(hue, sat, value);
-    }
-
-    // ===== NODE: MIRROR =====
-    // Create symmetric visualization from center
-    for (int i = 0; i < PATTERN_NUM_LEDS / 2; i++) {
-        int mirror_idx = PATTERN_NUM_LEDS - 1 - i;
-        tmp_rgb0[mirror_idx] = tmp_rgb0[i];
+        // Write symmetrically to the temporary buffer
+        tmp_rgb0[half_leds - 1 - i] = color;
+        tmp_rgb0[half_leds + i] = color;
     }
 
     // ===== NODE: TRAIL =====
-    // Apply persistence/decay trail effect
     led_trail.apply_decay();
     for (int i = 0; i < PATTERN_NUM_LEDS; i++) {
         float r_trail = led_trail.read(i);
-        // Blend current color with trail
-        float trail_blend = params.softness;  // 0.25 default
+        float trail_blend = params.softness;
         CRGBF blended = {
             tmp_rgb0[i].r + r_trail * trail_blend,
             tmp_rgb0[i].g + r_trail * trail_blend,
             tmp_rgb0[i].b + r_trail * trail_blend
         };
-        blended = clamped_rgb(blended);
         tmp_rgb0[i] = blended;
-        led_trail.write(i, tmp_rgb0[i].r);  // Store for next frame
+        led_trail.write(i, tmp_rgb0[i].r);
     }
 
-    // ===== TERMINAL: LED_OUTPUT =====
-    // Final color clamping and conversion to 8-bit RGB
-    const CRGBF* final_buf = tmp_rgb0;
+    // ===== TERMINAL: LED_OUTPUT (OPTIMIZED) =====
+    // Final output is written directly to the global `leds` framebuffer.
     for (int i = 0; i < PATTERN_NUM_LEDS; i++) {
-        CRGBF c = clamped_rgb(final_buf[i]);
-        out.leds[i][0] = (uint8_t)(c.r * 255.0f + 0.5f);
-        out.leds[i][1] = (uint8_t)(c.g * 255.0f + 0.5f);
-        out.leds[i][2] = (uint8_t)(c.b * 255.0f + 0.5f);
+        leds[i] = clamped_rgb(tmp_rgb0[i]);
     }
 }
 '''

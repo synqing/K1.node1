@@ -29,6 +29,8 @@ String build_params_json() {
     doc["warmth"] = params.warmth;
     doc["background"] = params.background;
     doc["dithering"] = params.dithering;
+    doc["mirror_mode"] = (params.mirror_mode >= 0.5f);
+    doc["led_offset"] = params.led_offset;
     doc["speed"] = params.speed;
     doc["palette_id"] = params.palette_id;
     doc["beat_threshold"] = params.beat_threshold;

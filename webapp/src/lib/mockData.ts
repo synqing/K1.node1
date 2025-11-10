@@ -1,6 +1,6 @@
 // Mock data generators for PRISM.node2
 
-import { Effect, ColorPalette, PerformanceMetrics, EffectType, GraphNode, NodePortType, RgbColor } from './types';
+import { Effect, ColorPalette, PerformanceMetrics, EffectType, Node, NodePortType, RgbColor } from './types';
 
 export const EFFECTS: Effect[] = [
   {

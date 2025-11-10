@@ -1,9 +1,9 @@
 import { AlertCircle, X } from 'lucide-react';
-import { GraphError } from '../../lib/types';
+import { NodeError } from '../../lib/types';
 import { Button } from '../ui/button';
 
 interface ErrorPanelProps {
-  errors: GraphError[];
+  errors: NodeError[];
   onErrorClick: (nodeId: string) => void;
   onClearErrors: () => void;
 }
