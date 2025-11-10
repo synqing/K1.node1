@@ -8,13 +8,14 @@ const ProfilingView = lazy(() => import('./components/views/ProfilingView').then
 const TerminalView = lazy(() => import('./components/views/TerminalView').then(m => ({ default: m.TerminalView })));
 const GraphEditorView = lazy(() => import('./components/views/GraphEditorView').then(m => ({ default: m.GraphEditorView })));
 const AnalysisView = lazy(() => import('./components/views/AnalysisView').then(m => ({ default: m.AnalysisView })));
+const ApiIndexView = lazy(() => import('./components/views/ApiIndexView').then(m => ({ default: m.ApiIndexView })));
 import { ConnectionState } from './lib/types';
 import { toast } from 'sonner';
 import { testConnection } from './lib/api';
 import { getDefaultDeviceIp, shouldAutoConnect } from './lib/config';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'control' | 'analysis' | 'profiling' | 'terminal' | 'graph'>('control');
+  const [currentView, setCurrentView] = useState<'control' | 'analysis' | 'profiling' | 'terminal' | 'graph' | 'api'>('control');
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     connected: false,
     deviceIp: '',
@@ -179,6 +180,7 @@ export default function App() {
             {currentView === 'profiling' && <ProfilingView />}
             {currentView === 'terminal' && <TerminalView />}
             {currentView === 'graph' && <GraphEditorView />}
+            {currentView === 'api' && <ApiIndexView connectionState={connectionState} />}
           </Suspense>
         </main>
       </div>

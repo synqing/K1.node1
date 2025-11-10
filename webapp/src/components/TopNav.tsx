@@ -5,8 +5,8 @@ import { Button } from './ui/button';
 import { useEffect, useState } from 'react';
 
 interface TopNavProps {
-  currentView: 'control' | 'analysis' | 'profiling' | 'terminal' | 'graph';
-  onViewChange: (view: 'control' | 'analysis' | 'profiling' | 'terminal' | 'graph') => void;
+  currentView: 'control' | 'analysis' | 'profiling' | 'terminal' | 'graph' | 'api';
+  onViewChange: (view: 'control' | 'analysis' | 'profiling' | 'terminal' | 'graph' | 'api') => void;
   connected: boolean;
   deviceIp?: string;
   defaultIp?: string;
@@ -16,6 +16,7 @@ interface TopNavProps {
 
 export function TopNav({ currentView, onViewChange, connected, deviceIp, defaultIp, onConnect, onDisconnect }: TopNavProps) {
   const showPreviewLink = import.meta.env.DEV || (import.meta.env.VITE_SHOW_PREVIEW_LINK === 'true');
+  const showApiIndex = import.meta.env.DEV || (import.meta.env.VITE_SHOW_API_INDEX === 'true');
   const [ip, setIp] = useState<string>('');
   const [connecting, setConnecting] = useState<boolean>(false);
 
@@ -37,7 +38,7 @@ export function TopNav({ currentView, onViewChange, connected, deviceIp, default
         <div className="h-6 w-px bg-[var(--prism-bg-elevated)] mx-2" />
         
         <nav className="flex gap-1">
-          {(['control', 'analysis', 'profiling', 'terminal', 'graph'] as const).map((view) => (
+          {([ 'control', 'analysis', 'profiling', 'terminal', 'graph', ...(showApiIndex ? ['api'] as const : []) ]).map((view) => (
             <button
               key={view}
               onMouseEnter={() => {
@@ -56,6 +57,8 @@ export function TopNav({ currentView, onViewChange, connected, deviceIp, default
                   // Defer Radix UI until needed; prefetch on hover
                   void import('@radix-ui/react-dialog');
                   void import('@radix-ui/react-tabs');
+                } else if (view === 'api') {
+                  void import('./views/ApiIndexView');
                 }
               }}
               onClick={() => onViewChange(view)}
