@@ -1,17 +1,11 @@
-#if __has_include(<Arduino.h>)
-#  include <Arduino.h>
-#endif
-#if __has_include(<WiFi.h>)
-#  include <WiFi.h>
-#endif
-#if __has_include(<ArduinoOTA.h>)
-#  include <ArduinoOTA.h>
-#endif
-#if __has_include(<SPIFFS.h>)
-#  include <SPIFFS.h>
-#endif
+#include <Arduino.h>
+#include <WiFi.h>
+#include <ArduinoOTA.h>
+#include <SPIFFS.h>
+#include <math.h>
 // Ensure LED driver interface is visible before any usage
 #include "led_driver.h"  // declares init_rmt_driver(), transmit_leds(), NUM_LEDS
+#include "frame_metrics.h"
 #ifdef DYNAMIC_LED_CHANNELS
 #include "render_channel.h"
 extern "C" void visual_scheduler(void* param);
@@ -442,10 +436,14 @@ void loop_gpu(void* param) {
     LOG_INFO(TAG_CORE0, "GPU_TASK Starting on Core 1");
 
     static uint32_t start_time = millis();
+#if FRAME_METRICS_ENABLED
+    static uint64_t prev_quantize_us = 0;
+    static uint64_t prev_wait_us = 0;
+    static uint64_t prev_tx_us = 0;
+#endif
 
     for (;;) {
-        uint32_t t0 = micros();
-
+        uint32_t t_frame_start = micros();
         // Track time for animation
         float time = (millis() - start_time) / 1000.0f;
 
@@ -462,17 +460,34 @@ void loop_gpu(void* param) {
         // Draw current pattern with audio-reactive data (lock-free read from audio_front)
         uint32_t t_render = micros();
         draw_current_pattern(time, params);
-        uint32_t render_us = micros() - t_render;
+        uint32_t t_post_render = micros();
+
+        uint32_t render_us = t_post_render - t_frame_start;
+        ACCUM_RENDER_US.fetch_add(render_us, std::memory_order_relaxed);
 
         // Quantize (built into transmit_leds, measured separately)
         uint32_t t_quantize = micros();
         // Transmit to LEDs via RMT (non-blocking DMA)
         transmit_leds();
-        uint32_t quantize_us = micros() - t_quantize;
-
-        uint32_t frame_us = micros() - t0;
-
+        uint32_t t_post_tx = micros();
         heartbeat_logger_note_frame();
+
+#if FRAME_METRICS_ENABLED
+        uint64_t quant_sum = ACCUM_QUANTIZE_US.load(std::memory_order_relaxed);
+        uint64_t wait_sum = ACCUM_RMT_WAIT_US.load(std::memory_order_relaxed);
+        uint64_t tx_sum = ACCUM_RMT_TRANSMIT_US.load(std::memory_order_relaxed);
+
+        uint32_t quant_frame = quant_sum > prev_quantize_us ? (uint32_t)(quant_sum - prev_quantize_us) : 0;
+        uint32_t wait_frame = wait_sum > prev_wait_us ? (uint32_t)(wait_sum - prev_wait_us) : 0;
+        uint32_t tx_frame = tx_sum > prev_tx_us ? (uint32_t)(tx_sum - prev_tx_us) : 0;
+
+        prev_quantize_us = quant_sum;
+        prev_wait_us = wait_sum;
+        prev_tx_us = tx_sum;
+
+        uint32_t fps_snapshot = (uint32_t)lroundf(fmaxf(FPS_CPU, 0.0f) * 100.0f);
+        FrameMetricsBuffer::instance().record_frame(render_us, quant_frame, wait_frame, tx_frame, (uint16_t)fminf(fps_snapshot, 65535.0f));
+#endif
 
         // FPS tracking (minimal overhead)
         watch_cpu_fps();
