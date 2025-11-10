@@ -80,13 +80,13 @@ find . -type f \( -name "*.md" -o -name "*.sh" -o -name "*.json" \) -exec sed -i
 ### CRITICAL (affects core documentation)
 1. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/CLAUDE.md` - 30+ references
 2. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/TASKS.md` - 10+ references
-3. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0006-codegen-abandonment.md` - 15+ references
+3. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md` - 15+ references
 
 ### HIGH (affects agent instructions and planning)
-4. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0011-institutional-memory-adoption.md` - 10+ references
+4. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/K1NADR_0011_INSTITUTIONAL_MEMORY_ADOPTION_v1.0_20251110.md` - 10+ references
 5. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/04-planning/K1NPlan_PLAN_K1_MIGRATION_MASTER_v1.0_20251108.md` - 25+ references
 6. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/09-implementation/K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md` - 12+ references
-7. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0013-backend-framework-fastapi.md` - 2 references
+7. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/K1NADR_0013_BACKEND_FRAMEWORK_FASTAPI_v1.0_20251110.md` - 2 references
 8. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/README.md` - 3 references
 
 ### MEDIUM (affects training and governance)
@@ -97,7 +97,7 @@ find . -type f \( -name "*.md" -o -name "*.sh" -o -name "*.json" \) -exec sed -i
 ### LOW (affects tools and specs)
 12. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/tools/governance/add_frontmatter.sh` - 1 reference
 13. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/.kiro/steering/structure.md` - 5 references
-14. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0015-led-driver-header-split.md` - 2 references
+14. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/K1NADR_0015_LED_DRIVER_HEADER_SPLIT_v1.0_20251110.md` - 2 references
 15. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/04-planning/K1NPlan_DECISION_GATE_NOV_13_v1.0_20251108.md` - 2 references
 16. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/04-planning/K1NPlan_PLAN_WEEK_1_EXECUTION_KICKOFF_v1.0_20251108.md` - 1 reference
 

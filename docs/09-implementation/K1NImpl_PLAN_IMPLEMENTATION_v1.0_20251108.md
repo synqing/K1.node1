@@ -4,8 +4,8 @@ date: 2025-11-05
 status: active
 intent: Step-by-step plan to complete K1.node1 architecture setup and governance
 references:
-  - docs/02-adr/ADR-0001-project-scope-abandonment.md
-  - docs/02-adr/ADR-0004-documentation-governance.md
+  - docs/02-adr/K1NADR_0001_PROJECT_SCOPE_ABANDONMENT_v1.0_20251110.md
+  - docs/02-adr/K1NADR_0004_DOCUMENTATION_GOVERNANCE_v1.0_20251110.md
   - docs/08-governance/K1NGov_GOVERNANCE_v1.0_20251108.md
 ---
 
@@ -169,7 +169,7 @@ date: 2025-11-05
 status: active
 intent: K1.node1 deployment specification with node system
 references:
-  - docs/02-adr/ADR-0002-node-system-core-usp.md
+  - docs/02-adr/K1NADR_0002_NODE_SYSTEM_CORE_USP_v1.0_20251110.md
 ---
 
 # K1.node1 Deployment Specification

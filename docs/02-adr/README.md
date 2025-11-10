@@ -7,7 +7,7 @@ reviewers: [Engineering Leads]
 last_updated: 2025-10-31
 next_review_due: 2026-01-31
 tags: [docs, adr]
-related_docs: [../K1N_INDEX_v1.0_20251108.md, ../../CLAUDE.md, ADR-template.md]
+related_docs: [../K1N_INDEX_v1.0_20251108.md, ../../CLAUDE.md, K1NADR_TEMPLATE_v1.0_20251110.md]
 ---
 # Architecture Decision Records (ADRs)
 
@@ -17,7 +17,7 @@ related_docs: [../K1N_INDEX_v1.0_20251108.md, ../../CLAUDE.md, ADR-template.md]
 
 **Steward:** @spectrasynq
 **Review cadence:** Weekly (via doc triage)
-**Template:** See [ADR-template.md](ADR-template.md)
+**Template:** See [K1NADR_TEMPLATE_v1.0_20251110.md](K1NADR_TEMPLATE_v1.0_20251110.md)
 
 ---
 
@@ -44,9 +44,29 @@ related_docs: [../K1N_INDEX_v1.0_20251108.md, ../../CLAUDE.md, ADR-template.md]
 
 | ID | Title | Status | Date | Area | Relates to |
 |----|-------|--------|------|------|-----------|
-| 0001 | [Placeholder for first architectural decision] | Draft | TBD | Architecture | - |
-
-**No active ADRs yet.** This section will populate as architectural decisions are made during Tier 2 implementation or when conflicts arise.
+| 0001 | [PROJECT_SCOPE_ABANDONMENT](K1NADR_0001_PROJECT_SCOPE_ABANDONMENT_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0002 | [NODE_SYSTEM_CORE_USP](K1NADR_0002_NODE_SYSTEM_CORE_USP_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0003 | [PARALLEL_EXECUTION_MODEL](K1NADR_0003_PARALLEL_EXECUTION_MODEL_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0004 | [DOCUMENTATION_GOVERNANCE](K1NADR_0004_DOCUMENTATION_GOVERNANCE_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0005 | [FOLDER_STRUCTURE](K1NADR_0005_FOLDER_STRUCTURE_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0006 | [CODEGEN_ABANDONMENT](K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0007 | [STATEFUL_NODE_ARCHITECTURE](K1NADR_0007_STATEFUL_NODE_ARCHITECTURE_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0008 | [PATTERN_MIGRATION_STRATEGY](K1NADR_0008_PATTERN_MIGRATION_STRATEGY_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0009 | [PHASE_2D1_CRITICAL_FIXES](K1NADR_0009_PHASE_2D1_CRITICAL_FIXES_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0010 | [MARKET_STRATEGY_USP](K1NADR_0010_MARKET_STRATEGY_USP_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0011 | [DUAL_CHANNEL_LEDS](K1NADR_0011_DUAL_CHANNEL_LEDS_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0011 | [INSTITUTIONAL_MEMORY_ADOPTION](K1NADR_0011_INSTITUTIONAL_MEMORY_ADOPTION_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0012 | [PHASE_C_NODE_EDITOR_ARCHITECTURE](K1NADR_0012_PHASE_C_NODE_EDITOR_ARCHITECTURE_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0013 | [BACKEND_FRAMEWORK_FASTAPI](K1NADR_0013_BACKEND_FRAMEWORK_FASTAPI_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0013 | [CONDUCTOR_DEPLOYMENT_RESILIENCE](K1NADR_0013_CONDUCTOR_DEPLOYMENT_RESILIENCE_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0014 | [GLOBAL_BRIGHTNESS_CONTROL](K1NADR_0014_GLOBAL_BRIGHTNESS_CONTROL_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0015 | [LED_DRIVER_HEADER_SPLIT](K1NADR_0015_LED_DRIVER_HEADER_SPLIT_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0016 | [PHASE_A_ACCEPTANCE_CRITERIA](K1NADR_0016_PHASE_A_ACCEPTANCE_CRITERIA_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0017 | [LUT_OPTIMIZATION_SYSTEM](K1NADR_0017_LUT_OPTIMIZATION_SYSTEM_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0018 | [DUAL_CHANNEL_LEDS](K1NADR_0018_DUAL_CHANNEL_LEDS_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0019 | [CONDUCTOR_DEPLOYMENT_RESILIENCE](K1NADR_0019_CONDUCTOR_DEPLOYMENT_RESILIENCE_v1.0_20251110.md) | Draft | TBD | - | - |
+| 0020 | [CODE_GENERATION_ARCHITECTURE](K1NADR_0020_CODE_GENERATION_ARCHITECTURE_v1.0_20251110.md) | Draft | TBD | - | - |
+| N/A | [RMT_ENCODER_ERROR_HANDLING](K1NADR_RMT_ENCODER_ERROR_HANDLING_v1.0_20251110.md) | Draft | TBD | - | - |
 
 ### Superseded Decisions
 
@@ -62,7 +82,7 @@ related_docs: [../K1N_INDEX_v1.0_20251108.md, ../../CLAUDE.md, ADR-template.md]
 - Tier 3 agent (Code Reviewer) finds architecture conflict → Create ADR
 
 **2. Creation Phase**
-- Copy [ADR-template.md](ADR-template.md) to `ADR-####-{slug}.md`
+- Copy [K1NADR_TEMPLATE_v1.0_20251110.md](K1NADR_TEMPLATE_v1.0_20251110.md) to `K1NADR_####_{TITLE}_v<version>_<YYYYMMDD>.md`
 - Fill in all sections except Approvers/Sign-off
 - Link to source analysis (SUPREME bottleneck matrix or ULTRA design)
 - Ensure backlinks from source analysis back to ADR
@@ -75,7 +95,7 @@ related_docs: [../K1N_INDEX_v1.0_20251108.md, ../../CLAUDE.md, ADR-template.md]
 **4. Decision Phase**
 - Collect sign-offs from all reviewers
 - Update status: Accepted
-- Commit to main with message: `docs/adr: Add ADR-####-{title}`
+- Commit to main with message: `docs/adr: Add K1NADR_####_{TITLE}`
 
 **5. Implementation Phase**
 - Tier 2/3 agents implement changes referenced in ADR
@@ -90,26 +110,26 @@ related_docs: [../K1N_INDEX_v1.0_20251108.md, ../../CLAUDE.md, ADR-template.md]
 ```markdown
 ## Architectural Issue Found
 This analysis identified a design constraint that requires an ADR:
-- See ADR-0001: {title} (docs/02-adr/ADR-0001-{slug}.md)
+- See K1NADR_0001: {TITLE} (docs/02-adr/K1NADR_0001_{TITLE}_v1.0_<YYYYMMDD>.md)
 ```
 
 **From ULTRA design (docs/04-planning/):**
 ```markdown
 ## Design Conflict
 This feature conflicts with the current architecture:
-- See ADR-0002: {title} (../../docs/02-adr/ADR-0002-{slug}.md)
+- See K1NADR_0002: {TITLE} (../../docs/02-adr/K1NADR_0002_{TITLE}_v1.0_<YYYYMMDD>.md)
 ```
 
 **From implementation (firmware/src/ comments):**
 ```cpp
-// This implementation was constrained by ADR-0001 (docs/02-adr/ADR-0001-{slug}.md)
+// This implementation was constrained by K1NADR_0001 (docs/02-adr/K1NADR_0001_{TITLE}_v1.0_<YYYYMMDD>.md)
 // Key constraint: [brief explanation]
 ```
 
 **From test documentation:**
 ```markdown
 ### Validation per ADR
-This test validates the decision in ADR-0001 (../../docs/02-adr/ADR-0001-{slug}.md):
+This test validates the decision in K1NADR_0001 (../../docs/02-adr/K1NADR_0001_{TITLE}_v1.0_<YYYYMMDD>.md):
 - Requirement 1: [test name]
 - Requirement 2: [test name]
 ```
@@ -119,16 +139,17 @@ This test validates the decision in ADR-0001 (../../docs/02-adr/ADR-0001-{slug}.
 ## File Naming Convention
 
 ```
-ADR-####-{slug}.md
+K1NADR_<ID>_<TITLE>_v<version>_<YYYYMMDD>.md
 
 Where:
-  #### = 4-digit zero-padded sequence number (0001, 0002, 0003, ...)
-  slug = kebab-case URL-safe title (led-topology-choice, audio-sync-strategy)
+  ID     = 4-digit zero-padded sequence number (0001, 0002, 0003, ...)
+  TITLE  = SCREAMING_SNAKE_CASE descriptive title (DUAL_CHANNEL_LEDS)
+  version/date = semantic version and snapshot date when recorded
 
 Examples:
-  ADR-0001-dual-core-architecture.md
-  ADR-0002-i2s-configuration-standard.md
-  ADR-0003-pattern-generation-safety.md
+  K1NADR_0001_DUAL_CORE_ARCHITECTURE_v1.0_20251110.md
+  K1NADR_0002_I2S_CONFIGURATION_STANDARD_v1.0_20251110.md
+  K1NADR_0003_PATTERN_GENERATION_SAFETY_v1.0_20251110.md
 ```
 
 ---
@@ -187,7 +208,7 @@ Examples:
 ## Quick Reference
 
 **Creating an ADR:**
-1. `cp ADR-template.md ADR-0001-your-decision.md`
+1. `cp K1NADR_TEMPLATE_v1.0_20251110.md K1NADR_0001_YOUR_DECISION_v1.0_YYYYMMDD.md`
 2. Fill all sections
 3. Link from source analysis
 4. Request review via PR

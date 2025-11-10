@@ -31,7 +31,7 @@ All documentation improvements have been successfully executed across 3 batches 
 
 ### What Was Done
 1. **Deleted duplicate ADR-0009 file**
-   - Removed: `ADR-0009-phase2d1-critical-fixes.md` (shorter version, 1.8 KB)
+- Removed: `ADR-0009-phase2d1-critical-fixes.md` (legacy; consolidated into `K1NADR_0009_PHASE_2D1_CRITICAL_FIXES_v1.0_20251110.md`)
    - Kept: `ADR-0009-phase-2d1-critical-fixes.md` (comprehensive version, 8.4 KB)
    - Impact: Eliminates documentation confusion, removes naming inconsistency
 
@@ -96,7 +96,7 @@ Fixed broken references in audit documents:
 - K1NGov_AUDIT_K1_NODE1_LEGACY_PATH_v1.0_20251108.md (1 reference updated)
 
 **Fixed References:**
-- `ADR-0009-phase2d1-critical-fixes.md` → `ADR-0009-phase-2d1-critical-fixes.md`
+- `ADR-0009-phase2d1-critical-fixes.md` → `K1NADR_0009_PHASE_2D1_CRITICAL_FIXES_v1.0_20251110.md`
 - `ADR-0009-phase2d1-fixes.md` → `ADR-0009-phase-2d1-critical-fixes.md`
 
 ### Result

@@ -79,7 +79,7 @@ while IFS= read -r FILE; do
   DIR=$(dirname "$FILE")
   # Skip exceptions
   if [[ "$FILE" =~ ^docs/archive/ ]]; then continue; fi
-  if [[ "$FILE" =~ ^docs/02-adr/ADR-.*\.md$ ]]; then continue; fi
+if [[ "$FILE" =~ ^docs/02-adr/K1NADR_.*\.md$ ]]; then continue; fi
   if [[ "$BASENAME" == README.md ]]; then continue; fi
   if [[ "$FILE" == docs/_README_TEMPLATE.md ]]; then continue; fi
   # Preserve specialized nested docs per policy

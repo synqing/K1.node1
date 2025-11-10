@@ -6,7 +6,7 @@
 OVERALL STATUS: 7.5/10 - READY TO LAUNCH (with critical fix)
 
 CRITICAL FIX (5 minutes):
-  ❌ Delete: docs/02-adr/ADR-0009-phase2d1-critical-fixes.md (shorter version)
+❌ Delete: docs/02-adr/ADR-0009-phase2d1-critical-fixes.md (legacy; canonical: docs/02-adr/K1NADR_0009_PHASE_2D1_CRITICAL_FIXES_v1.0_20251110.md)
   ✅ Keep: docs/02-adr/ADR-0009-phase-2d1-critical-fixes.md (8.4KB, comprehensive)
 
 KEY FINDINGS:

@@ -43,7 +43,7 @@ docs/
 │   ├── K1NArch_SUMMARY_STATEFUL_NODE_EXECUTIVE_v1.0_20251108.md (9KB)
 │   └── K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md (41KB)
 ├── 02-adr/ (156K) ⚠️ HIGHEST ISSUE DENSITY
-│   ├── ADR-template.md
+│   ├── K1NADR_TEMPLATE_v1.0_20251110.md
 │   ├── README.md (214 lines - comprehensive)
 │   ├── 3x ADR-0001 files (FPS targets, LED header split, scope abandonment)
 │   ├── 2x ADR-0002 files (global brightness, node system USP)

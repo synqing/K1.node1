@@ -141,7 +141,7 @@ Conductor docs: `Conductor/README.md` (orchestration + MCP integration)
 
 **Documentation:**
 - `CLAUDE.md` - How Claude agents should work with this repo
-- `docs/02-adr/ADR-000*.md` - All architectural decisions with reasoning
+- `docs/02-adr/K1NADR_*.md` - All architectural decisions with reasoning
 - `docs/04-planning/K1NPlan_AUDIT_PHASE_2D1_START_HERE_v1.0_20251108.md` - Latest comprehensive audit
 - `docs/04-planning/K1NPlan_STRATEGY_PHASE_2D1_GRAPH_PARALLEL_MASTER_v1.0_20251108.md` - Current execution plan
 

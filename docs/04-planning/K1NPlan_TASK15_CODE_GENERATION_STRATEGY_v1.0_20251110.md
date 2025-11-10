@@ -8,7 +8,7 @@ owner: Architecture Team (Claude Code)
 related:
   - docs/06-reference/K1NRef_GRAPH_NODE_CATALOG_EXPANDED_v2.0_20251110.md
   - docs/plans/2025-11-10-phase1-compiler-design.md
-  - docs/02-adr/ADR-0006-codegen-abandonment.md
+- docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md
 tags: [architecture, code-generation, node-types, task-15, phase-5]
 ---
 

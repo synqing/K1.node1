@@ -299,8 +299,8 @@ void loop() { delay(1000); }
 ## Related Documentation
 
 - Architecture: `docs/01-architecture/K1NArch_SPEC_LUT_SYSTEM_ARCHITECTURE_v1.0_20251108.md`
-- RMT/LED: `docs/02-adr/ADR-0015-led-driver-header-split.md`
-- Audio: `docs/02-adr/ADR-0013-backend-framework-fastapi.md`
+ - RMT/LED: `docs/02-adr/K1NADR_0015_LED_DRIVER_HEADER_SPLIT_v1.0_20251110.md`
+ - Audio: `docs/02-adr/K1NADR_0013_BACKEND_FRAMEWORK_FASTAPI_v1.0_20251110.md`
 - Implementation: `docs/09-implementation/K1NImpl_FIRMWARE_NODE_INTEGRATION_ANALYSIS_v1.0_20251110.md`
 
 ---

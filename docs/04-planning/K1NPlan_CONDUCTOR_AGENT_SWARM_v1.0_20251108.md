@@ -204,7 +204,7 @@ Transform K1.node1 into a **self-contained multi-agent orchestration system** wh
       "dependencies": [],
 
       "context": {
-        "templatePath": "docs/02-adr/ADR-template.md",
+"templatePath": "docs/02-adr/K1NADR_TEMPLATE_v1.0_20251110.md",
         "testStrategy": "Design review + pattern validation"
       },
 
