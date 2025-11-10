@@ -35,20 +35,24 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Allow overriding build/upload environments via env vars
+BUILD_ENV="${BUILD_ENV:-esp32-s3-devkitc-1-metrics}"
+UPLOAD_ENV="${UPLOAD_ENV:-esp32-s3-devkitc-1-metrics-ota}"
+
 # Step 1: Build firmware
-log_info "Building firmware..."
+log_info "Building firmware ($BUILD_ENV)..."
 cd "$FIRMWARE_DIR"
-pio run -e esp32-s3-devkitc-1 > /dev/null 2>&1 || {
+pio run -e "$BUILD_ENV" > /dev/null 2>&1 || {
     log_error "Build failed"
     exit 1
 }
 log_info "Build successful"
 
 # Step 2: Flash to device (OTA)
-log_info "Flashing device at $DEVICE_IP..."
-pio run -e esp32-s3-devkitc-1-ota upload -x "upload_port=http://$DEVICE_IP" > /dev/null 2>&1 || {
+log_info "Flashing device at $DEVICE_IP ($UPLOAD_ENV)..."
+pio run -e "$UPLOAD_ENV" -t upload -x "upload_port=http://$DEVICE_IP" > /dev/null 2>&1 || {
     log_warn "OTA upload failed, attempting USB flash..."
-    pio run -e esp32-s3-devkitc-1 -t upload > /dev/null 2>&1 || {
+    pio run -e "$BUILD_ENV" -t upload > /dev/null 2>&1 || {
         log_error "Flash failed"
         exit 1
     }
@@ -70,14 +74,24 @@ log_info "Running benchmarks (collecting metrics)..."
 # CSV header
 echo "timestamp,pattern,frame_index,render_us,quantize_us,rmt_wait_us,rmt_tx_us,total_us,heap_free_kb,fps" > "$RESULTS_FILE"
 
+# Helper: select pattern via REST
+select_pattern() {
+    local id="$1"
+    local resp
+    resp=$(curl -sf -m 10 -X POST \
+        -H "Content-Type: application/json" \
+        -d "{\"id\":\"${id}\"}" \
+        "http://$DEVICE_IP/api/select") || return 1
+    grep -q "\"id\":\"${id}\"" <<<"$resp"
+}
+
 # Benchmark each pattern
 for pattern in "${PATTERNS[@]}"; do
     log_info "Benchmarking pattern: $pattern"
 
-    # Send pattern selection via REST API
-    PATTERN_ID=$(curl -s "http://$DEVICE_IP/api/patterns" | grep -o "\"name\":\"$pattern\"" | head -1)
-    if [ -z "$PATTERN_ID" ]; then
-        log_warn "Pattern $pattern not found, skipping"
+    # Select pattern
+    if ! select_pattern "$pattern"; then
+        log_warn "Pattern $pattern not selectable; skipping"
         continue
     fi
 
@@ -85,7 +99,10 @@ for pattern in "${PATTERNS[@]}"; do
     sleep 1
 
     # Collect metrics from device (frame-metrics endpoint)
-    METRICS_JSON=$(curl -s -m $TIMEOUT_SECONDS "http://$DEVICE_IP/api/frame-metrics")
+    METRICS_JSON=$(curl -sf -m $TIMEOUT_SECONDS "http://$DEVICE_IP/api/frame-metrics") || {
+        log_error "Failed to fetch /api/frame-metrics"
+        exit 1
+    }
 
     if [ -z "$METRICS_JSON" ]; then
         log_error "Failed to retrieve metrics for pattern: $pattern"
@@ -93,30 +110,36 @@ for pattern in "${PATTERNS[@]}"; do
     fi
 
     # Parse JSON and write CSV rows
-    FRAME_COUNT=$(echo "$METRICS_JSON" | grep -o '"frame_count":[0-9]*' | cut -d: -f2)
-    if [ -z "$FRAME_COUNT" ]; then
-        log_warn "No frames recorded for pattern: $pattern"
-        continue
+    FRAME_COUNT=$(python3 - "$METRICS_JSON" <<'PY'
+import sys, json
+payload = json.loads(sys.argv[1])
+print(payload.get('frame_count') or 0)
+PY
+)
+    if [ -z "$FRAME_COUNT" ] || [ "$FRAME_COUNT" -le 0 ]; then
+        log_error "Frame metrics buffer empty. Ensure FRAME_METRICS_ENABLED=1 build is running."
+        exit 1
     fi
 
     # Extract frame data using Python for JSON parsing
-    python3 << EOF
+    python3 - "$METRICS_JSON" "$TIMESTAMP" "$pattern" << 'ENDPYTHON' >> "$RESULTS_FILE"
 import json
 import sys
-import re
 
 try:
-    data = json.loads('$METRICS_JSON')
+    data = json.loads(sys.argv[1])
+    timestamp = sys.argv[2]
+    pattern = sys.argv[3]
 except:
     sys.exit(0)
 
 frames = data.get('frames', [])
 for i, frame in enumerate(frames):
-    row = f"{TIMESTAMP},$pattern,{i},{frame.get('render_us', 0)},{frame.get('quantize_us', 0)}," \
+    row = f"{timestamp},{pattern},{i},{frame.get('render_us', 0)},{frame.get('quantize_us', 0)}," \
           f"{frame.get('rmt_wait_us', 0)},{frame.get('rmt_tx_us', 0)},{frame.get('total_us', 0)}," \
           f"{frame.get('heap_free', 0) // 1024},{frame.get('fps', 0):.1f}"
     print(row)
-EOF >> "$RESULTS_FILE" || true
+ENDPYTHON
 
     log_info "Collected ${FRAME_COUNT} frames for $pattern"
 done

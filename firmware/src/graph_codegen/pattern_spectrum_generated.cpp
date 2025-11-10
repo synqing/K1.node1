@@ -14,10 +14,13 @@ extern "C" void pattern_spectrum_render(
     PatternOutput& out
 ) {
     // Constants from graph definition
-    static constexpr int PATTERN_NUM_LEDS = 180;
+    static constexpr int PATTERN_NUM_LEDS = 160;  // Match hardware NUM_LEDS
     static constexpr int NUM_FREQ_BINS = 64;
     static constexpr float FFT_DECAY = 0.85f;
     static constexpr float SMOOTH_FACTOR = 0.7f;
+    #ifndef SPECTRUM_CENTER_OFFSET
+    #define SPECTRUM_CENTER_OFFSET 0
+    #endif
 
     // Temporary buffers for processing pipeline
     float spectrum_normalized[NUM_FREQ_BINS] = {0.0f};
@@ -75,9 +78,10 @@ extern "C" void pattern_spectrum_render(
         spectrum_smoothed[i] = state.custom_state[i];
     }
 
-    // ===== NODE: COLORIZE =====
-    // Map spectrum to colors via HSV palette
-    // Map frequency bins to LED positions (64 bins -> 180 LEDs)
+    // ===== NODE: COLORIZE & CENTER-MIRROR (CORRECT IMPLEMENTATION) =====
+    // CRITICAL: Compute only first half, then mirror symmetrically around center
+    // This is the ONLY way to ensure true center-origin visualization
+    // Original generated code was wrong: it computed all 180 LEDs asymmetrically
     static const CRGBF palette_hot[] = {
         {0.0f, 0.0f, 0.0f},      // Black
         {0.0f, 0.0f, 1.0f},      // Blue
@@ -88,32 +92,37 @@ extern "C" void pattern_spectrum_render(
         {1.0f, 0.0f, 0.0f}       // Red
     };
 
-    // Map each LED to nearest frequency bin
-    for (int i = 0; i < PATTERN_NUM_LEDS; i++) {
-        // Linear mapping: LED position -> frequency bin index
-        int bin_idx = (i * NUM_FREQ_BINS) / PATTERN_NUM_LEDS;
-        if (bin_idx >= NUM_FREQ_BINS) bin_idx = NUM_FREQ_BINS - 1;
+    const int half_leds = PATTERN_NUM_LEDS / 2;  // 80
 
-        float magnitude = spectrum_smoothed[bin_idx];
+    // Compute only FIRST HALF of strip (0-79), then mirror to (80-159)
+    // This prevents any possibility of asymmetry
+    for (int i = 0; i < half_leds; i++) {
+        // Map position in first-half to frequency bin
+        // Use full float precision to avoid rounding errors
+        float progress = (float)i / (float)half_leds;  // 0.0 to 0.9875
+        float bin_float = progress * (float)(NUM_FREQ_BINS - 1);  // 0.0 to ~63.0
 
-        // Hue from frequency (low=blue, high=red)
-        float hue = (float)bin_idx / (float)NUM_FREQ_BINS;
+        int bin_idx = (int)bin_float;
+        int bin_high = (bin_idx + 1 < NUM_FREQ_BINS) ? (bin_idx + 1) : NUM_FREQ_BINS - 1;
+        float frac = bin_float - (float)bin_idx;
 
-        // Saturation constant
+        // Linear interpolation for smooth frequency transitions
+        float magnitude = spectrum_smoothed[bin_idx] * (1.0f - frac) +
+                         spectrum_smoothed[bin_high] * frac;
+
+        // Hue directly from bin position (0=blue, 1=red)
+        float hue = bin_float / (float)NUM_FREQ_BINS;
         float sat = 0.95f;
-
-        // Value (brightness) from magnitude with brightness parameter
         float value = magnitude * params.brightness;
 
-        // Convert HSV to RGB
-        tmp_rgb0[i] = hsv_to_rgb(hue, sat, value);
-    }
+        CRGBF color = hsv_to_rgb(hue, sat, value);
 
-    // ===== NODE: MIRROR =====
-    // Create symmetric visualization from center
-    for (int i = 0; i < PATTERN_NUM_LEDS / 2; i++) {
-        int mirror_idx = PATTERN_NUM_LEDS - 1 - i;
-        tmp_rgb0[mirror_idx] = tmp_rgb0[i];
+        // Write symmetrically around center (LEDs 79/80)
+        int left = half_leds - 1 - i;    // 79, 78, 77, ..., 0
+        int right = half_leds + i;       // 80, 81, 82, ..., 159
+
+        tmp_rgb0[left] = color;
+        tmp_rgb0[right] = color;
     }
 
     // ===== NODE: TRAIL =====
