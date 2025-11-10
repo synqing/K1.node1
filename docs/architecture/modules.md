@@ -28,7 +28,7 @@ This is a living document that will be updated as the refactoring progresses.
 |---|---|---|---|
 | 1 | Relocate `apply_background_overlay` | Move this function from `generated_patterns.h` to a new `pattern_helpers` module. | All patterns that use this function are updated to call the new version, and all build variants pass. |
 | 2 | Relocate HSV functions | Move the `hsv2rgb` and related functions to the `pattern_helpers` module. | **Done.** All callers are updated, and all build variants pass. |
-| 3 | Abstract LED buffer access | Create a `PatternRenderContext` struct that provides patterns with a reference to the LED buffer, rather than having them access it directly. | All patterns are updated to use the new context, and all build variants pass. |
+| 3 | Abstract LED buffer access | Create a `PatternRenderContext` struct that provides patterns with a reference to the LED buffer, rather than having them access it directly. | **Done.** All patterns are updated to use the new context, and all build variants pass. |
 | 4 | Refactor `get_pattern_buffer` | Move this function into the `pattern_runtime` and provide a clean interface for patterns to access the buffer. | All callers are updated, and all build variants pass. |
 
 ## Dependency Injection Opportunities
@@ -39,6 +39,8 @@ This is a living document that will be updated as the refactoring progresses.
     *   The current time.
     *   Any other relevant context.
 *   **Constructor/Init Pathways**: We will design constructor or `init` pathways for these contexts to be created and passed down to the patterns.
+
+The `PatternRenderContext` has been implemented and is now passed to all pattern `draw` functions. It serves as a central data structure that provides patterns with all the necessary information for rendering, including the LED buffer, audio data, and pattern parameters. This change has allowed us to remove the global `leds` array dependency from `pattern_helpers.h` and is a major step towards a more modular and testable architecture.
 
 ## Next Steps
 
