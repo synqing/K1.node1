@@ -9,6 +9,24 @@ Central documentation hub for all K1.node1 project information, decisions, plans
 - **Quick Reference:** `07-resources/K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md` - One-page cheat sheet
 - **Conductor Docs (moved):** `../Conductor/README.md` - Orchestration + MCP integration
 
+### Firmware
+
+- **Comprehensive API Index:** `09-implementation/api-index.md`
+- **API Reference (selected endpoints):** `06-reference/firmware-api.md`
+- **API Quick Tests:** `09-implementation/api-quick-tests.md`
+- **Realtime WebSocket Protocol:** `06-reference/realtime-websocket.md`
+- **Rate‑Limit Policy:** `06-reference/rate-limit-policy.md`
+- **Endpoint Specs (Top Routes):** `06-reference/endpoint-specs.md`
+- **HTTP Server Architecture:** `09-implementation/http-architecture.md`
+
+### Start Here: Graph System
+
+- **Schema Spec:** `06-reference/GRAPH_SCHEMA_SPEC.md`
+- **Authoring Guide:** `09-implementation/GRAPH_AUTHORING_GUIDE.md`
+- **Node Catalog:** `06-reference/NODE_CATALOG_REFERENCE.md`
+- **Troubleshooting:** `09-implementation/GRAPH_TROUBLESHOOTING.md`
+- **SB/Emotiscope Compatibility:** `06-reference/SENSORY_BRIDGE_COMPAT.md`
+
 ## Documentation Folders
 
 | Folder | Purpose | Key Documents |

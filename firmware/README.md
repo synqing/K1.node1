@@ -24,6 +24,28 @@
 5) Monitor serial logs:
    - `pio device monitor -b 115200`
 
+## Keyboard Controls
+- `SPACEBAR` — cycle to next pattern.
+- `m` — open/close Debug Menu (single entry point to avoid many unique keys).
+
+Debug Menu (digits only):
+- `1` — cycle log level (`DEBUG → INFO → WARN → ERROR`).
+- `2` — toggle audio debug mode.
+- `3` — dump recent heartbeat logs.
+- `4` — toggle log tags (opens tag submenu).
+- `0` — close the menu.
+
+Tag submenu (page 1):
+- `1` Audio, `2` GPU, `3` I2S, `4` LED, `5` Tempo,
+- `6` Beat, `7` Sync, `8` WiFi, `9` Web, `0` next page.
+
+Tag submenu (page 2):
+- `1` Memory, `2` Profile, `9` previous page, `0` back to main menu.
+
+Notes:
+- Lowercase only; no Shift/uppercase shortcuts are used.
+- Digits are reused across menu pages to minimize unique keystrokes.
+
 ## Environments (PlatformIO)
 - `env:esp32-s3-devkitc-1` — default release build (pinned platform + Arduino framework).
 - `env:esp32-s3-devkitc-1-debug` — release flags + `DEBUG_TELEMETRY=1` and REST rate‑limits for diagnostics.
@@ -32,8 +54,11 @@
 
 ## Telemetry & REST Endpoints
 - `/api/health` — build signature (Arduino, `IDF_VER`, git SHA, build time), degraded flags, reset cause.
-- `/api/rmt` — per‑channel `{empty, maxgap_us}` and refill cadence indicators.
+- `/api/rmt/diag` — per‑channel `{empty, maxgap_us, trans_done, last_empty_us}` plus `wait_timeouts`.
+- `/api/rmt/reset` — resets RMT probe counters and LED wait timeouts.
 - `/api/device/performance` — FPS, frame histograms, CPU %, memory, optional beat_phase.
+- `/api/realtime/config` — GET/POST realtime telemetry WebSocket enable + interval (persisted).
+- `/api/diag` — GET/POST diagnostics enable + interval (persisted; heartbeat logger mirrors).
 - Heartbeat: periodic metrics (interval higher in release; faster when `DEBUG_TELEMETRY=1`).
 
 ## Concurrency & Safety Guardrails
@@ -52,6 +77,20 @@
 - Upload: `pio run -e esp32-s3-devkitc-1 -t upload`
 - OTA (if configured): `pio run -e esp32-s3-devkitc-1-ota -t upload`
 - Serial monitor: `pio device monitor -b 115200`
+
+## Quick API Examples
+- Use mDNS `http://k1-reinvented.local/` or IP.
+- Diagnostics:
+  - `curl -s http://k1-reinvented.local/api/diag`
+  - `curl -s -X POST http://k1-reinvented.local/api/diag -H 'Content-Type: application/json' -d '{"enabled":true,"interval_ms":1000}'`
+- Realtime config:
+  - `curl -s http://k1-reinvented.local/api/realtime/config`
+  - `curl -s -X POST http://k1-reinvented.local/api/realtime/config -H 'Content-Type: application/json' -d '{"enabled":true,"interval_ms":500}'`
+- RMT telemetry / reset:
+  - `curl -s http://k1-reinvented.local/api/rmt/diag`
+  - `curl -s -X POST http://k1-reinvented.local/api/rmt/reset -H 'Content-Type: application/json' -d '{}'`
+
+See `docs/06-reference/firmware-api.md` for full details and rate‑limit windows, the comprehensive index at `docs/09-implementation/api-index.md`, and quick curl suites at `docs/09-implementation/api-quick-tests.md`.
 
 ## Testing (Unity)
 - Run fast Phase‑A test set (no hardware‑in‑loop):
