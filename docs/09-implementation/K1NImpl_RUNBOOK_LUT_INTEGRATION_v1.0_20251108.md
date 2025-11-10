@@ -6,7 +6,7 @@
 **Scope:** Step-by-step implementation guide for LUT system integration
 **Related:**
 - [K1NArch_SPEC_LUT_SYSTEM_ARCHITECTURE_v1.0_20251108.md](../01-architecture/K1NArch_SPEC_LUT_SYSTEM_ARCHITECTURE_v1.0_20251108.md)
-- [ADR-0012-lut-optimization-system.md](../02-adr/ADR-0012-lut-optimization-system.md)
+- [ADR-0017-lut-optimization-system.md](../02-adr/ADR-0017-lut-optimization-system.md)
 - [K1NAnalysis_ANALYSIS_LUT_OPTIMIZATION_v1.0_20251108.md](../05-analysis/K1NAnalysis_ANALYSIS_LUT_OPTIMIZATION_v1.0_20251108.md)
 **Tags:** `implementation`, `runbook`, `lut`, `integration`
 
@@ -754,7 +754,7 @@ For issues or questions about LUT integration:
 
 1. Check troubleshooting section above
 2. Review [LUT System Architecture](../01-architecture/K1NArch_SPEC_LUT_SYSTEM_ARCHITECTURE_v1.0_20251108.md)
-3. Consult [ADR-0012](../02-adr/ADR-0012-lut-optimization-system.md)
+3. Consult [ADR-0017](../02-adr/ADR-0017-lut-optimization-system.md)
 4. File issue in project tracker with tag `lut-optimization`
 
 ---

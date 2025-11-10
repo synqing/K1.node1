@@ -15,6 +15,7 @@
 #include <esp_timer.h>
 #include <atomic>
 #include <stdint.h>
+#include "logging/logger.h"
 
 // Configuration: Enable profiling only in debug builds
 #ifdef DEBUG_TELEMETRY
@@ -181,10 +182,10 @@ inline uint32_t ProfileScope::get_max_us(const char* name) {
 inline void ProfileScope::print_all_stats() {
     uint8_t num_sections = next_section_id_.load(std::memory_order_acquire);
 
-    Serial.println("\n=== PROFILING STATISTICS ===");
-    Serial.printf("%-30s  %8s  %8s  %8s  %8s\n",
-                  "Section", "Calls", "Avg (μs)", "Max (μs)", "Total (ms)");
-    Serial.println("----------------------------------------------------------------------");
+    LOG_INFO(TAG_PROFILE, "=== PROFILING STATISTICS ===");
+    LOG_INFO(TAG_PROFILE, "%-30s  %8s  %8s  %8s  %8s",
+             "Section", "Calls", "Avg (μs)", "Max (μs)", "Total (ms)");
+    LOG_INFO(TAG_PROFILE, "----------------------------------------------------------------------");
 
     for (uint8_t i = 0; i < num_sections; i++) {
         uint32_t count = stats_pool_[i].count.load(std::memory_order_relaxed);
@@ -195,11 +196,11 @@ inline void ProfileScope::print_all_stats() {
             uint32_t avg = (uint32_t)(total / count);
             uint32_t total_ms = (uint32_t)(total / 1000);
 
-            Serial.printf("%-30s  %8u  %8u  %8u  %8u\n",
-                          stats_pool_[i].name, count, avg, max, total_ms);
+            LOG_INFO(TAG_PROFILE, "%-30s  %8u  %8u  %8u  %8u",
+                     stats_pool_[i].name, count, avg, max, total_ms);
         }
     }
-    Serial.println("======================================================================\n");
+    LOG_INFO(TAG_PROFILE, "======================================================================");
 }
 
 inline void ProfileScope::reset_all() {

@@ -56,11 +56,11 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 - Context: Internal cross-reference
 - Update to: `/docs/01-architecture/K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md`
 
-**5. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0005-backend-framework-fastapi.md**
+**5. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0013-backend-framework-fastapi.md**
 - Line 186: `- **Technical Comparison**: \`docs/05-analysis/fastapi_vs_nestjs_song_analysis_comparison.md\``
 - Context: ADR reference (NOTE: This is actually docs/analysis, see analysis section below)
 
-**6. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0001-led_driver_header_split.md**
+**6. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0015-led-driver-header-split.md**
 - Line 203: `- **Forensic Analysis**: \`/docs/05-analysis/led_driver_architecture_analysis.md\` (full technical analysis with line numbers and metrics)`
 - Line 204: `- **Quick Reference**: \`/docs/05-analysis/led_driver_refactoring_summary.md\` (one-page summary for engineers)`
 - Context: ADR references (NOTE: These are actually docs/analysis references)
@@ -177,7 +177,7 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 - Line 96: `**From ULTRA design (docs/04-planning/):**
 - Update adr to: `docs/02-adr:` and paths to appropriate numbered versions
 
-**8. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0004-institutional-memory-adoption.md**
+**8. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0011-institutional-memory-adoption.md**
 - Line 10: `related_docs: [docs/09-reports/POC_FINAL_DECISION.md, docs/07-resources/mem0_production_integration_guide.md]`
 - Line 22: `- PoC Final Decision: [docs/09-reports/POC_FINAL_DECISION.md](../reports/POC_FINAL_DECISION.md)`
 - Line 23: `- Task #1 Review: [docs/09-reports/poc_task1_review.md](../reports/poc_task1_review.md)`
@@ -243,12 +243,12 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 - Line 241: `**Related ADR:** \`/docs/02-adr/ADR-0006-codegen-abandonment.md\` (decision document)`
 - Update to: `/docs/05-analysis/...` and `/docs/02-adr/...`
 
-**5. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0005-backend-framework-fastapi.md**
+**5. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0013-backend-framework-fastapi.md**
 - Line 177: `See detailed implementation guide: \`docs/04-planning/fastapi_implementation_guide.md\``
 - Line 186: `- **Technical Comparison**: \`docs/05-analysis/fastapi_vs_nestjs_song_analysis_comparison.md\``
 - Update to: `docs/04-planning/` and `docs/05-analysis/`
 
-**6. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0001-led_driver_header_split.md**
+**6. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0015-led-driver-header-split.md**
 - Line 203: `- **Forensic Analysis**: \`/docs/05-analysis/led_driver_architecture_analysis.md\` (full technical analysis with line numbers and metrics)`
 - Line 204: `- **Quick Reference**: \`/docs/05-analysis/led_driver_refactoring_summary.md\` (one-page summary for engineers)`
 - Update to: `/docs/05-analysis/`
@@ -314,7 +314,7 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 - Line 50: `   /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/04-planning/`
 - Update all to: `docs/04-planning/`
 
-**5. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0005-backend-framework-fastapi.md**
+**5. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0013-backend-framework-fastapi.md**
 - Line 177: `See detailed implementation guide: \`docs/04-planning/fastapi_implementation_guide.md\``
 - Update to: `docs/04-planning/fastapi_implementation_guide.md`
 
@@ -383,7 +383,7 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 **4. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0009-phase-2d1-critical-fixes.md**
 - Line 8: `  - docs/09-reports/AUDIT_SUMMARY_FOR_LEADERSHIP.md`
 
-**5. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0004-institutional-memory-adoption.md**
+**5. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0011-institutional-memory-adoption.md**
 - Line 10: `related_docs: [docs/09-reports/POC_FINAL_DECISION.md, docs/07-resources/mem0_production_integration_guide.md]`
 - Line 22: `- PoC Final Decision: [docs/09-reports/POC_FINAL_DECISION.md](../reports/POC_FINAL_DECISION.md)`
 - Line 23: `- Task #1 Review: [docs/09-reports/poc_task1_review.md](../reports/poc_task1_review.md)`
@@ -530,11 +530,11 @@ Total files requiring updates: **16**
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/CLAUDE.md | adr, architecture, analysis, planning, reports, templates, resources, guides | CRITICAL |
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/TASKS.md | architecture, analysis, adr, planning, reports, templates | HIGH |
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0006-codegen-abandonment.md | architecture, analysis, reports, adr | HIGH |
-| /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0004-institutional-memory-adoption.md | reports, resources | HIGH |
+| /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0011-institutional-memory-adoption.md | reports, resources | HIGH |
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/04-planning/K1NPlan_PLAN_K1_MIGRATION_MASTER_v1.0_20251108.md | adr, architecture, analysis, planning, reports, guides, reference, templates | HIGH |
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/09-implementation/K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md | adr, planning, reports, architecture, analysis | MEDIUM |
-| /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0005-backend-framework-fastapi.md | planning, analysis | MEDIUM |
-| /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0001-led_driver_header_split.md | analysis | MEDIUM |
+| /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0013-backend-framework-fastapi.md | planning, analysis | MEDIUM |
+| /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0015-led-driver-header-split.md | analysis | MEDIUM |
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/README.md | adr, analysis, planning | MEDIUM |
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/07-resources/K1NRes_GUIDE_GOVERNANCE_TRAINING_NOV6_v1.0_20251108.md | architecture, analysis, adr, planning, reports | MEDIUM |
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/07-resources/K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md | adr, architecture, analysis, planning, reports | MEDIUM |
@@ -553,4 +553,3 @@ Total files requiring updates: **16**
 3. Test all cross-references to ensure links still work
 4. Update any deployment scripts that reference old paths
 5. Commit changes with message: `docs: Update all legacy paths to numbered structure (docs/0X-*)`
-

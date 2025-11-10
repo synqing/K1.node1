@@ -6,15 +6,10 @@ const NodePaletteModal = lazy(() => import('../graph/NodePaletteModal').then(m =
 const ShortcutsModal = lazy(() => import('../graph/ShortcutsModal').then(m => ({ default: m.ShortcutsModal })));
 import { ErrorPanel } from '../graph/ErrorPanel';
 import { ImportExport } from '../graph/ImportExport';
+import { useGraphAuthoring } from '../../store/graphAuthoring';
 
 export function GraphEditorView() {
-  const [graphState, setGraphState] = useState<GraphState>({
-    nodes: [],
-    connections: [],
-    selectedNodeIds: [],
-    zoom: 1,
-    pan: { x: 0, y: 0 },
-  });
+  const { graphState, setGraphState } = useGraphAuthoring();
   
   const [history, setHistory] = useState<GraphState[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -53,7 +48,7 @@ export function GraphEditorView() {
     setGraphState(newState);
     pushHistory(newState);
     setShowNodePalette(false);
-  }, [graphState, pushHistory]);
+  }, [graphState, pushHistory, setGraphState]);
   
   const handleDeleteNode = useCallback((nodeId: string) => {
     const newState = {
@@ -66,7 +61,7 @@ export function GraphEditorView() {
     };
     setGraphState(newState);
     pushHistory(newState);
-  }, [graphState, pushHistory]);
+  }, [graphState, pushHistory, setGraphState]);
   
   const handleNodeMove = useCallback((nodeId: string, position: { x: number; y: number }) => {
     const newState = {
@@ -76,7 +71,7 @@ export function GraphEditorView() {
       ),
     };
     setGraphState(newState);
-  }, [graphState]);
+  }, [graphState, setGraphState]);
   
   const handleNodeMoveEnd = useCallback(() => {
     pushHistory(graphState);
@@ -87,21 +82,21 @@ export function GraphEditorView() {
       ...prev,
       zoom: Math.min(prev.zoom * 1.2, 3),
     }));
-  }, []);
+  }, [setGraphState]);
   
   const handleZoomOut = useCallback(() => {
     setGraphState(prev => ({
       ...prev,
       zoom: Math.max(prev.zoom / 1.2, 0.1),
     }));
-  }, []);
+  }, [setGraphState]);
   
   const handleZoomReset = useCallback(() => {
     setGraphState(prev => ({
       ...prev,
       zoom: 1,
     }));
-  }, []);
+  }, [setGraphState]);
   
   const handleFitToView = useCallback(() => {
     // Calculate bounds of all nodes

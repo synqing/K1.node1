@@ -34,7 +34,7 @@
 ### Architecture & Decision Records
 
 **1. ADR-0013: Conductor Deployment Resilience** ⭐ CRITICAL
-- **Location:** `docs/02-adr/ADR-0013-conductor-deployment-resilience.md`
+- **Location:** `docs/02-adr/ADR-0019-conductor-deployment-resilience.md`
 - **What:** 3-tier fallback architecture (Docker → JAR → Direct)
 - **Why:** Resolved Docker dependency risk, no persistent storage, untested scaling
 - **For You:** Implementation blueprint for deployment infrastructure
@@ -322,7 +322,7 @@ Open: `docs/09-implementation/K1NImpl_PHASE5_1_PERFORMANCE_OPTIMIZATION_v1.0_202
 
 **MUST READ:**
 
-1. ⭐ **ADR-0013** - `docs/02-adr/ADR-0013-conductor-deployment-resilience.md`
+1. ⭐ **ADR-0019** - `docs/02-adr/ADR-0019-conductor-deployment-resilience.md`
    - Architecture decisions, critical for understanding infrastructure
 
 2. ⭐ **Phase 5.1 Spec** - `docs/09-implementation/K1NImpl_PHASE5_1_PERFORMANCE_OPTIMIZATION_v1.0_20251109.md`

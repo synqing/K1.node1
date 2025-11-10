@@ -9,6 +9,14 @@ Central documentation hub for all K1.node1 project information, decisions, plans
 - **Quick Reference:** `07-resources/K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md` - One-page cheat sheet
 - **Conductor Docs (moved):** `../Conductor/README.md` - Orchestration + MCP integration
 
+### Start Here: Graph System
+
+- **Schema Spec:** `06-reference/GRAPH_SCHEMA_SPEC.md`
+- **Authoring Guide:** `09-implementation/GRAPH_AUTHORING_GUIDE.md`
+- **Node Catalog:** `06-reference/NODE_CATALOG_REFERENCE.md`
+- **Troubleshooting:** `09-implementation/GRAPH_TROUBLESHOOTING.md`
+- **SB/Emotiscope Compatibility:** `06-reference/SENSORY_BRIDGE_COMPAT.md`
+
 ## Documentation Folders
 
 | Folder | Purpose | Key Documents |

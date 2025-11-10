@@ -922,7 +922,7 @@ Quality: ≥95% pass rate ✅ (no regression)
 
 ## Reference Documents
 
-- **ADR-0013:** `docs/02-adr/ADR-0013-conductor-deployment-resilience.md`
+- **ADR-0019:** `docs/02-adr/ADR-0019-conductor-deployment-resilience.md`
 - **Implementation Spec:** `docs/09-implementation/K1NImpl_PHASE5_1_PERFORMANCE_OPTIMIZATION_v1.0_20251109.md`
 - **Phase 4.4 Report:** `docs/09-reports/K1NReport_PHASE4_4_EXECUTION_v1.1_20251109.md`
 - **Phase 5 Roadmap:** `docs/04-planning/K1NPlan_PHASE5_COMPREHENSIVE_ROADMAP_v1.0_20251109.md`

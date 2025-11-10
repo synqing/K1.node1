@@ -10,6 +10,22 @@
 std::atomic<bool> waveform_locked{false};
 std::atomic<bool> waveform_sync_flag{false};
 
+// ============================================================================
+// I2S TIMEOUT PROTECTION & RECOVERY STATE (Phase 0)
+// ============================================================================
+I2STimeoutState i2s_timeout_state = {
+    .timeout_count = 0,
+    .consecutive_failures = 0,
+    .last_failure_time_ms = 0,
+    .last_error_code = ERR_OK,
+    .in_fallback_mode = false,
+    .fallback_start_time_ms = 0,
+};
+
+const I2STimeoutState& get_i2s_timeout_state() {
+    return i2s_timeout_state;
+}
+
 #if MICROPHONE_USE_NEW_I2S
 
 // I2S RX channel handle (new ESP-IDF v5 API)
@@ -94,23 +110,30 @@ void acquire_sample_chunk() {
         uint32_t new_samples_raw[CHUNK_SIZE];
         float new_samples[CHUNK_SIZE];
 
+        // ====================================================================
+        // PHASE 0: I2S TIMEOUT PROTECTION & RECOVERY
+        // ====================================================================
+        bool use_silence_fallback = false;
+        uint32_t now_ms = millis();
+
         if (EMOTISCOPE_ACTIVE) {
             size_t bytes_read = 0;
             esp_err_t i2s_result = ESP_FAIL;
             uint32_t i2s_start_us = micros();
 
+            // Bounded wait: max 100ms (pdMS_TO_TICKS is FreeRTOS-safe)
 #if MICROPHONE_USE_NEW_I2S
             i2s_result = i2s_channel_read(rx_handle,
                                           new_samples_raw,
                                           CHUNK_SIZE * sizeof(uint32_t),
                                           &bytes_read,
-                                          pdMS_TO_TICKS(100));
+                                          pdMS_TO_TICKS(100));  // CRITICAL: 100ms max
 #else
             i2s_result = i2s_read(I2S_PORT,
                                    new_samples_raw,
                                    CHUNK_SIZE * sizeof(uint32_t),
                                    &bytes_read,
-                                   pdMS_TO_TICKS(100));
+                                   pdMS_TO_TICKS(100));  // CRITICAL: 100ms max
 #endif
             uint32_t i2s_block_us = micros() - i2s_start_us;
 
@@ -118,19 +141,75 @@ void acquire_sample_chunk() {
                 LOG_DEBUG(TAG_I2S, "Block time: %lu us", i2s_block_us);
             }
 
+            // ================================================================
+            // ERROR DETECTION & RECOVERY (Phase 0 - Task 2)
+            // ================================================================
             if (i2s_result != ESP_OK) {
+                // Timeout or read error detected
+                use_silence_fallback = true;
+                i2s_timeout_state.timeout_count++;
+                i2s_timeout_state.consecutive_failures++;
+                i2s_timeout_state.last_failure_time_ms = now_ms;
+
+                // Map I2S error to error code
+                if (i2s_result == ESP_ERR_TIMEOUT) {
+                    i2s_timeout_state.last_error_code = ERR_I2S_READ_TIMEOUT;
+                    LOG_ERROR(TAG_I2S, "[ERR_%d] I2S read timeout (%lu us), fail_streak=%lu",
+                              ERR_I2S_READ_TIMEOUT, i2s_block_us,
+                              i2s_timeout_state.consecutive_failures);
+                } else {
+                    i2s_timeout_state.last_error_code = ERR_I2S_READ_OVERRUN;
+                    LOG_ERROR(TAG_I2S, "[ERR_%d] I2S read error %d (%lu us), fail_streak=%lu",
+                              ERR_I2S_READ_OVERRUN, i2s_result, i2s_block_us,
+                              i2s_timeout_state.consecutive_failures);
+                }
+
+                // RECOVERY: Check if recovery is possible
+                if (i2s_timeout_state.consecutive_failures >= 3) {
+                    // After 3+ consecutive failures, enter fallback mode
+                    i2s_timeout_state.in_fallback_mode = true;
+                    i2s_timeout_state.fallback_start_time_ms = now_ms;
+                    LOG_WARN(TAG_I2S, "Entered I2S fallback mode (silence output)");
+                }
+
+                // Always use silence on error
                 memset(new_samples_raw, 0, sizeof(new_samples_raw));
-                LOG_ERROR(TAG_I2S, "Read failed with code %d, block_us=%lu", i2s_result, i2s_block_us);
+            } else {
+                // Success: reset failure counter and reset error code
+                // (Watchdog feed would happen here if task WDT were configured)
+                i2s_timeout_state.consecutive_failures = 0;
+                i2s_timeout_state.last_error_code = ERR_OK;
+
+                // Recovery from fallback mode: after 1 successful read, try exit
+                if (i2s_timeout_state.in_fallback_mode) {
+                    uint32_t fallback_duration = now_ms - i2s_timeout_state.fallback_start_time_ms;
+                    if (fallback_duration > 1000) {  // After 1 second of success
+                        i2s_timeout_state.in_fallback_mode = false;
+                        LOG_INFO(TAG_I2S, "Recovered from I2S fallback mode");
+                    }
+                }
             }
         } else {
+            // Audio reactivity disabled: use silence
             memset(new_samples_raw, 0, sizeof(new_samples_raw));
+            i2s_timeout_state.last_error_code = ERR_OK;
         }
 
+        // Convert raw samples to float with silence fallback support
         for (uint16_t i = 0; i < CHUNK_SIZE; i += 4) {
-            new_samples[i + 0] = min(max((((int32_t)new_samples_raw[i + 0]) >> 14) + 7000, (int32_t)-131072), (int32_t)131072) - 360;
-            new_samples[i + 1] = min(max((((int32_t)new_samples_raw[i + 1]) >> 14) + 7000, (int32_t)-131072), (int32_t)131072) - 360;
-            new_samples[i + 2] = min(max((((int32_t)new_samples_raw[i + 2]) >> 14) + 7000, (int32_t)-131072), (int32_t)131072) - 360;
-            new_samples[i + 3] = min(max((((int32_t)new_samples_raw[i + 3]) >> 14) + 7000, (int32_t)-131072), (int32_t)131072) - 360;
+            if (use_silence_fallback || i2s_timeout_state.in_fallback_mode) {
+                // FALLBACK: output silence (zeros)
+                new_samples[i + 0] = 0.0f;
+                new_samples[i + 1] = 0.0f;
+                new_samples[i + 2] = 0.0f;
+                new_samples[i + 3] = 0.0f;
+            } else {
+                // NORMAL: convert and clamp raw samples
+                new_samples[i + 0] = min(max((((int32_t)new_samples_raw[i + 0]) >> 14) + 7000, (int32_t)-131072), (int32_t)131072) - 360;
+                new_samples[i + 1] = min(max((((int32_t)new_samples_raw[i + 1]) >> 14) + 7000, (int32_t)-131072), (int32_t)131072) - 360;
+                new_samples[i + 2] = min(max((((int32_t)new_samples_raw[i + 2]) >> 14) + 7000, (int32_t)-131072), (int32_t)131072) - 360;
+                new_samples[i + 3] = min(max((((int32_t)new_samples_raw[i + 3]) >> 14) + 7000, (int32_t)-131072), (int32_t)131072) - 360;
+            }
         }
 
         dsps_mulc_f32(new_samples, new_samples, CHUNK_SIZE, recip_scale, 1, 1);

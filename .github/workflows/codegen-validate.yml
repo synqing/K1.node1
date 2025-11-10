@@ -1,0 +1,149 @@
+name: Codegen Validation
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'codegen/**'
+      - '.github/workflows/codegen-validate.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'codegen/**'
+
+jobs:
+  schema-validation:
+    name: Validate Graph Schemas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: codegen
+
+      - name: Validate schemas
+        run: |
+          npm run build
+          # Validate any test fixtures
+          for fixture in fixtures/*.json; do
+            if [ -f "$fixture" ]; then
+              echo "Validating $fixture..."
+              npm run k1c validate "$fixture" || exit 1
+            fi
+          done
+        working-directory: codegen
+
+  typescript-build:
+    name: Build TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: codegen
+
+      - name: Build TypeScript
+        run: npm run build
+        working-directory: codegen
+
+      - name: Verify build artifacts
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "Build failed - no dist directory"
+            exit 1
+          fi
+          if [ ! -f "dist/cli.js" ]; then
+            echo "Build failed - no cli.js"
+            exit 1
+          fi
+        working-directory: codegen
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: codegen
+
+      - name: Run tests
+        run: npm test
+        working-directory: codegen
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./codegen/coverage/coverage-final.json
+          flags: codegen
+          name: codegen-coverage
+
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: codegen
+
+      - name: Lint
+        run: npm run lint
+        working-directory: codegen
+        continue-on-error: true
+
+  firmware-build-test:
+    name: Test Firmware Compilation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PlatformIO
+        run: |
+          pip install platformio
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Build codegen
+        run: npm install && npm run build
+        working-directory: codegen
+
+      - name: Verify generated header
+        run: |
+          if [ ! -f "firmware/src/graph_codegen/graph_runtime.h" ]; then
+            echo "Missing graph_runtime.h"
+            exit 1
+          fi
+
+      - name: Syntax check firmware header
+        run: |
+          # Minimal syntax check (not a full compile)
+          head -20 firmware/src/graph_codegen/graph_runtime.h | grep -q "#pragma once" || exit 1

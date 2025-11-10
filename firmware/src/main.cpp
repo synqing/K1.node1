@@ -1,7 +1,15 @@
-#include <Arduino.h>
-#include <WiFi.h>
-#include <ArduinoOTA.h>
-#include <SPIFFS.h>
+#if __has_include(<Arduino.h>)
+#  include <Arduino.h>
+#endif
+#if __has_include(<WiFi.h>)
+#  include <WiFi.h>
+#endif
+#if __has_include(<ArduinoOTA.h>)
+#  include <ArduinoOTA.h>
+#endif
+#if __has_include(<SPIFFS.h>)
+#  include <SPIFFS.h>
+#endif
 // Ensure LED driver interface is visible before any usage
 #include "led_driver.h"  // declares init_rmt_driver(), transmit_leds(), NUM_LEDS
 #ifdef DYNAMIC_LED_CHANNELS
@@ -61,11 +69,10 @@ void init_rmt_driver();
 // (removed duplicate include of audio/goertzel.h)
 #include "udp_echo.h"      // UDP echo server for RTT measurements
 #include "led_tx_events.h"  // Rolling buffer of LED transmit timestamps
+#include "frame_metrics.h"  // Frame-level profiling metrics
 
-// Configuration (hardcoded for Phase A simplicity)
-// Updated per user request
-// SSID: OPTUS_738CC0N
-// Password: parrs45432vw
+// Configuration (environment-based per Phase 0 security hardening)
+// WiFi credentials must be supplied via environment variables - see .env.example
 #define BEAT_EVENTS_DIAG 0
 // NUM_LEDS and LED_DATA_PIN are defined in led_driver.h
 
@@ -111,6 +118,7 @@ float get_best_bpm() {
 
 void handle_wifi_connected() {
     connection_logf("INFO", "WiFi connected callback fired");
+#if __has_include(<WiFi.h>) && __has_include(<ArduinoOTA.h>)
     LOG_INFO(TAG_WIFI, "Connected! IP: %s", WiFi.localIP().toString().c_str());
 
     ArduinoOTA.begin();
@@ -131,6 +139,9 @@ void handle_wifi_connected() {
     }
 
     LOG_INFO(TAG_WEB, "Control UI: http://%s.local", ArduinoOTA.getHostname());
+#else
+    LOG_INFO(TAG_WIFI, "Connected (WiFi/OTA headers unavailable in this build)");
+#endif
 }
 
 void handle_wifi_disconnected() {
@@ -158,7 +169,7 @@ void init_uart_sync() {
                  UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     uart_driver_install(UART_NUM, 256, 0, 0, NULL, 0);
 
-    Serial.println("UART1 initialized for s3z daisy chain sync");
+    LOG_INFO(TAG_SYNC, "UART1 initialized for s3z daisy chain sync");
 }
 #endif
 
@@ -195,8 +206,8 @@ void send_uart_sync_frame() {
 
     // Debug output every 200 packets (~4.7 seconds at 42 FPS)
     if (packets_sent % 200 == 0) {
-        Serial.printf("UART: Sent %lu packets (frame %lu, last write %d bytes)\n",
-            packets_sent, current_frame, bytes_written);
+        LOG_DEBUG(TAG_SYNC, "UART: Sent %lu packets (frame %lu, last write %d bytes)",
+                  packets_sent, current_frame, bytes_written);
     }
 
     last_frame = current_frame;
@@ -305,7 +316,7 @@ void audio_task(void* param) {
 
                 // Log BEAT_EVENT with detected BPM
                 float best_bpm = get_best_bpm();
-                Serial.printf("[beat] BEAT detected @ %.1f BPM\n", best_bpm);
+                LOG_INFO(TAG_BEAT, "BEAT detected @ %.1f BPM", best_bpm);
             }
             // Always end probe; latency printing is internally rate-limited and disabled by default
             beat_events_probe_end("audio_step");
@@ -314,13 +325,13 @@ void audio_task(void* param) {
             uint32_t diag_interval = 3000;  // 3 second interval
             if ((now_ms - last_diag_ms) >= diag_interval) {
                 float best_bpm = get_best_bpm();
-                Serial.printf("[audio] BPM: %.1f | VU: %.2f\n", best_bpm, audio_level);
+                LOG_INFO(TAG_AUDIO, "BPM: %.1f | VU: %.2f", best_bpm, audio_level);
                 last_diag_ms = now_ms;
             }
             // Debug output: verbose metrics (only if debug mode enabled)
             if (audio_debug_enabled) {
-                Serial.printf("[DEBUG] tempo_conf=%.3f silence=%.3f novelty_sum=%.3f\n",
-                              tempo_confidence, silence_level, tempi_power_sum);
+                LOG_DEBUG(TAG_AUDIO, "tempo_conf=%.3f silence=%.3f novelty_sum=%.3f",
+                          tempo_confidence, silence_level, tempi_power_sum);
             }
         }
 
@@ -429,10 +440,12 @@ static inline void run_audio_pipeline_once() {
 // - Never waits for audio (reads latest available data)
 void loop_gpu(void* param) {
     LOG_INFO(TAG_CORE0, "GPU_TASK Starting on Core 1");
-    
+
     static uint32_t start_time = millis();
-    
+
     for (;;) {
+        uint32_t t0 = micros();
+
         // Track time for animation
         float time = (millis() - start_time) / 1000.0f;
 
@@ -447,16 +460,34 @@ void loop_gpu(void* param) {
         global_brightness = params.brightness;
 
         // Draw current pattern with audio-reactive data (lock-free read from audio_front)
+        uint32_t t_render = micros();
         draw_current_pattern(time, params);
+        uint32_t render_us = micros() - t_render;
 
+        // Quantize (built into transmit_leds, measured separately)
+        uint32_t t_quantize = micros();
         // Transmit to LEDs via RMT (non-blocking DMA)
         transmit_leds();
+        uint32_t quantize_us = micros() - t_quantize;
+
+        uint32_t frame_us = micros() - t0;
+
         heartbeat_logger_note_frame();
 
         // FPS tracking (minimal overhead)
         watch_cpu_fps();
         print_fps();
-        
+
+        // Record frame metrics (zero-cost when disabled)
+        uint16_t fps_u16 = (uint16_t)(FPS_CPU * 100.0f);
+        FrameMetricsBuffer::instance().record_frame(
+            render_us,
+            quantize_us,
+            0,  // rmt_wait_us (measured in transmit_leds)
+            0,  // rmt_tx_us (measured in transmit_leds)
+            fps_u16
+        );
+
         // No delay - run at maximum performance
         // The RMT wait in transmit_leds() provides natural pacing
     }
@@ -471,16 +502,16 @@ void setup() {
 
     // Print build environment and IDF/Arduino versions up front (so we catch cursed mismatches early)
 #ifdef ARDUINO_ESP32_RELEASE_3_0_0
-    Serial.printf("[build] Arduino core: %s\n", ARDUINO_ESP32_RELEASE_3_0_0);
+    LOG_INFO(TAG_CORE0, "Build: Arduino core %s", ARDUINO_ESP32_RELEASE_3_0_0);
 #endif
 #ifdef ARDUINO
-    Serial.printf("[build] ARDUINO macro: %d\n", ARDUINO);
+    LOG_INFO(TAG_CORE0, "Build: ARDUINO macro %d", ARDUINO);
 #endif
 #ifdef IDF_VER
-    Serial.printf("[build] ESP-IDF: %s\n", IDF_VER);
+    LOG_INFO(TAG_CORE0, "Build: ESP-IDF %s", IDF_VER);
 #endif
 #ifdef REQUIRE_IDF5_DUAL_RMT
-    Serial.println("[build] REQUIRE_IDF5_DUAL_RMT=1 (dual RMT enforced)");
+    LOG_INFO(TAG_CORE0, "Build: REQUIRE_IDF5_DUAL_RMT=1 (dual RMT enforced)");
 #endif
 
     // Initialize LED driver
@@ -490,16 +521,15 @@ void setup() {
     led_tx_events_init(256);
 
 
-    // Print keyboard controls help
-    Serial.println("========== KEYBOARD CONTROLS ==========");
-    Serial.println("  SPACEBAR - Cycle to next pattern");
-    Serial.println("  D/d      - Toggle audio debug mode");
-    Serial.println("  H/h      - Dump heartbeat logs");
-    Serial.println("=======================================\n");
+    // Print keyboard controls help (menu-driven to minimize unique keys)
+    LOG_INFO(TAG_CORE1, "========== KEYBOARD CONTROLS ==========");
+    LOG_INFO(TAG_CORE1, "  SPACEBAR  - Cycle to next pattern");
+    LOG_INFO(TAG_CORE1, "  m         - Open/close Debug Menu");
+    LOG_INFO(TAG_CORE1, "=======================================");
 
     // Initialize UART for s3z daisy chain sync (gated)
 #if ENABLE_UART_SYNC
-    Serial.println("Initializing UART daisy chain sync...");
+    LOG_INFO(TAG_SYNC, "Initializing UART daisy chain sync...");
     init_uart_sync();
 #endif
 
@@ -690,25 +720,99 @@ void loop() {
     // Audio processing now handled by dedicated audio_task on Core 0
     // Visual rendering now handled by dedicated loop_gpu on Core 1
 
-    // Debug mode toggle via keystroke
+    // Compact debug menu: reduce unique keystrokes using a menu state machine
+    static enum { MENU_OFF, MENU_MAIN, MENU_TAGS_PAGE1, MENU_TAGS_PAGE2 } dbg_menu_state = MENU_OFF;
+    auto print_menu_main = []() {
+        LOG_INFO(TAG_CORE1, "==== DEBUG MENU ====");
+        uint8_t lvl = Logger::get_level();
+        const char* name = (lvl == LOG_LEVEL_DEBUG) ? "DEBUG" : (lvl == LOG_LEVEL_INFO) ? "INFO" : (lvl == LOG_LEVEL_WARN) ? "WARN" : "ERROR";
+        LOG_INFO(TAG_CORE1, "Level: %s", name);
+        LOG_INFO(TAG_CORE1, "Audio debug: %s", audio_debug_enabled ? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "--------------------");
+        LOG_INFO(TAG_CORE1, "  1) Cycle log level");
+        LOG_INFO(TAG_CORE1, "  2) Toggle audio debug");
+        LOG_INFO(TAG_CORE1, "  3) Dump heartbeat logs");
+        LOG_INFO(TAG_CORE1, "  4) Toggle log tags...");
+        LOG_INFO(TAG_CORE1, "  0) Close menu");
+        LOG_INFO(TAG_CORE1, "====================");
+    };
+    auto print_menu_tags_page1 = []() {
+        LOG_INFO(TAG_CORE1, "-- Toggle Tags (1/2) --");
+        LOG_INFO(TAG_CORE1, "1) Audio   [%s]",   Logger::get_tag_enabled(TAG_AUDIO)  ? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "2) GPU     [%s]",   Logger::get_tag_enabled(TAG_GPU)    ? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "3) I2S     [%s]",   Logger::get_tag_enabled(TAG_I2S)    ? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "4) LED     [%s]",   Logger::get_tag_enabled(TAG_LED)    ? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "5) Tempo   [%s]",   Logger::get_tag_enabled(TAG_TEMPO)  ? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "6) Beat    [%s]",   Logger::get_tag_enabled(TAG_BEAT)   ? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "7) Sync    [%s]",   Logger::get_tag_enabled(TAG_SYNC)   ? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "8) WiFi    [%s]",   Logger::get_tag_enabled(TAG_WIFI)   ? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "9) Web     [%s]",   Logger::get_tag_enabled(TAG_WEB)    ? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "0) Next page");
+    };
+    auto print_menu_tags_page2 = []() {
+        LOG_INFO(TAG_CORE1, "-- Toggle Tags (2/2) --");
+        LOG_INFO(TAG_CORE1, "1) Memory  [%s]",   Logger::get_tag_enabled(TAG_MEMORY) ? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "2) Profile [%s]",   Logger::get_tag_enabled(TAG_PROFILE)? "ON" : "OFF");
+        LOG_INFO(TAG_CORE1, "9) Prev page");
+        LOG_INFO(TAG_CORE1, "0) Back to main");
+    };
+
     if (Serial.available() > 0) {
         char ch = Serial.read();
-        if (ch == 'd' || ch == 'D') {
-            audio_debug_enabled = !audio_debug_enabled;
-            Serial.printf("DEBUG: audio_debug_enabled = %s\n", audio_debug_enabled ? "true" : "false");
-        } else if (ch == 'h' || ch == 'H') {
-            heartbeat_logger_dump_recent(Serial);
-        } else if (ch == ' ') {  // SPACEBAR - cycle to next pattern
-            // Increment pattern index and wrap around
+        if (ch == ' ') {  // SPACEBAR - cycle to next pattern (operational)
             g_current_pattern_index = (g_current_pattern_index + 1) % g_num_patterns;
-
-            // Log the pattern change
             const PatternInfo& pattern = g_pattern_registry[g_current_pattern_index];
-            Serial.printf("PATTERN CHANGED: [%d] %s - %s\n",
-                         g_current_pattern_index,
-                         pattern.name,
-                         pattern.description);
+            LOG_INFO(TAG_CORE1, "PATTERN CHANGED: [%d] %s - %s", g_current_pattern_index, pattern.name, pattern.description);
             LOG_INFO(TAG_CORE1, "Pattern changed via spacebar to: %s", pattern.name);
+        } else if (ch == 'm') { // Toggle menu (lowercase only)
+            if (dbg_menu_state == MENU_OFF) { dbg_menu_state = MENU_MAIN; print_menu_main(); }
+            else { dbg_menu_state = MENU_OFF; LOG_DEBUG(TAG_CORE1, "Menu closed"); }
+        } else if (dbg_menu_state != MENU_OFF) {
+            // Handle menu input using digits only
+            switch (dbg_menu_state) {
+                case MENU_MAIN:
+                    if (ch == '1') {
+                        uint8_t lvl = Logger::get_level();
+                        uint8_t next = (lvl == LOG_LEVEL_DEBUG) ? LOG_LEVEL_INFO : (lvl == LOG_LEVEL_INFO) ? LOG_LEVEL_WARN : (lvl == LOG_LEVEL_WARN) ? LOG_LEVEL_ERROR : LOG_LEVEL_DEBUG;
+                        Logger::set_level(next);
+                        const char* name = (next == LOG_LEVEL_DEBUG) ? "DEBUG" : (next == LOG_LEVEL_INFO) ? "INFO" : (next == LOG_LEVEL_WARN) ? "WARN" : "ERROR";
+                        LOG_DEBUG(TAG_CORE1, "Log level: %s", name);
+                        print_menu_main();
+                    } else if (ch == '2') {
+                        audio_debug_enabled = !audio_debug_enabled;
+                        LOG_DEBUG(TAG_CORE1, "Audio debug: %s", audio_debug_enabled ? "ON" : "OFF");
+                        print_menu_main();
+                    } else if (ch == '3') {
+                        heartbeat_logger_dump_recent(Serial);
+                        print_menu_main();
+                    } else if (ch == '4') {
+                        dbg_menu_state = MENU_TAGS_PAGE1;
+                        print_menu_tags_page1();
+                    } else if (ch == '0') {
+                        dbg_menu_state = MENU_OFF;
+                    LOG_DEBUG(TAG_CORE1, "Menu closed");
+                    }
+                    break;
+                case MENU_TAGS_PAGE1:
+                    if (ch == '1') { Logger::toggle_tag(TAG_AUDIO);  print_menu_tags_page1(); }
+                    else if (ch == '2') { Logger::toggle_tag(TAG_GPU);    print_menu_tags_page1(); }
+                    else if (ch == '3') { Logger::toggle_tag(TAG_I2S);    print_menu_tags_page1(); }
+                    else if (ch == '4') { Logger::toggle_tag(TAG_LED);    print_menu_tags_page1(); }
+                    else if (ch == '5') { Logger::toggle_tag(TAG_TEMPO);  print_menu_tags_page1(); }
+                    else if (ch == '6') { Logger::toggle_tag(TAG_BEAT);   print_menu_tags_page1(); }
+                    else if (ch == '7') { Logger::toggle_tag(TAG_SYNC);   print_menu_tags_page1(); }
+                    else if (ch == '8') { Logger::toggle_tag(TAG_WIFI);   print_menu_tags_page1(); }
+                    else if (ch == '9') { Logger::toggle_tag(TAG_WEB);    print_menu_tags_page1(); }
+                    else if (ch == '0') { dbg_menu_state = MENU_TAGS_PAGE2; print_menu_tags_page2(); }
+                    break;
+                case MENU_TAGS_PAGE2:
+                    if (ch == '1') { Logger::toggle_tag(TAG_MEMORY); print_menu_tags_page2(); }
+                    else if (ch == '2') { Logger::toggle_tag(TAG_PROFILE); print_menu_tags_page2(); }
+                    else if (ch == '9') { dbg_menu_state = MENU_TAGS_PAGE1; print_menu_tags_page1(); }
+                    else if (ch == '0') { dbg_menu_state = MENU_MAIN; print_menu_main(); }
+                    break;
+                default: break;
+            }
         }
     }
 
@@ -746,7 +850,7 @@ void loop() {
     for (int drained = 0; drained < 20 && beat_events_count() > 0; ++drained) {
         BeatEvent ev;
         if (beat_events_pop(&ev)) {
-            Serial.printf("BEAT_EVENT ts_us=%lu conf=%u\n", (unsigned long)ev.timestamp_us, (unsigned)ev.confidence);
+            LOG_INFO(TAG_BEAT, "BEAT_EVENT ts_us=%lu conf=%u", (unsigned long)ev.timestamp_us, (unsigned)ev.confidence);
         } else {
             break;
         }

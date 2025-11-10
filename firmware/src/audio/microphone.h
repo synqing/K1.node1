@@ -22,6 +22,11 @@
 #  error "I2S driver header not found. ESP-IDF headers are required."
 #endif
 
+// Task watchdog timer for recovery monitoring (Phase 0)
+#if __has_include(<esp_task_wdt.h>)
+#  include <esp_task_wdt.h>
+#endif
+
 #if MICROPHONE_USE_NEW_I2S
 #  ifndef portMAX_DELAY
 #    define portMAX_DELAY 0xFFFFFFFFu
@@ -56,10 +61,24 @@ constexpr float recip_scale = 1.0 / 131072.0; // max 18 bit signed value
 // Synchronization flags for microphone I2S ISR coordination
 // Uses acquire/release ordering for ISR synchronization
 #include <atomic>
+#include "../error_codes.h"
+
+// ============================================================================
+// I2S TIMEOUT PROTECTION & RECOVERY (Phase 0)
+// ============================================================================
+typedef struct {
+    uint32_t timeout_count;          // Total I2S read timeouts
+    uint32_t consecutive_failures;   // Current failure streak
+    uint32_t last_failure_time_ms;   // Timestamp of last failure
+    uint8_t last_error_code;         // Most recent error code
+    bool in_fallback_mode;           // Using silence fallback
+    uint32_t fallback_start_time_ms; // When fallback mode began
+} I2STimeoutState;
 
 // Globals (defined in microphone.cpp)
 extern std::atomic<bool> waveform_locked;
 extern std::atomic<bool> waveform_sync_flag;
+extern I2STimeoutState i2s_timeout_state;
 #if MICROPHONE_USE_NEW_I2S
 extern i2s_chan_handle_t rx_handle;
 #endif
@@ -67,3 +86,4 @@ extern i2s_chan_handle_t rx_handle;
 // Public API
 void init_i2s_microphone();
 void acquire_sample_chunk();
+const I2STimeoutState& get_i2s_timeout_state();  // Read-only access to timeout stats

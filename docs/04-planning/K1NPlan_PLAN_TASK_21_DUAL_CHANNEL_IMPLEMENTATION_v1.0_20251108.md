@@ -5,7 +5,7 @@ date: 2025-11-05
 status: ready
 intent: Detailed breakdown of work items for dual-channel LED system (high-value firmware enhancement)
 related:
-  - ADR-0011-dual-channel-leds.md (architecture decision)
+  - ADR-0018-dual-channel-leds.md (architecture decision)
   - firmware/src/led_driver.h (current single-channel implementation)
   - firmware/src/main.cpp (main loop and task creation)
 tags: [firmware, led-system, task-21, high-value]

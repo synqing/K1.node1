@@ -22,7 +22,8 @@ const PORT = process.env.PORT || 4002;
 app.use(express.json());
 
 // CORS configuration
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
+// Default allow common local dev ports (Vite: 5173, Trae preview: 3003/3004)
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3003,http://localhost:3004,http://localhost:5173')
   .split(',')
   .map((origin) => origin.trim());
 

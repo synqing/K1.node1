@@ -45,3 +45,14 @@ void rmt_probe_get(const RmtProbe** ch1, const RmtProbe** ch2) {
   if (ch2) *ch2 = &g_probe_ch2;
 }
 
+void rmt_probe_reset() {
+  g_probe_ch1.mem_empty_count = 0;
+  g_probe_ch1.trans_done_count = 0;
+  g_probe_ch1.max_gap_us = 0;
+  g_probe_ch1.last_empty_us = 0;
+
+  g_probe_ch2.mem_empty_count = 0;
+  g_probe_ch2.trans_done_count = 0;
+  g_probe_ch2.max_gap_us = 0;
+  g_probe_ch2.last_empty_us = 0;
+}

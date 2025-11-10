@@ -40,6 +40,16 @@ Implementation details for firmware work:
 2. **Critical Fixes:** [ADR-0009-phase-2d1-critical-fixes.md](./02-adr/ADR-0009-phase-2d1-critical-fixes.md)
 3. **Implementation Plan:** [K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md](./09-implementation/K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md)
 4. **Validation Criteria:** [K1NPlan_ROADMAP_PHASE_2_COMPLETE_v1.0_20251108.md](./04-planning/K1NPlan_ROADMAP_PHASE_2_COMPLETE_v1.0_20251108.md)
+5. **Graph System (Start Here):** [GRAPH_SCHEMA_SPEC.md](./06-reference/GRAPH_SCHEMA_SPEC.md), [GRAPH_AUTHORING_GUIDE.md](./09-implementation/GRAPH_AUTHORING_GUIDE.md)
+6. **Node Catalog:** [NODE_CATALOG_REFERENCE.md](./06-reference/NODE_CATALOG_REFERENCE.md)
+7. **Troubleshooting:** [GRAPH_TROUBLESHOOTING.md](./09-implementation/GRAPH_TROUBLESHOOTING.md)
+8. **Compatibility Map:** [SENSORY_BRIDGE_COMPAT.md](./06-reference/SENSORY_BRIDGE_COMPAT.md)
+
+
+1. **Architecture Specs:** [K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md](./01-architecture/K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md)
+2. **Critical Fixes:** [ADR-0009-phase-2d1-critical-fixes.md](./02-adr/ADR-0009-phase-2d1-critical-fixes.md)
+3. **Implementation Plan:** [K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md](./09-implementation/K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md)
+4. **Validation Criteria:** [K1NPlan_ROADMAP_PHASE_2_COMPLETE_v1.0_20251108.md](./04-planning/K1NPlan_ROADMAP_PHASE_2_COMPLETE_v1.0_20251108.md)
 5. **Reference Docs:** [06-reference/](./06-reference/)
 
 ### 🎨 **UI/Webapp Engineers**
@@ -89,6 +99,7 @@ Managing and maintaining documentation:
 | Week 1 Execution | [K1NPlan_PLAN_WEEK_1_EXECUTION_KICKOFF_v1.0_20251108.md](./04-planning/K1NPlan_PLAN_WEEK_1_EXECUTION_KICKOFF_v1.0_20251108.md) | Nov 6-13 |
 | Decision Gate | [K1NPlan_DECISION_GATE_NOV_13_v1.0_20251108.md](./04-planning/K1NPlan_DECISION_GATE_NOV_13_v1.0_20251108.md) | Nov 13 milestone |
 | Parallel Strategy | [K1NPlan_STRATEGY_PHASE_2D1_GRAPH_PARALLEL_MASTER_v1.0_20251108.md](./04-planning/K1NPlan_STRATEGY_PHASE_2D1_GRAPH_PARALLEL_MASTER_v1.0_20251108.md) | Phase 2D1 execution |
+| Corrected Task Roadmap | [K1NPlan_TASK_ROADMAP_CORRECTED_v1.0_20251110.md](./04-planning/K1NPlan_TASK_ROADMAP_CORRECTED_v1.0_20251110.md) | Nov 10 revision |
 
 ### Analysis & Research
 | Topic | Document | Focus |
@@ -97,6 +108,9 @@ Managing and maintaining documentation:
 | Feasibility Studies | [01-architecture/](./01-architecture/) | Technical feasibility |
 | Dependency Analysis | [05-analysis/](./05-analysis/) | Task dependencies |
 | MCP Integration Research | [K1NAnalysis_CLAUDE_DESKTOP_MCP_INTEGRATION_RESEARCH_v1.0_20251108.md](./05-analysis/K1NAnalysis_CLAUDE_DESKTOP_MCP_INTEGRATION_RESEARCH_v1.0_20251108.md) | Phase 4 Conductor-MCP planning |
+| Phase 5.3 Reality Check | [K1NAnalysis_IMPLEMENTATION_REALITY_CHECK_PHASE5_3_v1.0_20251110.md](./05-analysis/K1NAnalysis_IMPLEMENTATION_REALITY_CHECK_PHASE5_3_v1.0_20251110.md) | Code-verified gaps vs claims |
+| Phase 5.3 Claims vs Reality | [K1NAnalysis_PHASE5_3_CLAIMS_VS_REALITY_v1.0_20251110.md](./05-analysis/K1NAnalysis_PHASE5_3_CLAIMS_VS_REALITY_v1.0_20251110.md) | Matrix comparison |
+| Phase 5.3 Forensic Assessment | [K1NAnalysis_FORENSIC_ASSESSMENT_PHASE5_3_v1.0_20251110.md](./05-analysis/K1NAnalysis_FORENSIC_ASSESSMENT_PHASE5_3_v1.0_20251110.md) | Backend implementation audit |
 
 ### Governance & Standards
 | Standard | Document | Applies To |
@@ -111,6 +125,12 @@ Managing and maintaining documentation:
 | Specs & Requirements | [09-implementation/K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md](./09-implementation/K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md) | Building features |
 | Code Patterns | [03-guides/](./03-guides/) | Writing code |
 | API Endpoints | [06-reference/](./06-reference/) | Integrating services |
+
+### Reports
+| Report | Document | Date |
+|--------|----------|------|
+| Audit Executive Summary | [K1NReport_AUDIT_EXECUTIVE_SUMMARY_v1.0_20251110.md](./09-reports/K1NReport_AUDIT_EXECUTIVE_SUMMARY_v1.0_20251110.md) | 2025-11-10 |
+| Research Delivery Summary (Conductor-MCP) | [K1NReport_RESEARCH_DELIVERY_SUMMARY_CONDUCTOR_MCP_v1.0_20251108.md](./09-reports/K1NReport_RESEARCH_DELIVERY_SUMMARY_CONDUCTOR_MCP_v1.0_20251108.md) | 2025-11-08 |
 
 ---
 

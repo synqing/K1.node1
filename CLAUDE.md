@@ -475,3 +475,30 @@ Minimal I2S legacy mitigation
 
 - If routing is unclear, file under `docs/` with a brief note and tag a maintainer.
 - If a new category is needed, propose it in `docs/08-governance/` with rationale and examples.
+
+---
+
+## Claude Infrastructure (Reference)
+
+### Sync & Guardrails
+- Central path: `/Users/spectrasynq/Workspace_Management/Software/claude-infra`
+- Sync updates: `./tools/claude_infra_sync.sh` (preserves `settings.local.json`)
+- Commit guard: changes under `.claude/` are blocked by default
+- Override: set `ALLOW_CLAUDE_CHANGES=1` for emergency commits
+
+### Vendor Commands & Agents
+- Commands location:
+  - Tools: `./.claude/commands/vendors/wshobson-commands/tools/`
+  - Workflows: `./.claude/commands/vendors/wshobson-commands/workflows/`
+- Invocation:
+  - Prefix-based: `/workflows:feature-development implement OAuth2 authentication`
+  - Prefix-based: `/tools:security-scan perform vulnerability assessment`
+  - Direct (optional): copy selected files to repo root for simple calls:
+    ```bash
+    cp .claude/commands/vendors/wshobson-commands/tools/*.md .
+    cp .claude/commands/vendors/wshobson-commands/workflows/*.md .
+    ```
+    Then run commands like `/api-scaffold create REST endpoints`.
+- Agents marketplace (optional):
+  - Add marketplace: `/plugin marketplace add wshobson/agents`
+  - Install agents: `/plugin install <plugin-name>` (e.g., `python-development`, `backend-development`, `security-scanning`)

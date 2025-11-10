@@ -59,6 +59,7 @@ static const char* ROUTE_PATTERN_CURRENT = "/api/pattern/current";
 static const char* ROUTE_REALTIME_CONFIG = "/api/realtime/config";
 static const char* ROUTE_LED_FRAME = "/api/leds/frame";
 static const char* ROUTE_RMT = "/api/rmt";
+static const char* ROUTE_RMT_RESET = "/api/rmt/reset";
 
 // Spinlock for protecting rate limiter state against concurrent access
 // Prevents race condition where two requests could both pass the rate limit check
@@ -104,6 +105,7 @@ static RouteWindow control_windows[] = {
     {ROUTE_REALTIME_CONFIG, ROUTE_POST, 300, 0},
     {ROUTE_LED_FRAME, ROUTE_GET, 200, 0},
     {ROUTE_RMT, ROUTE_GET, 200, 0},
+    {ROUTE_RMT_RESET, ROUTE_POST, 500, 0},
     {ROUTE_WIFI_CREDENTIALS, ROUTE_POST, 1500, 0},
     {ROUTE_WIFI_SCAN, ROUTE_POST, 5000, 0},  // WiFi scanning takes time; 5 second rate limit
     {ROUTE_AUDIO_NOISE_CAL, ROUTE_POST, 1000, 0},

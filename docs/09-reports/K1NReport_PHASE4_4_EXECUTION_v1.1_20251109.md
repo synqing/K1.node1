@@ -166,7 +166,7 @@ This validation run occurred in a sandboxed environment **without Docker daemon 
 - **Validation script:** `tests/validate_conductor_resilience.sh` (corrected)
 - **Test results:** `test-results/conductor_resilience_20251109_172430.json`
 - **Metrics location:** `.conductor/metrics/`
-- **ADR reference:** `docs/02-adr/ADR-0013-conductor-deployment-resilience.md`
+- **ADR reference:** `docs/02-adr/ADR-0019-conductor-deployment-resilience.md`
 - **Deployment guide:** `docs/09-implementation/K1NImpl_CONDUCTOR_DEPLOYMENT_RESILIENCE_v1.0_20251109.md`
 - **Blocker resolution:** `docs/09-implementation/K1NImpl_PHASE4_BLOCKER_RESOLUTION_STRATEGY_v1.0_20251109.md`
 

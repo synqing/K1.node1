@@ -1,0 +1,231 @@
+=============================================================================
+HARDWARE VALIDATION TEST SUITE - COMPLETE INDEX
+=============================================================================
+
+TEST EXECUTABLES
+================
+
+1. test_hw_led_driver.cpp (311 lines)
+   Location: firmware/test/test_hw_led_driver.cpp
+   Tests: 4
+   - test_rmt_dual_channel_sync()
+   - test_led_color_accuracy()
+   - test_frame_timing_stability()
+   - test_memory_bounds()
+   Duration: ~5 minutes
+   Success: All frames transmit, colors accurate, jitter <2ms, heap <50KB
+
+2. test_hw_audio_input.cpp (263 lines)
+   Location: firmware/test/test_hw_audio_input.cpp
+   Tests: 4
+   - test_i2s_initialization()
+   - test_audio_capture()
+   - test_fft_accuracy()
+   - test_audio_latency()
+   Duration: ~10 minutes
+   Success: Init complete, ≥40 chunks, ≥3 peak bins, latency <20ms
+
+3. test_hw_graph_integration.cpp (337 lines)
+   Location: firmware/test/test_hw_graph_integration.cpp
+   Tests: 4
+   - test_graph_codegen_correctness()
+   - test_pattern_execution()
+   - test_parameter_mutation()
+   - test_long_duration_stability()
+   Duration: ~15 minutes (includes 5-min endurance)
+   Success: ≥80% patterns valid, 0 crashes, smooth transitions, FPS >100
+
+AUTOMATION TOOLS
+================
+
+1. run_hw_tests.sh
+   Location: tools/run_hw_tests.sh
+   Purpose: Master test runner script
+   Features:
+     - Automated build → flash → run workflow
+     - Parallel test execution (sequential in current impl)
+     - Automatic log collection
+     - Pass/fail summary report
+   Usage:
+     ./tools/run_hw_tests.sh [--device /dev/ttyXXX] [--skip-build]
+
+2. parse_test_output.py (261 lines)
+   Location: tools/parse_test_output.py
+   Purpose: Serial output parser
+   Features:
+     - Serial connection handler
+     - Unity test output capture
+     - [PASS]/[FAIL]/[METRIC]/[TIMING] extraction
+     - Structured result reporting
+     - Timeout handling (configurable, default 600s)
+   Usage:
+     python3 tools/parse_test_output.py --device /dev/ttyXXX --baud 2000000
+
+DOCUMENTATION
+==============
+
+1. HARDWARE_VALIDATION_GUIDE.md
+   Location: firmware/test/HARDWARE_VALIDATION_GUIDE.md
+   Content: 450+ lines
+   Sections:
+     - Overview of all 12 tests with descriptions
+     - Quick start commands
+     - Test execution output format
+     - Success criteria matrix
+     - Performance targets and baselines
+     - Troubleshooting decision tree
+     - Procedure for adding new tests
+
+2. HW_TEST_CHECKLIST.md
+   Location: tools/HW_TEST_CHECKLIST.md
+   Content: 250+ lines
+   Sections:
+     - Pre-test hardware setup verification
+     - Running tests (3 options)
+     - Test execution expectations
+     - Success criteria checklist
+     - Troubleshooting guide
+     - Performance baselines table
+     - Manual test procedures
+
+3. TASK_11_DELIVERY.md
+   Location: TASK_11_DELIVERY.md
+   Content: 400+ lines
+   Sections:
+     - Complete deliverables list
+     - Test execution details
+     - Code statistics
+     - Design decisions
+     - Integration points
+     - Quality assurance notes
+     - Deployment checklist
+
+QUICK REFERENCE
+===============
+
+Command Line Recipes:
+
+  # Run all 12 tests unattended
+  ./tools/run_hw_tests.sh
+
+  # Run LED tests only
+  cd firmware && pio test -e esp32-s3-devkitc-1 -f test_hw_led_driver
+
+  # Run audio tests only
+  cd firmware && pio test -e esp32-s3-devkitc-1 -f test_hw_audio_input
+
+  # Run graph tests only (includes 5-min stability test)
+  cd firmware && pio test -e esp32-s3-devkitc-1 -f test_hw_graph_integration
+
+  # View test results
+  cat test_logs/*/test_hw_*.log | grep -E "\[PASS\]|\[FAIL\]"
+
+  # Manual device monitor
+  pio device monitor -b 2000000
+
+Expected Test Output:
+
+  [PASS] test_name - Successful test completion
+  [FAIL] test_name - Test assertion failed
+  [METRIC] name: value - Performance measurement
+  [TIMING] name: ms - Latency/duration measurement
+
+Success Criteria Summary:
+
+  LED Driver:
+    - RMT: 30+ valid frames/32
+    - Colors: ±1 LSB accuracy
+    - Jitter: <2ms average
+    - Memory: <1KB delta
+
+  Audio Input:
+    - Init: <2 timeouts
+    - Capture: ≥40 chunks, ≥10 non-zero bins
+    - FFT: ≥3 peak bins
+    - Latency: <20ms avg, <40ms max
+
+  Graph Integration:
+    - Codegen: ≥80% valid patterns
+    - Execution: 0 crashes, no NaN/Inf
+    - Mutation: <0.15 brightness jumps
+    - Stability: >100 FPS, <20% variation, 5 min
+
+HARDWARE REQUIREMENTS
+====================
+
+ESP32-S3 Development Board:
+  - UART: USB-CDC on /dev/tty.usbmodem* (2000000 baud)
+  - LED Output: GPIO 5 (primary), GPIO 4 (secondary) with RMT dual channel
+  - Microphone: I2S (BCLK=14, LRCLK=12, DIN=13) with SPH0645
+
+Power Supply:
+  - 5V for LED strips (160 LEDs @ 60mA peak = ~10W)
+  - 3.3V for microphone and microcontroller
+
+Connections:
+  - Primary LED strip: GPIO 5 + GND + 5V
+  - Secondary LED strip: GPIO 4 + GND + 5V
+  - Microphone: BCLK=14, LRCLK=12, DIN=13 + 3.3V + GND
+
+Test Execution Environment:
+  - No WiFi interference during tests (disable WiFi)
+  - Reasonably quiet room for baseline audio capture
+  - No other serial applications using device
+  - Python 3.6+ with pyserial installed
+
+EXECUTION TIME BREAKDOWN
+=======================
+
+Full Suite (~25 minutes):
+  - LED Driver Tests: 5 min
+    - test_rmt_dual_channel_sync: 1.5 min
+    - test_led_color_accuracy: 0.5 min
+    - test_frame_timing_stability: 2 min
+    - test_memory_bounds: 1 min
+
+  - Audio Input Tests: 10 min
+    - test_i2s_initialization: 1 min
+    - test_audio_capture: 2.5 min
+    - test_fft_accuracy: 3 min
+    - test_audio_latency: 3.5 min
+
+  - Graph Integration Tests: 10 min (initial), 5 min (stability)
+    - test_graph_codegen_correctness: 1 min
+    - test_pattern_execution: 2 min
+    - test_parameter_mutation: 2 min
+    - test_long_duration_stability: 5 min
+
+RELATED DOCUMENTATION
+====================
+
+K1.node1 Architecture:
+  docs/01-architecture/K1NArch_SPEC_LUT_SYSTEM_ARCHITECTURE_v1.0_20251108.md
+
+LED Driver ADR:
+  docs/02-adr/ADR-0015-led-driver-header-split.md
+
+Audio Integration:
+  docs/02-adr/ADR-0013-backend-framework-fastapi.md
+
+Firmware Analysis:
+  docs/09-implementation/K1NImpl_FIRMWARE_NODE_INTEGRATION_ANALYSIS_v1.0_20251110.md
+
+Test Framework:
+  firmware/test/test_utils/test_helpers.h
+
+VERSION CONTROL
+===============
+
+Committed Files:
+  - firmware/test/test_hw_led_driver.cpp
+  - firmware/test/test_hw_audio_input.cpp
+  - firmware/test/test_hw_graph_integration.cpp
+  - firmware/test/HARDWARE_VALIDATION_GUIDE.md
+  - tools/run_hw_tests.sh (executable)
+  - tools/parse_test_output.py (executable)
+  - tools/HW_TEST_CHECKLIST.md
+  - TASK_11_DELIVERY.md (this repository)
+
+=============================================================================
+Last Updated: 2025-11-10
+=============================================================================

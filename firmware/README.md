@@ -24,6 +24,28 @@
 5) Monitor serial logs:
    - `pio device monitor -b 115200`
 
+## Keyboard Controls
+- `SPACEBAR` — cycle to next pattern.
+- `m` — open/close Debug Menu (single entry point to avoid many unique keys).
+
+Debug Menu (digits only):
+- `1` — cycle log level (`DEBUG → INFO → WARN → ERROR`).
+- `2` — toggle audio debug mode.
+- `3` — dump recent heartbeat logs.
+- `4` — toggle log tags (opens tag submenu).
+- `0` — close the menu.
+
+Tag submenu (page 1):
+- `1` Audio, `2` GPU, `3` I2S, `4` LED, `5` Tempo,
+- `6` Beat, `7` Sync, `8` WiFi, `9` Web, `0` next page.
+
+Tag submenu (page 2):
+- `1` Memory, `2` Profile, `9` previous page, `0` back to main menu.
+
+Notes:
+- Lowercase only; no Shift/uppercase shortcuts are used.
+- Digits are reused across menu pages to minimize unique keystrokes.
+
 ## Environments (PlatformIO)
 - `env:esp32-s3-devkitc-1` — default release build (pinned platform + Arduino framework).
 - `env:esp32-s3-devkitc-1-debug` — release flags + `DEBUG_TELEMETRY=1` and REST rate‑limits for diagnostics.

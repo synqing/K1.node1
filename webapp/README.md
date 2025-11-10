@@ -170,3 +170,28 @@ Troubleshooting
   - Frontend Testing Playbook: `docs/07-resources/K1NRes_PLAYBOOK_FRONTEND_TESTING_v1.0_20251108.md`
   - Jest config (aliases/jsdom/CSS mapping): `webapp/jest.config.ts`
   - Repo-wide CLAUDE manual: `CLAUDE.md`
+
+---
+
+## Claude Infrastructure (Reference)
+
+### Sync & Guardrails
+- Central `.claude/` is synced via `tools/claude_infra_sync.sh`; avoid direct edits.
+- Commits touching `.claude/` are blocked by default; override with `ALLOW_CLAUDE_CHANGES=1` only if necessary.
+
+### Vendor Commands & Agents
+- Vendor commands (repo root):
+  - Tools: `.claude/commands/vendors/wshobson-commands/tools/`
+  - Workflows: `.claude/commands/vendors/wshobson-commands/workflows/`
+- Invocation patterns:
+  - Prefix: `/workflows:feature-development implement OAuth2 authentication`
+  - Prefix: `/tools:security-scan perform vulnerability assessment`
+  - Direct: from repo root, optionally copy selected files for simpler calls:
+    ```bash
+    cp .claude/commands/vendors/wshobson-commands/tools/*.md .
+    cp .claude/commands/vendors/wshobson-commands/workflows/*.md .
+    ```
+    Then run commands like `/api-scaffold create REST endpoints`.
+- Optional agent marketplace:
+  - Add marketplace: `/plugin marketplace add wshobson/agents`
+  - Install agents: `/plugin install <plugin-name>` (e.g., `python-development`, `backend-development`, `security-scanning`)
