@@ -238,7 +238,7 @@ ROI: POOR (effort vs. benefit mismatch)
 
 **Full analysis:** `/docs/05-analysis/pattern_reverse_engineering_feasibility.md` (60+ pages)
 
-**Related ADR:** `/docs/02-adr/ADR-0006-codegen-abandonment.md` (decision document)
+**Related ADR:** `/docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md` (decision document)
 
 ---
 

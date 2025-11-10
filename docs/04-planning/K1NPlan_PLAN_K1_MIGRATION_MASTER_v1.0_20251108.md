@@ -973,7 +973,7 @@ echo "Reasons:" >> ROLLBACK_NOTES.md
 ### Keep and Migrate (Essential)
 - All firmware/src/*.cpp and *.h files
 - All webapp/src React components
-- All docs/02-adr/ADR-*.md files
+- All docs/02-adr/K1NADR_*.md files
 - platformio.ini
 - package.json files
 - Recent analyses (< 30 days old)

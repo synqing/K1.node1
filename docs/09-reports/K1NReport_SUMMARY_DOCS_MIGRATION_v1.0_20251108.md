@@ -40,7 +40,7 @@ Project documentation has been realigned to the K1N naming convention across roo
 
 A non-blocking docs naming check has been added to `.githooks/pre-commit`:
 - Validates md/txt/json under `docs/` against K1N naming
-- Exempts: `docs/archive/**`, `docs/02-adr/ADR-*.md`, and `README.md`
+- Exempts: `docs/archive/**`, `docs/02-adr/K1NADR_*.md`, and `README.md`
 - Set `DOCS_NAMING_ENFORCE=1` to block commits on violations
 
 ## Next Steps (Optional)
@@ -52,4 +52,3 @@ A non-blocking docs naming check has been added to `.githooks/pre-commit`:
 ## Acknowledgements
 
 Thanks to the team for aligning on the standard and minimizing disruption while improving discoverability and consistency.
-

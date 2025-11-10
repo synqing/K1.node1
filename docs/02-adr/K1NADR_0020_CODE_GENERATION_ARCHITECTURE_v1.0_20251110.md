@@ -8,8 +8,8 @@ last_updated: 2025-11-10
 next_review_due: 2026-02-10
 tags: [architecture, code-generation, pattern-system, firmware, compilation]
 related_docs:
-  - docs/02-adr/ADR-0006-codegen-abandonment.md
-  - docs/02-adr/ADR-0008-pattern-migration-strategy.md
+  - docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md
+  - docs/02-adr/K1NADR_0008_PATTERN_MIGRATION_STRATEGY_v1.0_20251110.md
   - docs/09-implementation/K1NImpl_NODE_IMPLEMENTATION_CHECKLIST_v1.0_20251110.md
   - docs/01-architecture/K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md
 ---
@@ -484,7 +484,7 @@ for (int i = 0; i < PATTERN_NUM_LEDS; ++i) {
 ### Related Architecture Documents
 
 - **Stateful Node Feasibility:** `docs/01-architecture/K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md` (66 pages, technical deep dive)
-- **Pattern Migration Strategy:** `docs/02-adr/ADR-0008-pattern-migration-strategy.md` (PoC approach)
+- **Pattern Migration Strategy:** `docs/02-adr/K1NADR_0008_PATTERN_MIGRATION_STRATEGY_v1.0_20251110.md` (PoC approach)
 - **Graph Schema Specification:** `docs/06-reference/GRAPH_SCHEMA_SPEC.md` (to be created)
 - **Code Generation Guidelines:** `docs/09-implementation/CODE_GENERATION_GUIDELINES.md` (to be created)
 

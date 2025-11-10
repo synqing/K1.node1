@@ -1358,7 +1358,7 @@ Key test cases:
 
 **6.4 – Create ADR** (1 hour)
 
-Create `/docs/02-adr/ADR-0020-spectrum-graph-codegen.md`:
+Create `/docs/02-adr/K1NADR_0020_CODE_GENERATION_ARCHITECTURE_v1.0_20251110.md`:
 
 ```markdown
 # ADR-0020: Spectrum Pattern Graph Codegen Architecture
@@ -1425,7 +1425,7 @@ Code generation will be via Python script (`codegen_spectrum.py`) that emits opt
 #### Deliverables
 - [ ] `/firmware/test/test_spectrum_nodes.cpp` (unit tests for each node type)
 - [ ] `/docs/09-implementation/SPECTRUM_CODEGEN_IMPLEMENTATION_GUIDE.md` (comprehensive guide)
-- [ ] `/docs/02-adr/ADR-0020-spectrum-graph-codegen.md` (architecture decision record)
+- [ ] `/docs/02-adr/K1NADR_0020_CODE_GENERATION_ARCHITECTURE_v1.0_20251110.md` (architecture decision record)
 - [ ] Test coverage report (>90% code coverage)
 
 #### Success Metrics

@@ -150,7 +150,7 @@
 #### Task 5: ADR for Code Generation Architecture
 **Claimed Status:** Complete (ADR-0006 exists, ADR-0014 in docs)
 **Current Evidence:**
-- File: `/docs/02-adr/ADR-0006-codegen-abandonment.md` (20,914 bytes) - EXISTS ✅
+- File: `/docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md` (20,914 bytes) - EXISTS ✅
 - File: `/firmware/src/stateful_nodes.h` (646 lines) - Core types implemented ✅
 - File: `/firmware/src/stateful_nodes.cpp` (337 lines) - Management code implemented ✅
 - Graph codegen directory is EMPTY (0 files)

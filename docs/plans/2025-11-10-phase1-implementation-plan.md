@@ -959,7 +959,7 @@ This plan breaks down the Phase 1 compiler and graph system work into **specific
    - Troubleshooting common errors
    - Performance tuning flags
 
-2. Create `docs/02-adr/ADR-0009-graph-compiler-architecture.md`:
+2. Create `docs/02-adr/K1NADR_0009_GRAPH_COMPILER_ARCHITECTURE_v1.0_20251110.md`:
    - Status: `accepted`
    - Decision: 5-stage pipeline chosen over single-pass + AST/IR
    - Trade-offs: pipeline clarity vs. single-pass simplicity
@@ -1245,4 +1245,3 @@ Days 8–10 (Polish + Handoff):
 **Document Version:** 1.0 (Nov 10, 2025)
 **Status:** Ready for Team Execution
 **Last Updated:** 2025-11-10
-

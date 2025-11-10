@@ -12,7 +12,7 @@
 
 **Related Documents:**
 - `docs/01-architecture/K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md` (Design spec)
-- `docs/02-adr/ADR-0006-codegen-abandonment.md` (Strategic decision)
+- `docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md` (Strategic decision)
 - `firmware/src/stateful_nodes.h` (Header file)
 - `firmware/src/stateful_nodes.cpp` (Implementation)
 
@@ -1143,7 +1143,7 @@ Additional nodes can be added following the same pattern:
 - `docs/01-architecture/K1NArch_ASSESSMENT_STATEFUL_NODE_FEASIBILITY_v1.0_20251108.md`
 
 **Architecture Decision:**
-- `docs/02-adr/ADR-0006-codegen-abandonment.md`
+- `docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md`
 
 **Related Code:**
 - `firmware/src/generated_patterns.h` (Pattern examples)

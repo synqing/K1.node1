@@ -2090,6 +2090,9 @@ void draw_prism(float time, const PatternParameters& params) {
     apply_background_overlay(params);
 }
 
+void draw_prism(float time, const PatternParameters& params);
+void draw_pitch(float time, const PatternParameters& params);
+
 // ============================================================================
 // PATTERN REGISTRY
 // ============================================================================
@@ -2237,6 +2240,13 @@ const PatternInfo g_pattern_registry[] = {
 		"snapwave",
 		"Snappy beat flashes with harmonic accents",
 		draw_snapwave,
+		true
+	},
+	{
+		"Pitch Scope",
+		"pitch_scope",
+		"Chromagram energy as persistent bands",
+		draw_pitch,
 		true
 	}
 };

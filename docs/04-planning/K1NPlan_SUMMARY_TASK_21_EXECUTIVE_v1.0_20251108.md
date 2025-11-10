@@ -100,7 +100,7 @@ Why? 2-channel is fixed requirement, not N-channel dynamic scaling. Simpler, fas
 
 | Document | Location | Purpose |
 |----------|----------|---------|
-| **ADR-0018** | `docs/02-adr/ADR-0018-dual-channel-leds.md` | Architecture decision + technical rationale |
+| **ADR-0018** | `docs/02-adr/K1NADR_0018_DUAL_CHANNEL_LEDS_v1.0_20251110.md` | Architecture decision + technical rationale |
 | **Task 21 Plan** | `docs/04-planning/K1NPlan_PLAN_TASK_21_DUAL_CHANNEL_IMPLEMENTATION_v1.0_20251108.md` | Detailed subtasks, effort estimates, success criteria |
 | **This Summary** | `docs/04-planning/K1NPlan_SUMMARY_TASK_21_EXECUTIVE_v1.0_20251108.md` | High-level overview (you are here) |
 

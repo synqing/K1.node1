@@ -236,7 +236,7 @@ git merge feat/track-tools-design-and-config
 ### Agent-Owned Files
 
 **ADRs (Architecture Decision Records):**
-- `docs/02-adr/ADR-####-*.md`
+- `docs/02-adr/K1NADR_####_*.md`
 - Agent creates, Team A reviews and provides feedback
 
 **Implementation Guides:**

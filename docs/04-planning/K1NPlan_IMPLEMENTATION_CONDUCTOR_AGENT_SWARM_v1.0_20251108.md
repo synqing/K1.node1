@@ -395,7 +395,7 @@ echo "[ArchitectureAgent-$TASK_ID] Validating ADR template..."
 
 # Create ADR
 mkdir -p docs/02-adr
-cat > "docs/02-adr/ADR-0012-graph-system-architecture.md" <<EOF
+cat > "docs/02-adr/K1NADR_0012_GRAPH_SYSTEM_ARCHITECTURE_v1.0_20251110.md" <<EOF
 # ADR-0012: Graph System Architecture and Compiler
 
 ## Status

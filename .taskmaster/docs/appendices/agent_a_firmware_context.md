@@ -5,7 +5,7 @@ status: published
 intent: Technical context for Agent A (Firmware Security Engineer) executing Phase 2D1 critical fixes
 references:
   - ../../PHASE_2_MASTER_PRD.txt (Workstream A)
-  - ../../../docs/02-adr/ADR-0001-codegen-abandonment.md
+  - ../../../docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md
   - ../../../firmware/src/ (target codebase)
 ---
 
