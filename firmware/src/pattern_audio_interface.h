@@ -166,7 +166,7 @@ bool is_beat_phase_locked_ms(const AudioDataSnapshot& audio_snapshot, uint16_t b
 #define AUDIO_VU                (audio.vu_level)
 #define AUDIO_VU_RAW            (audio.vu_level_raw)
 #define AUDIO_NOVELTY           (audio.novelty_curve)
-#define AUDIO_TEMPO_CONFIDENCE  (0.0f)  // DISABLED: Tempo detection unreliable (see docs/05-analysis/)
+#define AUDIO_TEMPO_CONFIDENCE  (audio.tempo_confidence)
 
 // Helper: Adaptive beat gating for patterns
 // Returns a squashed confidence with a minimum threshold to prevent flicker
@@ -418,7 +418,8 @@ float get_audio_band_energy_absolute(const AudioDataSnapshot& audio, int start_b
  *   - Safe to call in inner loops
  *   - Bounds-checked at generation time (all indices 0-63 valid)
  */
-#define AUDIO_TEMPO_MAGNITUDE(bin)  (0.0f)  // DISABLED: Tempo detection unreliable
+#define AUDIO_TEMPO_MAGNITUDE(bin)  \
+    (((int)(bin) >= 0 && (int)(bin) < NUM_TEMPI) ? audio.tempo_magnitude[(int)(bin)] : 0.0f)
 
 /**
  * AUDIO_TEMPO_PHASE(bin)
@@ -449,7 +450,8 @@ float get_audio_band_energy_absolute(const AudioDataSnapshot& audio, int start_b
  *   - Phase wraps: phase < -π becomes phase + 2π
  *   - Best practice: Use sin(phase) or cos(phase) to get normalized -1 to 1
  */
-#define AUDIO_TEMPO_PHASE(bin)      (0.0f)  // DISABLED: Tempo detection unreliable
+#define AUDIO_TEMPO_PHASE(bin)      \
+    (((int)(bin) >= 0 && (int)(bin) < NUM_TEMPI) ? audio.tempo_phase[(int)(bin)] : 0.0f)
 
 /**
  * AUDIO_TEMPO_BEAT(bin)  [Derived from phase]
@@ -466,7 +468,7 @@ float get_audio_band_energy_absolute(const AudioDataSnapshot& audio, int start_b
  *   float beat = AUDIO_TEMPO_BEAT(32);  // Simplified
  *   float brightness = 0.5 + 0.5 * beat;  // 0.0-1.0
  */
-#define AUDIO_TEMPO_BEAT(bin)       (0.0f)  // DISABLED: Tempo detection unreliable
+#define AUDIO_TEMPO_BEAT(bin)       (sinf(AUDIO_TEMPO_PHASE(bin)))
 
 // ============================================================================
 // MIGRATION EXAMPLE: Before and After

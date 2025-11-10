@@ -268,6 +268,21 @@ export function DeviceManager({ connectionState, onConnect, onDisconnect }: Devi
     const validation = validateEndpoint(manualIp);
     setValidationError(validation.error || '');
   }, [manualIp]);
+
+  // Prefer mDNS/hostname defaults over specific IPs
+  useEffect(() => {
+    if (!manualIp) {
+      let defaultHost = '';
+      try {
+        defaultHost = localStorage.getItem('deviceManager.lastEndpoint') || '';
+      } catch {}
+      if (!defaultHost) {
+        // Use env default if provided, otherwise prefer an mDNS hostname
+        defaultHost = (import.meta as any).env?.VITE_DEFAULT_DEVICE_HOST || 'k1-reinvented.local';
+      }
+      setManualIp(defaultHost);
+    }
+  }, [manualIp]);
   
   // Handle manual connection with enhanced error handling
   const handleManualConnect = useCallback(async (e: React.FormEvent) => {
@@ -585,7 +600,7 @@ export function DeviceManager({ connectionState, onConnect, onDisconnect }: Devi
                     {device.name}
                   </span>
                   {device.discoveryCount >= 3 && (
-                    <Star className="w-3 h-3 fill-amber-400 text-amber-500" title="Frequently seen" />
+                    <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
                   )}
                   {index === 0 && discoveredDevices.length > 1 && (
                     <span className="text-[10px] px-1 py-0.5 bg-green-100 text-green-700 rounded">
@@ -686,7 +701,7 @@ export function DeviceManager({ connectionState, onConnect, onDisconnect }: Devi
               type="text"
               value={manualIp}
               onChange={(e) => setManualIp(e.target.value)}
-              placeholder="192.168.1.103 or k1.local"
+              placeholder="k1-reinvented.local or device.local"
               disabled={connectionState.connected}
               className="mt-1 text-xs"
             />

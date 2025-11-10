@@ -1,18 +1,32 @@
 import { useState, useCallback, useEffect } from 'react';
-import { GraphNode, NodePortType } from '../../lib/types';
+import { Node, NodePortType } from '../../lib/types';
 import { Badge } from '../ui/badge';
 import { Grip } from 'lucide-react';
+import { ParameterEditor } from './ParameterEditor';
 
 interface NodeProps {
-  node: GraphNode;
+  node: Node;
   isSelected: boolean;
   onMove: (nodeId: string, position: { x: number; y: number }) => void;
   onMoveEnd: () => void;
   onSelect: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
+  onStartConnect: (portId: string) => void;
+  onCompleteConnect: (portId: string) => void;
+  onParameterChange: (nodeId: string, parameterName: string, value: any) => void;
 }
 
-export function Node({ node, isSelected, onMove, onMoveEnd, onSelect, onDelete }: NodeProps) {
+export function Node({
+  node,
+  isSelected,
+  onMove,
+  onMoveEnd,
+  onSelect,
+  onDelete,
+  onStartConnect,
+  onCompleteConnect,
+  onParameterChange,
+}: NodeProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   
@@ -109,7 +123,14 @@ export function Node({ node, isSelected, onMove, onMoveEnd, onSelect, onDelete }
       {node.inputs.length > 0 && (
         <div className="p-2 space-y-1">
           {node.inputs.map((port) => (
-            <div key={port.id} className="flex items-center gap-2 text-xs node-port">
+            <div
+              key={port.id}
+              className="flex items-center gap-2 text-xs node-port"
+              onMouseUp={(e) => {
+                e.stopPropagation();
+                onCompleteConnect(port.id);
+              }}
+            >
               <div
                 className="w-2 h-2 rounded-full border-2 border-current"
                 style={{ color: getPortColor(port.type) }}
@@ -124,7 +145,14 @@ export function Node({ node, isSelected, onMove, onMoveEnd, onSelect, onDelete }
       {node.outputs.length > 0 && (
         <div className="p-2 space-y-1 border-t border-[var(--prism-bg-elevated)]">
           {node.outputs.map((port) => (
-            <div key={port.id} className="flex items-center justify-end gap-2 text-xs node-port">
+            <div
+              key={port.id}
+              className="flex items-center justify-end gap-2 text-xs node-port"
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                onStartConnect(port.id);
+              }}
+            >
               <span className="text-[var(--prism-text-secondary)]">{port.name}</span>
               <div
                 className="w-2 h-2 rounded-full border-2 border-current"
@@ -133,6 +161,14 @@ export function Node({ node, isSelected, onMove, onMoveEnd, onSelect, onDelete }
             </div>
           ))}
         </div>
+      )}
+      
+      {/* Parameters */}
+      {isSelected && (
+        <ParameterEditor
+          node={node}
+          onParameterChange={onParameterChange}
+        />
       )}
       
       {/* Compute Cost Indicator */}

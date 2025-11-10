@@ -74,7 +74,7 @@ export const MOCK_ACTIVITY: ActivityItem[] = [
 export const MOCK_ARTIFACTS: ArtifactItem[] = [
   { name: 'track.genesis.json', type: 'Map', size: '820 KB', age: '2 min ago', sha: 'a4c3…8f', status: 'active' },
   { name: 'phase2b_metrics.json', type: 'Metrics', size: '12 KB', age: '2 min ago', sha: 'c94a…d1', status: 'active' },
-  { name: 'graph.executor.scale.json', type: 'Simulate', size: '4 KB', age: '1 min ago', sha: 'e02f…19', status: 'active' },
+  { name: 'node.executor.scale.json', type: 'Simulate', size: '4 KB', age: '1 min ago', sha: 'e02f…19', status: 'active' },
   { name: 'profile.speedscope.json', type: 'Profile', size: '-', age: '-', sha: '-', status: 'missing' },
   { name: 'visual.report.json', type: 'Visual QA', size: '3 KB', age: '1 min ago', sha: 'bb21…4e', status: 'soft-deleted' },
 ];

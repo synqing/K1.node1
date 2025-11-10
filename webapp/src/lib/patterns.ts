@@ -213,7 +213,7 @@ export const K1_PATTERNS: K1Pattern[] = [
     name: 'Startup Intro',
     category: 'Static',
     icon: '✨',
-    description: 'Choreographed startup sequence with tunable parameters',
+    description: 'Choreonodeed startup sequence with tunable parameters',
     firmwareIndex: 17,
     isAudioReactive: false,
     computeCost: 'medium'

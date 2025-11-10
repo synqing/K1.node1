@@ -3,6 +3,7 @@
 
 #include "parameters.h"
 #include "palettes.h"  // Use central NUM_PALETTES definition from palettes.h
+#include "led_driver.h"  // NUM_LEDS for LED offset validation
 
 // Shared parameter buffers and active index
 PatternParameters g_params_buffers[2];
@@ -33,6 +34,7 @@ bool validate_and_clamp(PatternParameters& params) {
     validate_float_0_1(params.warmth, 0.0f);          // Default: 0.0
     validate_float_0_1(params.background, 0.25f);     // Default: 0.25
     validate_float_0_1(params.dithering, 1.0f);       // Default: 1.0 (enabled)
+    validate_float_0_1(params.mirror_mode, 1.0f);     // Default: enabled
 
     // Pattern-specific controls
     validate_float_0_1(params.speed, 0.5f);           // Default: 0.5
@@ -101,6 +103,17 @@ bool validate_and_clamp(PatternParameters& params) {
         params.frame_min_period_ms = constrain(params.frame_min_period_ms, 4.0f, 20.0f);
         if (isnan(params.frame_min_period_ms) || isinf(params.frame_min_period_ms)) {
             params.frame_min_period_ms = 6.0f;  // Default: ~166 FPS
+        }
+        clamped = true;
+    }
+
+    // led_offset: clamp to +/- NUM_LEDS (logical shift)
+    const float max_offset = static_cast<float>(NUM_LEDS);
+    if (isnan(params.led_offset) || isinf(params.led_offset) ||
+        params.led_offset < -max_offset || params.led_offset > max_offset) {
+        params.led_offset = constrain(params.led_offset, -max_offset, max_offset);
+        if (isnan(params.led_offset) || isinf(params.led_offset)) {
+            params.led_offset = 0.0f;
         }
         clamped = true;
     }

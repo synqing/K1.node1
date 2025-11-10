@@ -12,7 +12,7 @@ const BeatGridChart = lazy(() => import('../analysis/BeatGridChart').then(m => (
 const FrequencyChart = lazy(() => import('../analysis/FrequencyChart').then(m => ({ default: m.FrequencyChart })));
 const DynamicsChart = lazy(() => import('../analysis/DynamicsChart').then(m => ({ default: m.DynamicsChart })));
 const SectionsTimeline = lazy(() => import('../analysis/SectionsTimeline').then(m => ({ default: m.SectionsTimeline })));
-import { GraphPresetCard } from '../analysis/GraphPresetCard';
+import { NodePresetCard } from '../analysis/NodePresetCard';
 import { ArtifactTable, type ArtifactRow } from '../analysis/ArtifactTable';
 import { ActivityLog, type ActivityLogItem } from '../analysis/ActivityLog';
 import { DeploySideSheet } from '../analysis/DeploySideSheet';
@@ -440,7 +440,7 @@ export function AnalysisView({ connectionState }: AnalysisViewProps) {
               </Suspense>
             </section>
 
-            <GraphPresetCard />
+            <NodePresetCard />
 
             <ArtifactTable
               artifacts={artifactRows}

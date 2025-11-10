@@ -5,15 +5,15 @@ import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
 import { toast } from 'sonner';
 import { postParams, postDeployBundle, postSelect, testConnection } from '../lib/api';
-import { useGraphAuthoring, serializeGraphToPatternCode } from '../store/graphAuthoring';
+import { useNodeAuthoring, serializeNodeToPatternCode } from '../store/nodeAuthoring';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select.full';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { K1_PATTERNS, getPatternById } from '../lib/patterns';
-import { GRAPH_TEMPLATES } from '../lib/graphMockData';
-import { GraphEditorView } from '../components/views/GraphEditorView';
+import { GRAPH_TEMPLATES } from '../lib/nodeMockData';
+import { NodeEditorView } from '../components/views/NodeEditorView';
 
 export default function WorkflowDemo() {
-  const { graphState, setGraphState } = useGraphAuthoring();
+  const { nodeState, setNodeState } = useNodeAuthoring();
   const [patternName, setPatternName] = useState('mono_pulse');
   const defaultIp = (import.meta.env.VITE_TARGET_DEVICE_IP as string) || '192.168.0.15';
   const [deviceIp, setDeviceIp] = useState(defaultIp.startsWith('http') ? defaultIp : `http://${defaultIp}`);
@@ -35,11 +35,11 @@ export default function WorkflowDemo() {
 
   const execute = async () => {
     try {
-      if (!graphState.nodes || graphState.nodes.length === 0) {
-        toast.error('Graph is empty', { description: 'Add nodes and connections before compiling.' });
+      if (!nodeState.nodes || nodeState.nodes.length === 0) {
+        toast.error('Node is empty', { description: 'Add nodes and connections before compiling.' });
         return;
       }
-      const patternCode = serializeGraphToPatternCode(graphState);
+      const patternCode = serializeNodeToPatternCode(nodeState);
       const resp = await exec.mutateAsync({ patternName, patternCode, targetDevice: deviceIp });
       setWorkflowId(resp.workflowId);
       toast.success('Workflow started', { description: `ID: ${resp.workflowId}` });
@@ -48,7 +48,7 @@ export default function WorkflowDemo() {
     }
   };
 
-  const populateSampleGraph = useCallback(() => {
+  const populateSampleNode = useCallback(() => {
     const nodes = GRAPH_TEMPLATES.beginner.nodes.map((n) => ({ ...n }));
     const connections = [
       {
@@ -62,7 +62,7 @@ export default function WorkflowDemo() {
         target: { nodeId: 'output1', portId: 'colors' },
       },
     ];
-    setGraphState((prev) => ({
+    setNodeState((prev) => ({
       ...prev,
       nodes,
       connections,
@@ -70,10 +70,10 @@ export default function WorkflowDemo() {
       zoom: 1,
       pan: { x: 0, y: 0 },
     }));
-    toast.success('Sample graph added', {
+    toast.success('Sample node added', {
       description: 'Audio amplitude → HSV value → LED Output',
     });
-  }, [setGraphState]);
+  }, [setNodeState]);
 
   const applyBrightness = async (value: number) => {
     try {
@@ -155,13 +155,13 @@ export default function WorkflowDemo() {
           <label htmlFor="deviceIpInput">Target Device IP (e.g., http://192.168.1.100)</label>
           <Input id="deviceIpInput" value={deviceIp} onChange={(e) => setDeviceIp(e.target.value)} />
           <div>
-            <div>Authoring Graph (serialized)</div>
+            <div>Authoring Node (serialized)</div>
             <pre style={{ width: '100%', fontFamily: 'monospace', background: '#0b0b0b', color: '#ddd', padding: '0.75rem', borderRadius: 8, maxHeight: 280, overflow: 'auto' }}>
-              {serializeGraphToPatternCode(graphState)}
+              {serializeNodeToPatternCode(nodeState)}
             </pre>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <Button onClick={execute} disabled={exec.isPending || !graphState.nodes || graphState.nodes.length === 0}>
+            <Button onClick={execute} disabled={exec.isPending || !nodeState.nodes || nodeState.nodes.length === 0}>
               {exec.isPending ? 'Starting…' : 'Execute Compilation'}
             </Button>
             <Button variant="outline" onClick={() => setWorkflowId(null)} disabled={!workflowId}>
@@ -176,12 +176,12 @@ export default function WorkflowDemo() {
       </Card>
 
       <Card style={{ padding: '1rem' }}>
-        <h2>Graph Editor</h2>
+        <h2>Node Editor</h2>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <Button variant="secondary" onClick={populateSampleGraph}>Populate Sample Graph</Button>
+          <Button variant="secondary" onClick={populateSampleNode}>Populate Sample Node</Button>
         </div>
         <div style={{ height: '60vh' }}>
-          <GraphEditorView />
+          <NodeEditorView />
         </div>
       </Card>
 

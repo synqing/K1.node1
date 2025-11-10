@@ -124,8 +124,12 @@ static CRGBF force_saturation(const CRGBF& input, float saturation_target) {
  * Apply mirror/split mode to LED array
  * Copies first half to second half in reverse for symmetrical patterns
  */
-inline void apply_mirror_mode(CRGBF* leds, bool enabled) {
-	if (!enabled) return;
+inline void apply_mirror_mode(CRGBF* leds, bool requested) {
+	if (!requested) return;
+	const PatternParameters& params = get_params();
+	if (params.mirror_mode < 0.5f) {
+		return;
+	}
 
 	int half = NUM_LEDS / 2;
 	for (int i = 0; i < half; i++) {
@@ -384,6 +388,7 @@ void draw_spectrum(float time, const PatternParameters& params) {
 	#ifndef SPECTRUM_CENTER_OFFSET
 	#define SPECTRUM_CENTER_OFFSET 0
 	#endif
+	const bool mirror_enabled = (params.mirror_mode >= 0.5f);
 
 	// Fallback to ambient if no audio
 	if (!AUDIO_IS_AVAILABLE()) {
@@ -408,40 +413,42 @@ void draw_spectrum(float time, const PatternParameters& params) {
 	float age_factor = 1.0f - fminf(age_ms, 250.0f) / 250.0f; // 0..1 over ~250ms
 	age_factor = fmaxf(0.0f, age_factor);
 
-	// Render spectrum (center-origin, so render half and mirror)
-	int half_leds = NUM_LEDS / 2;
-	auto wrap_idx = [](int idx) {
-		while (idx < 0) idx += NUM_LEDS;
-		while (idx >= NUM_LEDS) idx -= NUM_LEDS;
-		return idx;
-	};
-
 	float smooth_mix = clip_float(params.custom_param_3); // 0.0 = raw, 1.0 = fully smoothed
 
-	for (int i = 0; i < half_leds; i++) {
-		// Map LED position to frequency bin (0-63)
-		float progress = (float)i / half_leds;
-		// Blend raw and smoothed spectrum to control responsiveness
-		float raw_mag = clip_float(interpolate(progress, AUDIO_SPECTRUM, NUM_FREQS));
-		float smooth_mag = clip_float(AUDIO_SPECTRUM_INTERP(progress));
-		float magnitude = (raw_mag * (1.0f - smooth_mix) + smooth_mag * smooth_mix);
-		// Emphasize separation and apply age-based decay
-		magnitude = response_sqrt(magnitude) * age_factor;
-
-		// Get color from palette using progress and magnitude
-		CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
-
-		// Apply global brightness
-		color.r *= params.brightness;
-		color.g *= params.brightness;
-		color.b *= params.brightness;
-
-		// Mirror from center (centre-origin architecture)
-		int left_index = wrap_idx(((NUM_LEDS / 2) - 1 - i) + SPECTRUM_CENTER_OFFSET);
-		int right_index = wrap_idx(((NUM_LEDS / 2) + i) + SPECTRUM_CENTER_OFFSET);
-
-		leds[left_index] = color;
-		leds[right_index] = color;
+	if (mirror_enabled) {
+		int half_leds = NUM_LEDS / 2;
+		auto wrap_idx = [](int idx) {
+			while (idx < 0) idx += NUM_LEDS;
+			while (idx >= NUM_LEDS) idx -= NUM_LEDS;
+			return idx;
+		};
+		for (int i = 0; i < half_leds; i++) {
+			float progress = (float)i / half_leds;
+			float raw_mag = clip_float(interpolate(progress, AUDIO_SPECTRUM, NUM_FREQS));
+			float smooth_mag = clip_float(AUDIO_SPECTRUM_INTERP(progress));
+			float magnitude = (raw_mag * (1.0f - smooth_mix) + smooth_mag * smooth_mix);
+			magnitude = response_sqrt(magnitude) * age_factor;
+			CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
+			color.r *= params.brightness;
+			color.g *= params.brightness;
+			color.b *= params.brightness;
+			                int left_index = wrap_idx(((NUM_LEDS / 2) - 1 - i));
+			                int right_index = wrap_idx(((NUM_LEDS / 2) + i));			leds[left_index] = color;
+			leds[right_index] = color;
+		}
+	} else {
+		for (int i = 0; i < NUM_LEDS; i++) {
+			float progress = (NUM_LEDS > 1) ? ((float)i / (float)(NUM_LEDS - 1)) : 0.0f;
+			float raw_mag = clip_float(interpolate(progress, AUDIO_SPECTRUM, NUM_FREQS));
+			float smooth_mag = clip_float(AUDIO_SPECTRUM_INTERP(progress));
+			float magnitude = (raw_mag * (1.0f - smooth_mix) + smooth_mag * smooth_mix);
+			magnitude = response_sqrt(magnitude) * age_factor;
+			CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
+			color.r *= params.brightness;
+			color.g *= params.brightness;
+			color.b *= params.brightness;
+			leds[i] = color;
+		}
 	}
 
 	// Uniform background handling across patterns
@@ -460,6 +467,7 @@ void draw_spectrum(float time, const PatternParameters& params) {
  */
 void draw_octave(float time, const PatternParameters& params) {
     PATTERN_AUDIO_START();
+    const bool mirror_enabled = (params.mirror_mode >= 0.5f);
 
     // Fallback to time-based animation if no audio
     if (!AUDIO_IS_AVAILABLE()) {
@@ -484,31 +492,34 @@ void draw_octave(float time, const PatternParameters& params) {
 	age_factor = fmaxf(0.0f, age_factor);
 
 	// Render chromagram (12 musical notes)
-	int half_leds = NUM_LEDS / 2;
-
-	for (int i = 0; i < half_leds; i++) {
-		// Map LED to chromagram bin (0-11)
-		float progress = (float)i / half_leds;
-		// USE INTERPOLATION for smooth chromagram mapping!
-		float magnitude = interpolate(progress, AUDIO_CHROMAGRAM, 12);
-		// Normalize gently and emphasize peaks, apply age and energy gates
-		magnitude = response_sqrt(magnitude) * age_factor * energy_boost;
-		magnitude = fmaxf(0.0f, fminf(1.0f, magnitude));
-
-		// Get color from palette
-		CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
-
-		// Apply global brightness
-		color.r *= params.brightness;
-		color.g *= params.brightness;
-		color.b *= params.brightness;
-
-		// Mirror from center
-		int left_index = (NUM_LEDS / 2) - 1 - i;
-		int right_index = (NUM_LEDS / 2) + i;
-
-        leds[left_index] = color;
-        leds[right_index] = color;
+    if (mirror_enabled) {
+        int half_leds = NUM_LEDS / 2;
+        for (int i = 0; i < half_leds; i++) {
+            float progress = (float)i / half_leds;
+            float magnitude = interpolate(progress, AUDIO_CHROMAGRAM, 12);
+            magnitude = response_sqrt(magnitude) * age_factor * energy_boost;
+            magnitude = fmaxf(0.0f, fminf(1.0f, magnitude));
+            CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
+            color.r *= params.brightness;
+            color.g *= params.brightness;
+            color.b *= params.brightness;
+            int left_index = (NUM_LEDS / 2) - 1 - i;
+            int right_index = (NUM_LEDS / 2) + i;
+            leds[left_index] = color;
+            leds[right_index] = color;
+        }
+    } else {
+        for (int i = 0; i < NUM_LEDS; i++) {
+            float progress = (NUM_LEDS > 1) ? ((float)i / (float)(NUM_LEDS - 1)) : 0.0f;
+            float magnitude = interpolate(progress, AUDIO_CHROMAGRAM, 12);
+            magnitude = response_sqrt(magnitude) * age_factor * energy_boost;
+            magnitude = fmaxf(0.0f, fminf(1.0f, magnitude));
+            CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
+            color.r *= params.brightness;
+            color.g *= params.brightness;
+            color.b *= params.brightness;
+            leds[i] = color;
+        }
     }
 
     // Uniform background handling across patterns
@@ -576,6 +587,223 @@ void draw_bloom(float time, const PatternParameters& params) {
 	apply_background_overlay(params);
 }
 
+/**
+ * Pattern: Spectronome
+ * Hybrid of spectrum visualization and tempo dots (Emotiscope spectronome)
+ */
+void draw_spectronome(float time, const PatternParameters& params) {
+    // Reuse spectrum implementation for base image
+    draw_spectrum(time, params);
+
+    PATTERN_AUDIO_START();
+    float tempo_conf = AUDIO_TEMPO_CONFIDENCE;
+    tempo_conf = clip_float(tempo_conf);
+
+    // Confidence-based dimming: unstable tempo ⇒ darker spectrum
+    float dim = 0.25f + (tempo_conf * 0.75f);
+    for (int i = 0; i < NUM_LEDS; ++i) {
+        leds[i].r *= dim;
+        leds[i].g *= dim;
+        leds[i].b *= dim;
+    }
+
+    // Overlay tempo dots using the strongest tempo bins
+    const int MAX_BEATS = 4;
+    struct TempoBinCandidate { uint16_t idx; float mag; } candidates[MAX_BEATS];
+    for (int k = 0; k < MAX_BEATS; ++k) {
+        candidates[k] = {0, 0.0f};
+    }
+
+    for (uint16_t bin = 0; bin < NUM_TEMPI; ++bin) {
+        float mag = AUDIO_TEMPO_MAGNITUDE(bin);
+        for (int k = 0; k < MAX_BEATS; ++k) {
+            if (mag > candidates[k].mag) {
+                for (int j = MAX_BEATS - 1; j > k; --j) {
+                    candidates[j] = candidates[j - 1];
+                }
+                candidates[k] = {bin, mag};
+                break;
+            }
+        }
+    }
+
+    bool mirror_enabled = (params.mirror_mode >= 0.5f);
+    float width = mirror_enabled ? 0.5f : 1.0f;
+    for (int k = 0; k < MAX_BEATS; ++k) {
+        if (candidates[k].mag < 0.01f) {
+            continue;
+        }
+        uint16_t idx = candidates[k].idx;
+        float phase = AUDIO_TEMPO_PHASE(idx);
+        float beat = sinf(phase);
+        float dot_pos = 0.5f + beat * 0.5f * width;
+        dot_pos = clip_float(dot_pos);
+        float opacity = clip_float(0.3f + candidates[k].mag * 0.7f);
+        CRGBF dot_color = color_from_palette(params.palette_id, (float)idx / NUM_TEMPI, 1.0f);
+        draw_dot(leds, NUM_RESERVED_DOTS + k, dot_color, dot_pos, opacity);
+        if (mirror_enabled) {
+            draw_dot(leds, NUM_RESERVED_DOTS + MAX_BEATS + k, dot_color, 1.0f - dot_pos, opacity);
+        }
+    }
+}
+
+/**
+ * Pattern: FFT Visualizer
+ * Full-strip render using raw spectrum (non-mirrored option supported)
+ */
+void draw_fft(float time, const PatternParameters& params) {
+    PATTERN_AUDIO_START();
+
+    bool mirror_enabled = (params.mirror_mode >= 0.5f);
+    auto sample_fft = [&](float progress) {
+        return clip_float(interpolate(progress, AUDIO_SPECTRUM, NUM_FREQS));
+    };
+
+    if (mirror_enabled) {
+        int half_leds = NUM_LEDS / 2;
+        for (int i = 0; i < half_leds; ++i) {
+            float progress = (float)i / (float)half_leds;
+            float magnitude = response_sqrt(sample_fft(progress));
+            CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
+            color.r *= params.brightness;
+            color.g *= params.brightness;
+            color.b *= params.brightness;
+            leds[(NUM_LEDS / 2) - 1 - i] = color;
+            leds[(NUM_LEDS / 2) + i] = color;
+        }
+    } else {
+        for (int i = 0; i < NUM_LEDS; ++i) {
+            float progress = (NUM_LEDS > 1) ? ((float)i / (float)(NUM_LEDS - 1)) : 0.0f;
+            float magnitude = response_sqrt(sample_fft(progress));
+            CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
+            color.r *= params.brightness;
+            color.g *= params.brightness;
+            color.b *= params.brightness;
+            leds[i] = color;
+        }
+    }
+
+    apply_background_overlay(params);
+}
+
+/**
+ * Pattern: Pitch Scope
+ * Visualizes chromagram energy as persistent bands (Emotiscope pitch mode inspired)
+ */
+void draw_pitch(float time, const PatternParameters& params) {
+    PATTERN_AUDIO_START();
+
+    static float pitch_history[NUM_LEDS] = {0.0f};
+    const float mix = 0.85f;
+
+    for (int i = 0; i < NUM_LEDS; ++i) {
+        float progress = (NUM_LEDS > 1) ? ((float)i / (float)(NUM_LEDS - 1)) : 0.0f;
+        float chroma = interpolate(progress, AUDIO_CHROMAGRAM, 12);
+        float energy = response_sqrt(chroma);
+        pitch_history[i] = pitch_history[i] * mix + energy * (1.0f - mix);
+        CRGBF color = hsv(progress, params.saturation, clip_float(pitch_history[i] * params.brightness));
+        leds[i] = color;
+    }
+
+    apply_background_overlay(params);
+}
+
+/**
+ * Pattern: Neutral Gradient
+ * Static reference mode for alignment / inspection
+ */
+void draw_neutral(float time, const PatternParameters& params) {
+    bool mirror_enabled = (params.mirror_mode >= 0.5f);
+    if (mirror_enabled) {
+        int half_leds = NUM_LEDS / 2;
+        for (int i = 0; i < half_leds; ++i) {
+            float progress = (float)i / (float)half_leds;
+            CRGBF color = color_from_palette(params.palette_id, progress, params.brightness);
+            leds[(NUM_LEDS / 2) - 1 - i] = color;
+            leds[(NUM_LEDS / 2) + i] = color;
+        }
+    } else {
+        for (int i = 0; i < NUM_LEDS; ++i) {
+            float progress = (NUM_LEDS > 1) ? ((float)i / (float)(NUM_LEDS - 1)) : 0.0f;
+            leds[i] = color_from_palette(params.palette_id, progress, params.brightness);
+        }
+    }
+}
+
+/**
+ * Pattern: Debug Overlay
+ * Encodes VU, tempo confidence, and FPS diagnostics as colored bars
+ */
+void draw_debug(float time, const PatternParameters& params) {
+    PATTERN_AUDIO_START();
+
+    float vu = clip_float(AUDIO_VU);
+    float conf = clip_float(AUDIO_TEMPO_CONFIDENCE);
+    bool stale = AUDIO_IS_STALE();
+
+    int vu_leds = (int)lroundf(vu * NUM_LEDS);
+    int conf_leds = (int)lroundf(conf * NUM_LEDS);
+
+    for (int i = 0; i < NUM_LEDS; ++i) {
+        CRGBF color(0.0f, 0.0f, 0.0f);
+        if (i < vu_leds) {
+            color = CRGBF(0.0f, vu, 0.0f);
+        }
+        if (i < conf_leds) {
+            // Overlay tempo confidence as blue gradient
+            color.b = fmaxf(color.b, conf);
+        }
+        if (stale && (i % 4 == 0)) {
+            color = CRGBF(0.3f, 0.0f, 0.0f);
+        }
+        leds[i] = color;
+    }
+
+    apply_background_overlay(params);
+}
+
+/**
+ * Pattern: Temp (Developer Scratch Pad)
+ */
+void draw_temp(float time, const PatternParameters& params) {
+    float phase = fmodf(time * params.speed * 0.25f, 1.0f);
+    for (int i = 0; i < NUM_LEDS; ++i) {
+        float progress = (NUM_LEDS > 1) ? ((float)i / (float)(NUM_LEDS - 1)) : 0.0f;
+        float wave = 0.5f + 0.5f * sinf((progress + phase) * 6.28318f);
+        CRGBF color = hsv(progress + phase, params.saturation, wave * params.brightness);
+        leds[i] = color;
+    }
+}
+
+/**
+ * Pattern: LED Self Test
+ * Cycles through primary colors, white, and off states for diagnostics
+ */
+void draw_self_test(float time, const PatternParameters&) {
+    const float segments[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    const CRGBF colors[] = {
+        {0.0f, 0.0f, 0.0f},
+        {0.6f, 0.0f, 0.0f},
+        {0.0f, 0.6f, 0.0f},
+        {0.0f, 0.0f, 0.6f},
+        {0.4f, 0.4f, 0.4f}
+    };
+    float cycle = 0.0f;
+    for (float seg : segments) cycle += seg;
+    float t = fmodf(time, cycle);
+    CRGBF color = colors[0];
+    float accum = 0.0f;
+    for (int i = 0; i < 5; ++i) {
+        accum += segments[i];
+        if (t <= accum) {
+            color = colors[i];
+            break;
+        }
+    }
+    for (int i = 0; i < NUM_LEDS; ++i) {
+        leds[i] = color;
+    }
+}
 void draw_bloom_mirror(float time, const PatternParameters& params) {
 	static CRGBF bloom_buffer[2][NUM_LEDS];
 	static CRGBF bloom_buffer_prev[2][NUM_LEDS];
@@ -1583,14 +1811,16 @@ void draw_analog(float time, const PatternParameters& params) {
     // Color via palette selection based on position and brightness
     CRGBF dot_color = color_from_palette(params.palette_id, dot_pos, 1.0f);
     
-    // Check if mirror mode should be simulated
-    bool mirror_mode = true; // Enforce center-origin symmetry for Analog
+	bool mirror_enabled = (params.mirror_mode >= 0.5f);
+	if (mirror_enabled) {
+		// Mirror mode: two dots from center
+		draw_dot(leds, NUM_RESERVED_DOTS + 0, dot_color, 0.5f + (dot_pos * 0.5f), 1.0f);
+		draw_dot(leds, NUM_RESERVED_DOTS + 1, dot_color, 0.5f - (dot_pos * 0.5f), 1.0f);
+	} else {
+		draw_dot(leds, NUM_RESERVED_DOTS + 0, dot_color, dot_pos, 1.0f);
+	}
     
-    // Mirror mode: two dots from center
-    draw_dot(leds, NUM_RESERVED_DOTS + 0, dot_color, 0.5f + (dot_pos * 0.5f), 1.0f);
-    draw_dot(leds, NUM_RESERVED_DOTS + 1, dot_color, 0.5f - (dot_pos * 0.5f), 1.0f);
-    
-    // Apply global brightness
+	// Apply global brightness
 	for (int i = 0; i < NUM_LEDS; i++) {
 		leds[i].r *= params.brightness;
 		leds[i].g *= params.brightness;
@@ -1610,7 +1840,7 @@ void draw_analog(float time, const PatternParameters& params) {
  */
 void draw_metronome(float time, const PatternParameters& params) {
     PATTERN_AUDIO_START();
-    
+
     // Clear LED buffer
     for (int i = 0; i < NUM_LEDS; i++) {
         leds[i] = CRGBF(0.0f, 0.0f, 0.0f);
@@ -1629,26 +1859,27 @@ void draw_metronome(float time, const PatternParameters& params) {
         return;
     }
     
-    // Render frequency clusters as tempo-style dots
-    const int group_count = 8;
-    const int bins_per_group = NUM_FREQS / group_count;
-    const float freshness = AUDIO_IS_STALE() ? 0.6f : 1.0f;
-    for (int group = 0; group < group_count; ++group) {
-        int start = group * bins_per_group;
-        int end = (group == group_count - 1) ? (NUM_FREQS - 1) : (start + bins_per_group - 1);
-        float energy = get_audio_band_energy(audio, start, end);
-        energy = clip_float(powf(energy, 0.65f) * freshness);
-
-        // Position dots around center based on energy
-        float offset = (energy * 0.4f);
-        float dot_pos = 0.5f + (group % 2 == 0 ? offset : -offset);
+    bool mirror_enabled = (params.mirror_mode >= 0.5f);
+    const int dot_count = 8;
+    const int stride = NUM_TEMPI / dot_count;
+    float width = mirror_enabled ? 0.5f : 1.0f;
+    for (int dot = 0; dot < dot_count; ++dot) {
+        int idx = dot * stride;
+        float magnitude = AUDIO_TEMPO_MAGNITUDE(idx);
+        if (magnitude < 0.005f) {
+            continue;
+        }
+        float phase = AUDIO_TEMPO_PHASE(idx);
+        float beat = sinf(phase);
+        float dot_pos = 0.5f + beat * 0.5f * width;
         dot_pos = clip_float(0.05f + dot_pos * 0.9f);
-
-        float progress = (float)group / (float)group_count;
+        float progress = (float)idx / (float)NUM_TEMPI;
         CRGBF dot_color = color_from_palette(params.palette_id, progress, 1.0f);
-        float opacity = fminf(1.0f, 0.3f + energy * 0.9f);
-
-        draw_dot(leds, NUM_RESERVED_DOTS + group, dot_color, dot_pos, opacity);
+        float opacity = clip_float(0.2f + magnitude * 1.2f);
+        draw_dot(leds, NUM_RESERVED_DOTS + dot, dot_color, dot_pos, opacity);
+        if (mirror_enabled) {
+            draw_dot(leds, NUM_RESERVED_DOTS + dot_count + dot, dot_color, 1.0f - dot_pos, opacity);
+        }
     }
     
     // Apply global brightness
@@ -2153,6 +2384,27 @@ const PatternInfo g_pattern_registry[] = {
 		draw_bloom_mirror,
 		true
 	},
+	{
+		"Spectronome",
+		"spectronome",
+		"Spectrum visualizer with tempo overlay",
+		draw_spectronome,
+		true
+	},
+	{
+		"FFT",
+		"fft",
+		"Full-spectrum FFT visualizer",
+		draw_fft,
+		true
+	},
+	{
+		"Pitch",
+		"pitch",
+		"Pitch scope (chromagram-based)",
+		draw_pitch,
+		true
+	},
 	// Domain 3: Beat/Tempo Reactive Patterns (Ported from Emotiscope)
 	{
 		"Pulse",
@@ -2203,6 +2455,27 @@ const PatternInfo g_pattern_registry[] = {
 		draw_perlin,
 		true
 	},
+	{
+		"Neutral",
+		"neutral",
+		"Static gradient reference pattern",
+		draw_neutral,
+		false
+	},
+	{
+		"Debug",
+		"debug",
+		"Diagnostics overlay (VU/tempo)",
+		draw_debug,
+		false
+	},
+	{
+		"Temp",
+		"temp",
+		"Developer scratch pattern",
+		draw_temp,
+		false
+	},
 	// Missing Emotiscope Patterns (Now Fixed!)
 	{
 		"Analog",
@@ -2238,6 +2511,13 @@ const PatternInfo g_pattern_registry[] = {
 		"Snappy beat flashes with harmonic accents",
 		draw_snapwave,
 		true
+	},
+	{
+		"Self Test",
+		"self_test",
+		"LED diagnostic color cycle",
+		draw_self_test,
+		false
 	}
 };
 

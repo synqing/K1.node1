@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>K1.node1 – Consolidated Architecture Diagram</title>
+    <style>
+      body { font-family: -apple-system, system-ui, Segoe UI, Roboto, sans-serif; margin: 24px; }
+      header { margin-bottom: 16px; }
+      .actions { margin: 8px 0 16px; }
+      .actions button { padding: 8px 12px; }
+      .note { background: #fff5e6; border: 1px solid #f5a623; color: #333; padding: 8px 12px; border-radius: 6px; }
+      .container { max-width: 1200px; }
+      .diagram { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+    </style>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true, theme: 'default' });
+      window.printToPDF = () => window.print();
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>K1.node1 – Consolidated Architecture Diagram</h1>
+        <p class="note">Use your browser’s “Print…” and select “Save as PDF” to export.</p>
+        <div class="actions">
+          <button onclick="printToPDF()">Export to PDF</button>
+        </div>
+      </header>
+
+      <section class="diagram">
+        <pre class="mermaid">
+flowchart TD
+  subgraph FE[Frontend]
+    A[Webapp (Vite)\nhttp://localhost:3003]
+  end
+
+  subgraph BE[Backend]
+    C[/API Proxy\n`/api` → 8800/]
+    B[Orkes Service (Express)\nhttp://localhost:8800]
+  end
+
+  subgraph OC[Orkes Cloud]
+    D[Conductor API\nhttps://developer.orkescloud.com/api]
+  end
+
+  subgraph DEV[Device]
+    E[K1.node1 Firmware HTTP\nhttp://&lt;device-ip&gt;:3000]
+    F[(WebSocket Telemetry)]
+  end
+
+  subgraph DATA[Data]
+    G[(Database / Storage)]
+  end
+
+  A -- HTTP GET/POST --> C
+  C --> B
+  B -- Conductor SDK --> D
+  A -- WebSocket --> F
+  A -- Device Control --> E
+  B -- Persist/Fetch --> G
+  A -- Read Settings --> G
+
+  classDef note fill:#fff5e6,stroke:#f5a623,color:#333,stroke-width:1px
+  N1([Ports: Webapp=3003, Orkes Service=8800, Device HTTP=3000]):::note
+  N2([Env: ORKES_SERVER_URL, ORKES_KEY_ID, ORKES_KEY_SECRET]):::note
+  N3([Proxy: Vite dev server proxies `/api` → 8800]):::note
+  N1 --- A
+  N2 --- B
+  N3 --- C
+        </pre>
+      </section>
+
+      <footer>
+        <p>Source: <code>docs/01-architecture/K1NArch_SYSTEM_OVERVIEW_DIAGRAM.mmd</code></p>
+      </footer>
+    </div>
+  </body>
+</html>
+

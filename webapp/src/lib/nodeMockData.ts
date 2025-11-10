@@ -1,9 +1,9 @@
-// Graph Editor Mock Data
+// Node Editor Mock Data
 
-import { GraphNode } from './types';
+import { Node } from './types';
 
-// Graph Editor Node Templates
-export const NODE_TEMPLATES: Omit<GraphNode, 'id' | 'position'>[] = [
+// Node Editor Node Templates
+export const NODE_TEMPLATES: Omit<Node, 'id' | 'position'>[] = [
   // Input Nodes
   {
     type: 'AudioInput',
@@ -36,7 +36,9 @@ export const NODE_TEMPLATES: Omit<GraphNode, 'id' | 'position'>[] = [
       { id: 'value', name: 'Value', type: 'scalar', connected: false },
     ],
     computeCost: 'low',
-    parameters: { value: 1.0 },
+    parameters: [
+      { name: 'value', type: 'number', value: 1.0, min: 0, max: 10, step: 0.1 },
+    ],
   },
   
   // Effect Nodes
@@ -51,7 +53,10 @@ export const NODE_TEMPLATES: Omit<GraphNode, 'id' | 'position'>[] = [
       { id: 'spectrum', name: 'Spectrum', type: 'field', connected: false },
     ],
     computeCost: 'high',
-    parameters: { bins: 32, smoothing: 0.3 },
+    parameters: [
+      { name: 'bins', type: 'number', value: 32, min: 8, max: 128, step: 1 },
+      { name: 'smoothing', type: 'number', value: 0.3, min: 0, max: 1, step: 0.05 },
+    ],
   },
   {
     type: 'BeatDetector',
@@ -65,7 +70,10 @@ export const NODE_TEMPLATES: Omit<GraphNode, 'id' | 'position'>[] = [
       { id: 'bpm', name: 'BPM', type: 'scalar', connected: false },
     ],
     computeCost: 'medium',
-    parameters: { threshold: 0.8, cooldown: 100 },
+    parameters: [
+      { name: 'threshold', type: 'number', value: 0.8, min: 0, max: 1, step: 0.05 },
+      { name: 'cooldown', type: 'number', value: 100, min: 10, max: 1000, step: 10 },
+    ],
   },
   {
     type: 'WaveGenerator',
@@ -79,7 +87,10 @@ export const NODE_TEMPLATES: Omit<GraphNode, 'id' | 'position'>[] = [
       { id: 'wave', name: 'Wave', type: 'field', connected: false },
     ],
     computeCost: 'medium',
-    parameters: { waveType: 'sine', amplitude: 1.0 },
+    parameters: [
+      { name: 'waveType', type: 'number', value: 0, min: 0, max: 2, step: 1 }, // 0: sine, 1: square, 2: saw
+      { name: 'amplitude', type: 'number', value: 1.0, min: 0, max: 1, step: 0.05 },
+    ],
   },
   
   // Math Nodes
@@ -122,7 +133,10 @@ export const NODE_TEMPLATES: Omit<GraphNode, 'id' | 'position'>[] = [
       { id: 'result', name: 'Result', type: 'scalar', connected: false },
     ],
     computeCost: 'low',
-    parameters: { min: 0, max: 1 },
+    parameters: [
+      { name: 'min', type: 'number', value: 0, min: 0, max: 1, step: 0.05 },
+      { name: 'max', type: 'number', value: 1, min: 0, max: 1, step: 0.05 },
+    ],
   },
   {
     type: 'Smoothing',
@@ -135,7 +149,9 @@ export const NODE_TEMPLATES: Omit<GraphNode, 'id' | 'position'>[] = [
       { id: 'result', name: 'Result', type: 'scalar', connected: false },
     ],
     computeCost: 'low',
-    parameters: { amount: 0.5 },
+    parameters: [
+      { name: 'amount', type: 'number', value: 0.5, min: 0, max: 1, step: 0.05 },
+    ],
   },
   
   // Color Nodes
@@ -152,7 +168,11 @@ export const NODE_TEMPLATES: Omit<GraphNode, 'id' | 'position'>[] = [
       { id: 'color', name: 'Color', type: 'color', connected: false },
     ],
     computeCost: 'low',
-    parameters: { h: 180, s: 80, v: 100 },
+    parameters: [
+      { name: 'h', type: 'number', value: 180, min: 0, max: 360, step: 1 },
+      { name: 's', type: 'number', value: 80, min: 0, max: 100, step: 1 },
+      { name: 'v', type: 'number', value: 100, min: 0, max: 100, step: 1 },
+    ],
   },
   {
     type: 'Gradient',
@@ -179,7 +199,9 @@ export const NODE_TEMPLATES: Omit<GraphNode, 'id' | 'position'>[] = [
       { id: 'colors', name: 'Colors', type: 'field', connected: false },
     ],
     computeCost: 'low',
-    parameters: { paletteId: 1 },
+    parameters: [
+      { name: 'paletteId', type: 'number', value: 1, min: 1, max: 12, step: 1 },
+    ],
   },
   
   // Output Nodes
@@ -193,7 +215,9 @@ export const NODE_TEMPLATES: Omit<GraphNode, 'id' | 'position'>[] = [
     ],
     outputs: [],
     computeCost: 'medium',
-    parameters: { numLEDs: 300 },
+    parameters: [
+      { name: 'numLEDs', type: 'number', value: 300, min: 1, max: 1000, step: 1 },
+    ],
   },
   {
     type: 'Preview',

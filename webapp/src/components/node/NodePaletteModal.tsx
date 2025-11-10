@@ -4,13 +4,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '../ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
-import { GraphNode } from '../../lib/types';
-import { NODE_TEMPLATES } from '../../lib/graphMockData';
+import { Node } from '../../lib/types';
+import { NODE_TEMPLATES } from '../../lib/nodeMockData';
 
 interface NodePaletteModalProps {
   open: boolean;
   onClose: () => void;
-  onAddNode: (node: GraphNode) => void;
+  onAddNode: (node: Node) => void;
 }
 
 export function NodePaletteModal({ open, onClose, onAddNode }: NodePaletteModalProps) {
@@ -24,7 +24,7 @@ export function NodePaletteModal({ open, onClose, onAddNode }: NodePaletteModalP
   });
   
   const handleAddNode = (template: typeof NODE_TEMPLATES[0]) => {
-    const newNode: GraphNode = {
+    const newNode: Node = {
       ...template,
       id: `node-${Date.now()}`,
       position: { x: 200, y: 200 },
@@ -47,7 +47,7 @@ export function NodePaletteModal({ open, onClose, onAddNode }: NodePaletteModalP
         <DialogHeader>
           <DialogTitle className="text-[var(--prism-text-primary)]">Add Node</DialogTitle>
           <DialogDescription className="text-[var(--prism-text-secondary)]">
-            Browse and add nodes to your graph
+            Browse and add nodes to your node
           </DialogDescription>
         </DialogHeader>
         

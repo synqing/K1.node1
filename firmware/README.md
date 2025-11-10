@@ -53,6 +53,21 @@ Notes:
 - `env:esp32-s3-devkitc-1-metrics-ota` — OTA upload variant of the metrics build (used by `tools/run_benchmark.sh`).
 - `env:esp32-s3-devkitc-1-ota` — OTA upload configuration (ArduinoOTA).
 - `env:esp32-s3-devkitc-1-idf5` — Arduino+ESP‑IDF combo for split RMT v2 headers.
+- `env:esp32-s3-devkitc-1-codegen` — metrics build + generated Bloom/Spectrum enabled (`USE_GENERATED_*`), excludes baseline PoCs to avoid symbol clashes.
+- `env:esp32-s3-devkitc-1-codegen-ota` — OTA upload variant of the codegen build.
+
+### LED Alignment & Mirror Controls
+
+- `mirror_mode` (boolean) and `led_offset` (float, ±NUM_LEDS) live inside `/api/params` now.
+  - Mirror mode mirrors the strip around the centre when `true` (default).
+  - LED offset applies once in the LED driver so every pattern shares the alignment fix.
+- Example:
+
+```bash
+curl -X POST http://DEVICE/api/params \
+  -H 'Content-Type: application/json' \
+  -d '{"mirror_mode":false,"led_offset":-10}'
+```
 
 ## Telemetry & REST Endpoints
 - `/api/health` — build signature (Arduino, `IDF_VER`, git SHA, build time), degraded flags, reset cause.
@@ -108,6 +123,8 @@ See `docs/06-reference/firmware-api.md` for full details and rate‑limit window
 - Automated profiling run: `tools/run_benchmark.sh 192.168.1.104`
   - Builds/flashes `env:esp32-s3-devkitc-1-metrics`, selects each benchmark pattern, and captures `/api/frame-metrics`.
   - Outputs CSV (`benchmark_results/benchmark_<timestamp>.csv`) + human-readable summary.
+  - Override to exercise generated patterns:
+    - `BUILD_ENV=esp32-s3-devkitc-1-codegen UPLOAD_ENV=esp32-s3-devkitc-1-codegen-ota tools/run_benchmark.sh <ip>`
 - Hardware validation loop: `tools/run_hw_tests.sh --device /dev/tty.usbmodem212401`
   - Builds each suite (`test_hw_led_driver`, `test_hw_audio_input`, `test_hw_graph_integration`), flashes, and streams Unity logs via `tools/parse_test_output.py`.
 - Stress suite: `pio test -e esp32-s3-devkitc-1 --filter test_stress_suite`.
@@ -121,6 +138,7 @@ See `docs/06-reference/firmware-api.md` for full details and rate‑limit window
 - Analyzer: `python tools/beat_phase_analyzer.py --bpm 120 --log beat_phase_log.csv --out beat_phase_report.csv`
 - Concurrency stress (desktop): `g++ -O3 -std=c++17 -pthread tools/seqlock_stress.cpp -o seqlock_stress && ./seqlock_stress --attempts 10000000 --readers 2 --bins 64 --writer-hz 200 --out stress.csv`
 - One‑shot validation runner: `bash tools/run_phase_a_validation.sh`
+- Pattern smoke test: `bash tools/test_patterns.sh <device-ip>` — cycles Spectrum/Spectronome/Bloom/Metronome/FFT/Pitch/Neutral/Debug via REST and fails if `/api/frame-metrics` is empty for any selection.
 
 ## CI (Fast Lane + Guards)
 - Fast lane: cached PlatformIO build (release + debug) + Phase‑A unit tests.

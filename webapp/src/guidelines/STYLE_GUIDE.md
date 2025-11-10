@@ -1,7 +1,7 @@
 # Style Guide (Webapp)
 
 Stack alignment:
-- Tailwind for utility classes; keep spacing and typography consistent.
+- Tailwind for utility classes; keep spacing and typonodey consistent.
 - Radix UI primitives for accessible building blocks.
 - Shadcn/ui patterns for composable, themed components.
 

@@ -41,7 +41,7 @@ Built on the PRISM.node design system with carefully crafted tokens:
 - Status colors: Success #22dd88, Warning #f59e0b, Error #ef4444
 - Data type colors: Scalar #f59e0b, Field #22d3ee, Color #f472b6, Output #34d399
 
-**Typography**:
+**Typonodey**:
 - JetBrains Mono for code/numeric display
 - Rama Gothic Rounded for body text (fallback: Nunito)
 - Bebas Neue Pro for headers and branding (fallback: Impact)
@@ -141,7 +141,7 @@ Built on the PRISM.node design system with carefully crafted tokens:
 All design tokens are defined in `/styles/globals.css` using CSS custom properties:
 - PRISM.node brand colors (structural and semantic)
 - Standard theme variables for shadcn/ui compatibility
-- Typography scales and font families
+- Typonodey scales and font families
 - Custom variant for dark mode
 
 ### Accessibility

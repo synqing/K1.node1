@@ -2,8 +2,7 @@
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App.tsx';
-import WorkflowDemo from './pages/WorkflowDemo';
-import { GraphAuthoringProvider } from './store/graphAuthoring';
+import { NodeAuthoringProvider } from './store/nodeAuthoring';
 import './index.css';
 import './styles/globals.css';
 import './lib/analysisClient';
@@ -24,12 +23,10 @@ const queryClient = new QueryClient({
   },
 });
 
-const RootComponent = import.meta.env.VITE_SHOW_WORKFLOW_DEMO === 'true' ? WorkflowDemo : App;
-
 createRoot(document.getElementById('root')!).render(
   <QueryClientProvider client={queryClient}>
-    <GraphAuthoringProvider>
-      <RootComponent />
-    </GraphAuthoringProvider>
+    <NodeAuthoringProvider>
+      <App />
+    </NodeAuthoringProvider>
   </QueryClientProvider>,
 );

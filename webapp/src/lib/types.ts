@@ -59,7 +59,7 @@ export interface ConnectionState {
   lastSyncTime?: number;
 }
 
-// Graph Editor Types
+// Node Editor Types
 export type NodePortType = 'scalar' | 'field' | 'color' | 'output';
 
 export interface NodePort {
@@ -69,7 +69,16 @@ export interface NodePort {
   connected: boolean;
 }
 
-export interface GraphNode {
+export interface NodeParameter {
+  name: string;
+  type: 'number' | 'color';
+  value: number | string;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+export interface Node {
   id: string;
   type: string;
   category: 'input' | 'effect' | 'math' | 'color' | 'output';
@@ -78,24 +87,24 @@ export interface GraphNode {
   inputs: NodePort[];
   outputs: NodePort[];
   computeCost: 'low' | 'medium' | 'high';
-  parameters?: Record<string, any>;
+  parameters?: NodeParameter[];
 }
 
-export interface GraphConnection {
+export interface NodeConnection {
   id: string;
   source: { nodeId: string; portId: string };
   target: { nodeId: string; portId: string };
 }
 
-export interface GraphState {
-  nodes: GraphNode[];
-  connections: GraphConnection[];
+export interface NodeState {
+  nodes: Node[];
+  connections: NodeConnection[];
   selectedNodeIds: string[];
   zoom: number;
   pan: { x: number; y: number };
 }
 
-export interface GraphError {
+export interface NodeError {
   id: string;
   nodeId: string;
   severity: 'error' | 'warning';

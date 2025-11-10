@@ -1,7 +1,7 @@
 {
   "name": "bloom_pattern_poc",
   "description": "Bloom pattern PoC: audio input -> spectral analysis -> buffer persist -> colorize -> mirror -> LED output",
-  "num_leds": 256,
+  "num_leds": 160,
   "nodes": [
     {
       "id": "audio_input",

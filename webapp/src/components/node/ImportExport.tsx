@@ -20,9 +20,9 @@ export function ImportExport({ onImport, onExport }: ImportExportProps) {
           try {
             const data = JSON.parse(e.target?.result as string);
             onImport(data);
-            toast.success('Graph imported successfully');
+            toast.success('Node imported successfully');
           } catch (error) {
-            toast.error('Failed to import graph');
+            toast.error('Failed to import node');
           }
         };
         reader.readAsText(file);
@@ -37,10 +37,10 @@ export function ImportExport({ onImport, onExport }: ImportExportProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `prism-graph-${Date.now()}.json`;
+    a.download = `prism-node-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success('Graph exported successfully');
+    toast.success('Node exported successfully');
   };
   
   return (

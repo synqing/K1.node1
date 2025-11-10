@@ -1,7 +1,7 @@
 # API Specification: Frontend ↔ Backend
 
 ## Orkes Workflow Service
-- Base URL: `VITE_ORKES_SERVICE_BASE_URL` (default `http://localhost:4002/api/workflows`)
+- Base URL: `VITE_ORKES_SERVICE_BASE_URL` (default `/api/workflows`, proxied to `http://localhost:8800` in dev)
 
 - Endpoints:
   - `POST /execute`
@@ -45,4 +45,3 @@
 ## Auth & Headers
 - Orkes: JSON only; CORS origins configured in service. No cookie/JWT in dev.
 - Device: Prefer JSON POST with `Content-Type: application/json`. On failure, fallback to `no-cors` opaque POST.
-
