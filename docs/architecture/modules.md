@@ -27,7 +27,7 @@ This is a living document that will be updated as the refactoring progresses.
 | Priority | Task | Description | Acceptance Criteria |
 |---|---|---|---|
 | 1 | Relocate `apply_background_overlay` | Move this function from `generated_patterns.h` to a new `pattern_helpers` module. | All patterns that use this function are updated to call the new version, and all build variants pass. |
-| 2 | Relocate HSV functions | Move the `hsv2rgb` and related functions to the `pattern_helpers` module. | All callers are updated, and all build variants pass. |
+| 2 | Relocate HSV functions | Move the `hsv2rgb` and related functions to the `pattern_helpers` module. | **Done.** All callers are updated, and all build variants pass. |
 | 3 | Abstract LED buffer access | Create a `PatternRenderContext` struct that provides patterns with a reference to the LED buffer, rather than having them access it directly. | All patterns are updated to use the new context, and all build variants pass. |
 | 4 | Refactor `get_pattern_buffer` | Move this function into the `pattern_runtime` and provide a clean interface for patterns to access the buffer. | All callers are updated, and all build variants pass. |
 
@@ -44,6 +44,5 @@ This is a living document that will be updated as the refactoring progresses.
 
 The next steps in this refactoring effort should focus on continuing the migration of high-risk helpers from `generated_patterns.h` to the new `pattern_helpers` module. The following tasks from the migration roadmap should be prioritized:
 
-1.  **Relocate HSV functions**: Move the `hsv2rgb` and related functions to the `pattern_helpers` module.
-2.  **Abstract LED buffer access**: Create a `PatternRenderContext` struct to provide patterns with a reference to the LED buffer, rather than having them access it directly.
+1.  **Abstract LED buffer access**: Create a `PatternRenderContext` struct to provide patterns with a reference to the LED buffer, rather than having them access it directly.
 3.  **Refactor `get_pattern_buffer`**: Move this function into the `pattern_runtime` and provide a clean interface for patterns to access the buffer.
