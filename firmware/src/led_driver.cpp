@@ -14,7 +14,7 @@
 // Mutable brightness control (0.0 = off, 1.0 = full brightness)
 float global_brightness = 0.3f;  // Start at 30% to avoid retina damage
 
-// 8-bit color output buffer (480 bytes for 160 LEDs × 3 channels)
+// 8-bit color output buffer (540 bytes for 180 LEDs × 3 channels)
 // Must be accessible from inline transmit_leds() function in header
 uint8_t rgb8_data[NUM_LEDS * 3];
 uint8_t raw_led_data[NUM_LEDS * 3];
@@ -178,7 +178,7 @@ void init_rmt_driver() {
         .gpio_num = (gpio_num_t)LED_DATA_PIN,  // GPIO 5
         .clk_src = RMT_CLK_SRC_DEFAULT,        // default source clock
         .resolution_hz = 20000000,             // 20 MHz tick resolution (1 tick = 0.05us)
-        .mem_block_symbols = 256,              // worst-case headroom for 160 LEDs (reduces refill cadence)
+        .mem_block_symbols = 256,              // headroom for 180 LEDs (reduces refill cadence)
         .trans_queue_depth = 4,                // pending transactions depth
         .intr_priority = 99,
         .flags = { .with_dma = 1 },            // DMA enabled to reduce ISR pressure

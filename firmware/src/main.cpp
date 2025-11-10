@@ -50,6 +50,7 @@ void init_rmt_driver();
 #include "easing_functions.h"
 #include "parameters.h"
 #include "pattern_registry.h"
+#include "pattern_codegen_bridge.h"
 #include "generated_patterns.h"
 #include "pattern_optimizations.h"
 #include "webserver.h"
@@ -493,16 +494,6 @@ void loop_gpu(void* param) {
         watch_cpu_fps();
         print_fps();
 
-        // Record frame metrics (zero-cost when disabled)
-        uint16_t fps_u16 = (uint16_t)(FPS_CPU * 100.0f);
-        FrameMetricsBuffer::instance().record_frame(
-            render_us,
-            quantize_us,
-            0,  // rmt_wait_us (measured in transmit_leds)
-            0,  // rmt_tx_us (measured in transmit_leds)
-            fps_u16
-        );
-
         // No delay - run at maximum performance
         // The RMT wait in transmit_leds() provides natural pacing
     }
@@ -638,6 +629,9 @@ void setup() {
     // Apply performance optimizations to underperforming patterns
     apply_pattern_optimizations();
     LOG_INFO(TAG_CORE0, "Applied pattern optimizations");
+
+    // If codegen flags are enabled, override selected patterns to use generated implementations
+    apply_codegen_overrides();
 
     LOG_INFO(TAG_CORE0, "Starting pattern: %s", get_current_pattern().name);
 

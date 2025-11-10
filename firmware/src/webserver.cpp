@@ -11,6 +11,7 @@
 #include "connection_state.h" // For connection state reporting
 #include <ArduinoJson.h>
 #include <ESPmDNS.h>
+#include <Preferences.h>
 #include "profiler.h"        // For performance metrics (FPS, micro-timings)
 #include "cpu_monitor.h"     // For CPU usage monitoring
 #include "frame_metrics.h"   // For frame-level metrics
@@ -110,11 +111,13 @@ class GetDevicePerformanceHandler : public K1RequestHandler {
 public:
     GetDevicePerformanceHandler() : K1RequestHandler(ROUTE_DEVICE_PERFORMANCE, ROUTE_GET) {}
     void handle(RequestContext& ctx) override {
-        float frames = FRAMES_COUNTED > 0 ? (float)FRAMES_COUNTED : 1.0f;
-        float avg_render_us = (float)ACCUM_RENDER_US / frames;
-        float avg_quantize_us = (float)ACCUM_QUANTIZE_US / frames;
-        float avg_rmt_wait_us = (float)ACCUM_RMT_WAIT_US / frames;
-        float avg_rmt_tx_us = (float)ACCUM_RMT_TRANSMIT_US / frames;
+        float frames = FRAMES_COUNTED.load(std::memory_order_relaxed) > 0
+                         ? static_cast<float>(FRAMES_COUNTED.load(std::memory_order_relaxed))
+                         : 1.0f;
+        float avg_render_us = static_cast<float>(ACCUM_RENDER_US.load(std::memory_order_relaxed)) / frames;
+        float avg_quantize_us = static_cast<float>(ACCUM_QUANTIZE_US.load(std::memory_order_relaxed)) / frames;
+        float avg_rmt_wait_us = static_cast<float>(ACCUM_RMT_WAIT_US.load(std::memory_order_relaxed)) / frames;
+        float avg_rmt_tx_us = static_cast<float>(ACCUM_RMT_TRANSMIT_US.load(std::memory_order_relaxed)) / frames;
         float frame_time_us = avg_render_us + avg_quantize_us + avg_rmt_wait_us + avg_rmt_tx_us;
 
         uint32_t heap_free = ESP.getFreeHeap();
@@ -1228,11 +1231,13 @@ public:
     GetAudioMetricsHandler() : K1RequestHandler(ROUTE_AUDIO_METRICS, ROUTE_GET) {}
     void handle(RequestContext& ctx) override {
         // Derive averages from accumulated profiler counters
-        float frames = FRAMES_COUNTED > 0 ? (float)FRAMES_COUNTED : 1.0f;
-        float avg_render_us = (float)ACCUM_RENDER_US / frames;
-        float avg_quantize_us = (float)ACCUM_QUANTIZE_US / frames;
-        float avg_rmt_wait_us = (float)ACCUM_RMT_WAIT_US / frames;
-        float avg_rmt_tx_us = (float)ACCUM_RMT_TRANSMIT_US / frames;
+        float frames = FRAMES_COUNTED.load(std::memory_order_relaxed) > 0
+                         ? static_cast<float>(FRAMES_COUNTED.load(std::memory_order_relaxed))
+                         : 1.0f;
+        float avg_render_us = static_cast<float>(ACCUM_RENDER_US.load(std::memory_order_relaxed)) / frames;
+        float avg_quantize_us = static_cast<float>(ACCUM_QUANTIZE_US.load(std::memory_order_relaxed)) / frames;
+        float avg_rmt_wait_us = static_cast<float>(ACCUM_RMT_WAIT_US.load(std::memory_order_relaxed)) / frames;
+        float avg_rmt_tx_us = static_cast<float>(ACCUM_RMT_TRANSMIT_US.load(std::memory_order_relaxed)) / frames;
         float frame_time_us = avg_render_us + avg_quantize_us + avg_rmt_wait_us + avg_rmt_tx_us;
 
         StaticJsonDocument<256> resp;
@@ -1347,11 +1352,13 @@ class GetMetricsHandler : public K1RequestHandler {
 public:
     GetMetricsHandler() : K1RequestHandler(ROUTE_METRICS, ROUTE_GET) {}
     void handle(RequestContext& ctx) override {
-        float frames = FRAMES_COUNTED > 0 ? (float)FRAMES_COUNTED : 1.0f;
-        float avg_render_us = (float)ACCUM_RENDER_US / frames;
-        float avg_quantize_us = (float)ACCUM_QUANTIZE_US / frames;
-        float avg_rmt_wait_us = (float)ACCUM_RMT_WAIT_US / frames;
-        float avg_rmt_tx_us = (float)ACCUM_RMT_TRANSMIT_US / frames;
+        float frames = FRAMES_COUNTED.load(std::memory_order_relaxed) > 0
+                         ? static_cast<float>(FRAMES_COUNTED.load(std::memory_order_relaxed))
+                         : 1.0f;
+        float avg_render_us = static_cast<float>(ACCUM_RENDER_US.load(std::memory_order_relaxed)) / frames;
+        float avg_quantize_us = static_cast<float>(ACCUM_QUANTIZE_US.load(std::memory_order_relaxed)) / frames;
+        float avg_rmt_wait_us = static_cast<float>(ACCUM_RMT_WAIT_US.load(std::memory_order_relaxed)) / frames;
+        float avg_rmt_tx_us = static_cast<float>(ACCUM_RMT_TRANSMIT_US.load(std::memory_order_relaxed)) / frames;
         float frame_time_us = avg_render_us + avg_quantize_us + avg_rmt_wait_us + avg_rmt_tx_us;
 
         String m;
@@ -1366,45 +1373,7 @@ public:
     }
 };
 
-// GET /api/frame-metrics - Frame-level profiling metrics for benchmarking
-class GetFrameMetricsHandler : public K1RequestHandler {
-public:
-    GetFrameMetricsHandler() : K1RequestHandler("/api/frame-metrics", ROUTE_GET) {}
-    void handle(RequestContext& ctx) override {
-        auto& buf = FrameMetricsBuffer::instance();
-        uint32_t frame_count = buf.count();
-
-        DynamicJsonDocument doc(16384);
-        doc["frame_count"] = frame_count;
-        doc["buffer_size"] = FRAME_METRICS_BUFFER_SIZE;
-
-        // Summary statistics
-        AverageMetrics avg = frame_metrics_average(0);
-        doc["avg_render_us"] = avg.avg_render_us;
-        doc["avg_quantize_us"] = avg.avg_quantize_us;
-        doc["avg_rmt_wait_us"] = avg.avg_rmt_wait_us;
-        doc["avg_rmt_tx_us"] = avg.avg_rmt_tx_us;
-        doc["avg_total_us"] = avg.avg_total_us;
-
-        // Frame array
-        JsonArray frames = doc.createNestedArray("frames");
-        for (uint32_t i = 0; i < frame_count && i < FRAME_METRICS_BUFFER_SIZE; ++i) {
-            FrameMetric fm = buf.get_frame(i);
-            JsonObject f = frames.createNestedObject();
-            f["render_us"] = fm.render_us;
-            f["quantize_us"] = fm.quantize_us;
-            f["rmt_wait_us"] = fm.rmt_wait_us;
-            f["rmt_tx_us"] = fm.rmt_tx_us;
-            f["total_us"] = fm.total_us;
-            f["heap_free"] = fm.heap_free;
-            f["fps"] = fm.fps_snapshot / 100.0f;
-        }
-
-        String output;
-        serializeJson(doc, output);
-        ctx.sendJson(200, output);
-    }
-};
+// (Duplicate GetFrameMetricsHandler removed; see single definition above)
 
 // GET /api/beat-events/dump - Ring-buffer snapshot with attachment headers
 class GetBeatEventsDumpHandler : public K1RequestHandler {
@@ -1981,14 +1950,16 @@ void broadcast_realtime_data() {
     performance["fps"] = FPS_CPU;
     
     // Calculate frame time and detailed averages from accumulated timings
-    float frames = FRAMES_COUNTED > 0 ? (float)FRAMES_COUNTED : 1.0f;
+    float frames = FRAMES_COUNTED.load(std::memory_order_relaxed) > 0
+                     ? static_cast<float>(FRAMES_COUNTED.load(std::memory_order_relaxed))
+                     : 1.0f;
     uint32_t total_frame_time_us = (ACCUM_RENDER_US + ACCUM_QUANTIZE_US + 
                                    ACCUM_RMT_WAIT_US + ACCUM_RMT_TRANSMIT_US) / frames;
     performance["frame_time_us"] = total_frame_time_us;
-    performance["render_avg_us"] = (float)ACCUM_RENDER_US / frames;
-    performance["quantize_avg_us"] = (float)ACCUM_QUANTIZE_US / frames;
-    performance["rmt_wait_avg_us"] = (float)ACCUM_RMT_WAIT_US / frames;
-    performance["rmt_tx_avg_us"] = (float)ACCUM_RMT_TRANSMIT_US / frames;
+    performance["render_avg_us"] = static_cast<float>(ACCUM_RENDER_US.load(std::memory_order_relaxed)) / frames;
+    performance["quantize_avg_us"] = static_cast<float>(ACCUM_QUANTIZE_US.load(std::memory_order_relaxed)) / frames;
+    performance["rmt_wait_avg_us"] = static_cast<float>(ACCUM_RMT_WAIT_US.load(std::memory_order_relaxed)) / frames;
+    performance["rmt_tx_avg_us"] = static_cast<float>(ACCUM_RMT_TRANSMIT_US.load(std::memory_order_relaxed)) / frames;
     performance["cpu_percent"] = cpu_monitor.getAverageCPUUsage();
     
     // Memory statistics

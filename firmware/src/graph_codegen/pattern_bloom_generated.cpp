@@ -12,7 +12,7 @@ extern "C" void pattern_bloom_render(
     PatternState& state,
     PatternOutput& out
 ) {
-    static constexpr int PATTERN_NUM_LEDS = 256;
+    static constexpr int PATTERN_NUM_LEDS = 160;  // Match hardware NUM_LEDS
 
     // Temporary buffers for intermediate stages
     float tmp_f0[PATTERN_NUM_LEDS] = {0.0f};
@@ -26,27 +26,32 @@ extern "C" void pattern_bloom_render(
     }
 
     // === Generated graph nodes ===
-    // Node: AudioSpectrum
-    // Audio input is available in: audio.spectrum[256] and audio.energy
-    // (PoC: no-op, audio data used by downstream nodes)
-    // Node: BandShape
-    // Convert audio spectrum to scalar ramp (PoC implementation)
-    for (int i = 0; i < PATTERN_NUM_LEDS; ++i) {
-        tmp_f0[i] = (float)i / (float)(PATTERN_NUM_LEDS - 1);
-    }
-    // Node: BufferPersist
-    // Exponential decay: persist_buf = decay * persist_buf + (1 - decay) * input
-    for (int i = 0; i < PATTERN_NUM_LEDS; ++i) {
-        state.persist_buf[i] = 0.92f * state.persist_buf[i] + (1.0f - 0.92f) * tmp_f0[i];
-    }
-    // Node: Colorize
-    // Map scalar buffer to grayscale (PoC: simple value -> R=G=B)
-    for (int i = 0; i < PATTERN_NUM_LEDS; ++i) {
+    // Node: AudioSpectrum + BandShape + BufferPersist + Colorize with CENTER-MIRROR
+    // Compute only first half, then mirror symmetrically around center
+    const int half_leds = PATTERN_NUM_LEDS / 2;  // 80
+
+    for (int i = 0; i < half_leds; ++i) {
+        // Create ramp value for first half
+        float ramp_val = (float)i / (float)(half_leds - 1);
+
+        // Apply exponential decay persistence
+        state.persist_buf[i] = 0.92f * state.persist_buf[i] + (1.0f - 0.92f) * ramp_val;
+
+        // Clamp and create grayscale color
         float v = clamp_val(state.persist_buf[i], 0.0f, 1.0f);
-        tmp_rgb0[i] = {v, v, v};
+        CRGBF color = {v, v, v};
+
+        // Write to both mirrored positions (center-aware)
+        int left = half_leds - 1 - i;    // 79-i (counting down from center)
+        int right = half_leds + i;       // 80+i (counting up from center)
+        tmp_rgb0[left] = color;
+        tmp_rgb0[right] = color;
     }
-    // Node: Mirror
-    mirror_buffer(tmp_rgb0, tmp_rgb1, PATTERN_NUM_LEDS);
+
+    // Copy to output buffer (no additional mirroring needed)
+    for (int i = 0; i < PATTERN_NUM_LEDS; ++i) {
+        tmp_rgb1[i] = tmp_rgb0[i];
+    }
     // Terminal: LedOutput
     // Clamp and quantize final buffer to 8-bit RGB
     const CRGBF* final_buf = tmp_rgb1;

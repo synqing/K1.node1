@@ -63,11 +63,31 @@ inline void blur_buffer(const CRGBF* src, CRGBF* out, int num_leds, int radius =
 }
 
 /**
- * Mirror buffer vertically (flip)
+ * Mirror buffer vertically (flip) - creates symmetric reflection
+ * For num_leds=160 with center at 79: mirrors left-right symmetrically
  */
 inline void mirror_buffer(const CRGBF* src, CRGBF* out, int num_leds) {
     for (int i = 0; i < num_leds; i++) {
         out[i] = src[num_leds - 1 - i];
+    }
+}
+
+/**
+ * Center-origin symmetric copy: renders left half and mirrors to right
+ * Only write to half the buffer, then mirror around center point
+ * For 160 LEDs: compute 0-79, mirror to 80-159 symmetrically
+ */
+inline void mirror_buffer_center_origin(const CRGBF* src, CRGBF* out, int num_leds) {
+    const int center = num_leds / 2;
+    for (int i = 0; i < center; i++) {
+        // Left side (from center, going down)
+        out[center - 1 - i] = src[i];
+        // Right side (from center, going up)
+        out[center + i] = src[i];
+    }
+    // Center LED itself (if odd count, this handles it)
+    if (num_leds % 2 == 1) {
+        out[center] = src[center];
     }
 }
 
@@ -303,5 +323,5 @@ struct PatternState {
 };
 
 struct PatternOutput {
-    uint8_t leds[256][3];  // NUM_LEDS × RGB bytes
+    uint8_t leds[160][3];  // NUM_LEDS × RGB bytes (matches hardware)
 };

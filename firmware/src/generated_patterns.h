@@ -381,6 +381,10 @@ void draw_twilight(float time, const PatternParameters& params) {
 void draw_spectrum(float time, const PatternParameters& params) {
 	PATTERN_AUDIO_START();
 
+	#ifndef SPECTRUM_CENTER_OFFSET
+	#define SPECTRUM_CENTER_OFFSET 0
+	#endif
+
 	// Fallback to ambient if no audio
 	if (!AUDIO_IS_AVAILABLE()) {
 		CRGBF ambient_color = color_from_palette(
@@ -406,6 +410,11 @@ void draw_spectrum(float time, const PatternParameters& params) {
 
 	// Render spectrum (center-origin, so render half and mirror)
 	int half_leds = NUM_LEDS / 2;
+	auto wrap_idx = [](int idx) {
+		while (idx < 0) idx += NUM_LEDS;
+		while (idx >= NUM_LEDS) idx -= NUM_LEDS;
+		return idx;
+	};
 
 	float smooth_mix = clip_float(params.custom_param_3); // 0.0 = raw, 1.0 = fully smoothed
 
@@ -428,8 +437,8 @@ void draw_spectrum(float time, const PatternParameters& params) {
 		color.b *= params.brightness;
 
 		// Mirror from center (centre-origin architecture)
-		int left_index = (NUM_LEDS / 2) - 1 - i;
-		int right_index = (NUM_LEDS / 2) + i;
+		int left_index = wrap_idx(((NUM_LEDS / 2) - 1 - i) + SPECTRUM_CENTER_OFFSET);
+		int right_index = wrap_idx(((NUM_LEDS / 2) + i) + SPECTRUM_CENTER_OFFSET);
 
 		leds[left_index] = color;
 		leds[right_index] = color;
