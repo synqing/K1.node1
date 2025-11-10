@@ -131,7 +131,7 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 - Line 594: `├── docs/09-reports/{PHASE}_deployment_decision.md`
 - Line 602: `3. Every quality report MUST cite before/after metrics from docs/09-reports/`
 - Line 743: `Located in: \`docs/02-adr/\``
-- Line 747: `**Template:** [ADR-template.md](docs/02-adr/ADR-template.md)`
+ - Line 747: `**Template:** [K1NADR_TEMPLATE_v1.0_20251110.md](docs/02-adr/K1NADR_TEMPLATE_v1.0_20251110.md)`
 - Line 748: `**Index & rules:** [docs/02-adr/README.md](docs/02-adr/README.md)`
 - Update all paths to numbered format
 
@@ -187,7 +187,7 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 - Context: All cross-references in ADR
 - Update to: Use relative paths to `../08-reports/` or full paths to `docs/09-reports/`
 
-**9. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-template.md**
+**9. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/K1NADR_TEMPLATE_v1.0_20251110.md**
 - Line 20: `- BOTTLENECK_N from docs/05-analysis/{subsystem}/bottleneck_matrix.md`
 - Update to: `docs/05-analysis/{subsystem}/bottleneck_matrix.md`
 
@@ -209,7 +209,7 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 - Line 113: `   - ADRs → \`docs/02-adr/\` (format: \`ADR-####-title.md\`)`
 - Line 227: `- Escalation: if analysis reveals unfixable design flaw, create \`docs/02-adr/ADR-####-{issue}.md\` decision record.`
 - Line 743: `Located in: \`docs/02-adr/\``
-- Line 747: `**Template:** [ADR-template.md](docs/02-adr/ADR-template.md)`
+- Line 747: `**Template:** [K1NADR_TEMPLATE_v1.0_20251110.md](docs/02-adr/K1NADR_TEMPLATE_v1.0_20251110.md)`
 - Line 748: `**Index & rules:** [docs/02-adr/README.md](docs/02-adr/README.md)`
 - Update all to: `docs/02-adr/`
 
@@ -240,7 +240,7 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 
 **4. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/05-analysis/K1NAnalysis_SUMMARY_PATTERN_ANALYSIS_EXECUTIVE_v1.0_20251108.md**
 - Line 239: `**Full analysis:** \`/docs/05-analysis/pattern_reverse_engineering_feasibility.md\` (60+ pages)`
-- Line 241: `**Related ADR:** \`/docs/02-adr/ADR-0006-codegen-abandonment.md\` (decision document)`
+ - Line 241: `**Related ADR:** \`/docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md\` (decision document)`
 - Update to: `/docs/05-analysis/...` and `/docs/02-adr/...`
 
 **5. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0013-backend-framework-fastapi.md**
