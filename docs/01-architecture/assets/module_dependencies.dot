@@ -1,0 +1,36 @@
+digraph firmware_modules {
+    rankdir=LR;
+    node [shape=box, style=rounded];
+
+    subgraph cluster_patterns {
+        label = "Patterns";
+        "generated_patterns" [label="generated_patterns.h"];
+    }
+
+    subgraph cluster_helpers {
+        label = "Helpers";
+        "pattern_helpers" [label="pattern_helpers.h"];
+        "palettes" [label="palettes.h"];
+        "emotiscope_helpers" [label="emotiscope_helpers.h"];
+        "dsps_helpers" [label="dsps_helpers.h"];
+        "pattern_channel" [label="pattern_channel.h"];
+    }
+
+    subgraph cluster_core {
+        label = "Core";
+        "pattern_registry" [label="pattern_registry.h"];
+        "pattern_audio_interface" [label="pattern_audio_interface.h"];
+        "logging" [label="logging/logger.h"];
+    }
+
+    "generated_patterns" -> "pattern_registry";
+    "generated_patterns" -> "pattern_audio_interface";
+    "generated_patterns" -> "palettes";
+    "generated_patterns" -> "emotiscope_helpers";
+    "generated_patterns" -> "dsps_helpers";
+    "generated_patterns" -> "logging";
+    "generated_patterns" -> "pattern_channel";
+    "generated_patterns" -> "pattern_helpers";
+
+    "pattern_helpers" -> "palettes";
+}

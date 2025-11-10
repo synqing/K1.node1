@@ -38,17 +38,6 @@ void draw_dot(CRGBF* leds, uint16_t dot_index, CRGBF color, float position, floa
 float get_color_range_hue(float progress);
 
 /**
- * HSV to RGB conversion optimized for LED strips
- * Enhanced version of the basic hsv() function in generated_patterns.h
- * 
- * @param h - Hue (0.0-1.0)
- * @param s - Saturation (0.0-1.0) 
- * @param v - Value/brightness (0.0-1.0)
- * @return CRGBF color
- */
-CRGBF hsv_enhanced(float h, float s, float v);
-
-/**
  * Clamp float value to 0.0-1.0 range
  * Note: Also defined in goertzel.h
  * Using #ifndef to avoid duplicate definition errors

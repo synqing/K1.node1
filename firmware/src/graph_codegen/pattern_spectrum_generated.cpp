@@ -5,6 +5,7 @@
 #include "../stateful_nodes.h"
 #include "../parameters.h"
 #include "../pattern_audio_interface.h"
+#include "../pattern_helpers.h"
 
 extern "C" void pattern_spectrum_render(
     uint32_t frame_count,
@@ -114,8 +115,7 @@ extern "C" void pattern_spectrum_render(
         float hue = bin_float / (float)NUM_FREQ_BINS;
         float sat = 0.95f;
         float value = magnitude * params.brightness;
-
-        CRGBF color = hsv_to_rgb(hue, sat, value);
+        CRGBF color = hsv(hue, sat, value);
 
         // Write symmetrically around center (LEDs 79/80)
         int left = half_leds - 1 - i;    // 79, 78, 77, ..., 0

@@ -2119,7 +2119,6 @@ void draw_prism(const PatternRenderContext& context) {
     apply_background_overlay(context);
 }
 
-void draw_prism(float time, const PatternParameters& params);
 void draw_pitch(float time, const PatternParameters& params);
 
 // ============================================================================

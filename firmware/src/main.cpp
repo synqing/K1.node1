@@ -53,6 +53,7 @@ void init_rmt_driver();
 #include "pattern_render_context.h"
 #include "pattern_codegen_bridge.h"
 #include "generated_patterns.h"
+#include "pattern_helpers.h"
 #include "pattern_optimizations.h"
 #include "webserver.h"
 #include "cpu_monitor.h"
@@ -631,6 +632,7 @@ void setup() {
     // Initialize pattern registry
     LOG_INFO(TAG_CORE0, "Initializing pattern registry...");
     init_pattern_registry();
+    init_hue_wheel_lut();
     LOG_INFO(TAG_CORE0, "Loaded %d patterns", g_num_patterns);
 
     // Apply performance optimizations to underperforming patterns
