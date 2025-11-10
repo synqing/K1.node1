@@ -4,10 +4,11 @@
 #pragma once
 #include "parameters.h"
 #include "logging/logger.h"
+#include "pattern_render_context.h"
 
 // Pattern function signature
-// All patterns receive time and parameters, write to global leds[] buffer
-typedef void (*PatternFunction)(float time, const PatternParameters& params);
+// All patterns receive a render context
+typedef void (*PatternFunction)(const PatternRenderContext& context);
 
 // Pattern metadata
 struct PatternInfo {
@@ -69,7 +70,7 @@ inline const PatternInfo& get_current_pattern() {
 }
 
 // Draw current pattern (call from loop())
-inline void draw_current_pattern(float time, const PatternParameters& params) {
+inline void draw_current_pattern(const PatternRenderContext& context) {
     PatternFunction draw_fn = g_pattern_registry[g_current_pattern_index].draw_fn;
-    draw_fn(time, params);
+    draw_fn(context);
 }

@@ -50,6 +50,7 @@ void init_rmt_driver();
 #include "easing_functions.h"
 #include "parameters.h"
 #include "pattern_registry.h"
+#include "pattern_render_context.h"
 #include "pattern_codegen_bridge.h"
 #include "generated_patterns.h"
 #include "pattern_optimizations.h"
@@ -460,7 +461,13 @@ void loop_gpu(void* param) {
 
         // Draw current pattern with audio-reactive data (lock-free read from audio_front)
         uint32_t t_render = micros();
-        draw_current_pattern(time, params);
+
+        // Create the render context
+        AudioDataSnapshot audio_snapshot;
+        get_audio_snapshot(&audio_snapshot);
+        PatternRenderContext context(leds, NUM_LEDS, time, params, audio_snapshot);
+
+        draw_current_pattern(context);
         uint32_t t_post_render = micros();
 
         uint32_t render_us = t_post_render - t_frame_start;
