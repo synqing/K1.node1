@@ -41,8 +41,16 @@ void draw_bloom_generated(float time, const PatternParameters& params) {
         float v = clamp_val(state.persist_buf[i], 0.0f, 1.0f);
         tmp_rgb0[i] = {v, v, v};
     }
-    // Node: Mirror
-    mirror_buffer(tmp_rgb0, tmp_rgb1, PATTERN_NUM_LEDS);
+    // Node: Mirror (Center-Origin)
+    // Render the first half and write it symmetrically to the output.
+    const int half_leds = PATTERN_NUM_LEDS / 2;
+    for (int i = 0; i < half_leds; ++i) {
+        // Source is the first half of the input buffer
+        const CRGBF& color = tmp_rgb0[i];
+        // Write to both sides of the output buffer
+        tmp_rgb1[half_leds - 1 - i] = color;
+        tmp_rgb1[half_leds + i] = color;
+    }
     // Terminal: LedOutput (OPTIMIZED)
     // Clamp and write final buffer to global leds array, applying brightness
     const CRGBF* final_buf = tmp_rgb1;

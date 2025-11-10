@@ -85,9 +85,17 @@ def emit_colorize_node(node: Dict[str, Any], num_leds: int) -> str:
 
 
 def emit_mirror_node(node: Dict[str, Any], num_leds: int) -> str:
-    """Emit Mirror node (horizontal flip)."""
-    return f"""    // Node: Mirror
-    mirror_buffer(tmp_rgb0, tmp_rgb1, PATTERN_NUM_LEDS);
+    """Emit Mirror node (center-origin symmetric mirror)."""
+    return f"""    // Node: Mirror (Center-Origin)
+    // Render the first half and write it symmetrically to the output.
+    const int half_leds = PATTERN_NUM_LEDS / 2;
+    for (int i = 0; i < half_leds; ++i) {{
+        // Source is the first half of the input buffer
+        const CRGBF& color = tmp_rgb0[i];
+        // Write to both sides of the output buffer
+        tmp_rgb1[half_leds - 1 - i] = color;
+        tmp_rgb1[half_leds + i] = color;
+    }}
 """
 
 
