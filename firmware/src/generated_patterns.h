@@ -13,6 +13,7 @@
 #include "emotiscope_helpers.h"
 #include "dsps_helpers.h"
 #include "logging/logger.h"
+#include "pattern_helpers.h"
 #include <math.h>
 #include <cstring>
 #include <algorithm>
@@ -150,24 +151,6 @@ inline void blend_sprite(CRGBF* dest, const CRGBF* sprite, uint32_t length, floa
 	}
 }
 
-/**
- * Apply uniform background glow overlay using current palette and global brightness.
- */
-inline void apply_background_overlay(const PatternParameters& params) {
-    float bg = clip_float(params.background);
-    if (bg <= 0.0f) return;
-    CRGBF ambient = color_from_palette(
-        params.palette_id,
-        clip_float(params.color),
-        bg * clip_float(params.brightness)
-    );
-
-    for (int i = 0; i < NUM_LEDS; ++i) {
-        leds[i].r = fminf(1.0f, leds[i].r + ambient.r);
-        leds[i].g = fminf(1.0f, leds[i].g + ambient.g);
-        leds[i].b = fminf(1.0f, leds[i].b + ambient.b);
-    }
-}
 
 /**
  * Convenient inline macros for LED position lookups
