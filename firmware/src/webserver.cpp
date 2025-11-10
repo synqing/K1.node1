@@ -25,6 +25,7 @@
 #include "audio/tempo.h"                   // Tempo telemetry
 #include "diagnostics/rmt_probe.h"        // RMT telemetry
 #include "led_driver.h"                    // Access LED raw frame buffer
+#include "frame_metrics.h"                // Frame-level profiling history
 // Debug telemetry defaults (compile-time overrides)
 #ifndef REALTIME_WS_ENABLED_DEFAULT
 #define REALTIME_WS_ENABLED_DEFAULT 1
@@ -141,6 +142,44 @@ public:
         JsonArray fps_history = doc.createNestedArray("fps_history");
         for (int i = 0; i < 16; ++i) {
             fps_history.add(FPS_CPU_SAMPLES[i]);
+        }
+
+        String output;
+        serializeJson(doc, output);
+        ctx.sendJson(200, output);
+    }
+};
+
+// GET /api/frame-metrics - Frame-level profiling metrics
+class GetFrameMetricsHandler : public K1RequestHandler {
+public:
+    GetFrameMetricsHandler() : K1RequestHandler(ROUTE_FRAME_METRICS, ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        auto& buffer = FrameMetricsBuffer::instance();
+        uint32_t frame_count = buffer.count();
+
+        DynamicJsonDocument doc(16384);
+        doc["frame_count"] = frame_count;
+        doc["buffer_size"] = FRAME_METRICS_BUFFER_SIZE;
+
+        AverageMetrics avg = frame_metrics_average(0);
+        doc["avg_render_us"] = avg.avg_render_us;
+        doc["avg_quantize_us"] = avg.avg_quantize_us;
+        doc["avg_rmt_wait_us"] = avg.avg_rmt_wait_us;
+        doc["avg_rmt_tx_us"] = avg.avg_rmt_tx_us;
+        doc["avg_total_us"] = avg.avg_total_us;
+
+        JsonArray frames = doc.createNestedArray("frames");
+        for (uint32_t i = 0; i < frame_count && i < FRAME_METRICS_BUFFER_SIZE; ++i) {
+            FrameMetric fm = buffer.get_frame(i);
+            JsonObject f = frames.createNestedObject();
+            f["render_us"] = fm.render_us;
+            f["quantize_us"] = fm.quantize_us;
+            f["rmt_wait_us"] = fm.rmt_wait_us;
+            f["rmt_tx_us"] = fm.rmt_tx_us;
+            f["total_us"] = fm.total_us;
+            f["heap_free"] = fm.heap_free;
+            f["fps"] = fm.fps_snapshot / 100.0f;
         }
 
         String output;
@@ -1517,6 +1556,7 @@ void init_webserver() {
     registerGetHandler(server, ROUTE_PALETTES, new GetPalettesHandler());
     registerGetHandler(server, ROUTE_DEVICE_INFO, new GetDeviceInfoHandler());
     registerGetHandler(server, ROUTE_DEVICE_PERFORMANCE, new GetDevicePerformanceHandler());
+    registerGetHandler(server, ROUTE_FRAME_METRICS, new GetFrameMetricsHandler());
     registerGetHandler(server, ROUTE_TEST_CONNECTION, new GetTestConnectionHandler());
     registerGetHandler(server, ROUTE_HEALTH, new GetHealthHandler());
     registerGetHandler(server, ROUTE_LED_FRAME, new GetLedFrameHandler());

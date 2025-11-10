@@ -36,6 +36,7 @@ static const char* ROUTE_DEVICE_INFO = "/api/device/info";
 static const char* ROUTE_HEALTH = "/api/health";
 static const char* ROUTE_TEST_CONNECTION = "/api/test-connection";
 static const char* ROUTE_DEVICE_PERFORMANCE = "/api/device/performance";
+static const char* ROUTE_FRAME_METRICS = "/api/frame-metrics";
 static const char* ROUTE_CONFIG_BACKUP = "/api/config/backup";
 static const char* ROUTE_CONFIG_RESTORE = "/api/config/restore";
 static const char* ROUTE_DIAG = "/api/diag";
@@ -84,6 +85,7 @@ static RouteWindow control_windows[] = {
     {ROUTE_TEST_CONNECTION, ROUTE_GET, 200, 0},
     {ROUTE_HEALTH, ROUTE_GET, 200, 0},
     {ROUTE_DEVICE_PERFORMANCE, ROUTE_GET, 500, 0},
+    {ROUTE_FRAME_METRICS, ROUTE_GET, 500, 0},
     {ROUTE_CONFIG_BACKUP, ROUTE_GET, 2000, 0},
     {ROUTE_CONFIG_RESTORE, ROUTE_POST, 2000, 0},
 {ROUTE_BEAT_EVENTS_INFO, ROUTE_GET, 200, 0},

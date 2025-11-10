@@ -49,6 +49,8 @@ Notes:
 ## Environments (PlatformIO)
 - `env:esp32-s3-devkitc-1` — default release build (pinned platform + Arduino framework).
 - `env:esp32-s3-devkitc-1-debug` — release flags + `DEBUG_TELEMETRY=1` and REST rate‑limits for diagnostics.
+- `env:esp32-s3-devkitc-1-metrics` — release build with `FRAME_METRICS_ENABLED=1`; required before running `tools/run_benchmark.sh`.
+- `env:esp32-s3-devkitc-1-metrics-ota` — OTA upload variant of the metrics build (used by `tools/run_benchmark.sh`).
 - `env:esp32-s3-devkitc-1-ota` — OTA upload configuration (ArduinoOTA).
 - `env:esp32-s3-devkitc-1-idf5` — Arduino+ESP‑IDF combo for split RMT v2 headers.
 
@@ -98,8 +100,18 @@ See `docs/06-reference/firmware-api.md` for full details and rate‑limit window
 - Test folders of interest in `firmware/test/`:
   - `test_phase_a_bounds` — ring index wrapping + fuzz cases.
   - `test_phase_a_seqlock` — seqlock writer/reader snapshot consistency.
-  - `test_phase_a_snapshot_bounds` — default initialization + spectral bounds.
-- Hardware stress/long‑running tests are excluded by default.
+- `test_phase_a_snapshot_bounds` — default initialization + spectral bounds.
+- Hardware stress/long-running tests are excluded by default; run `pio test -e esp32-s3-devkitc-1 --filter test_stress_suite --project-option \"build_flags=-DSTRESS_TEST_DURATION_SCALE=0.2f\"` for a shortened burn-in.
+
+## Benchmarking & Hardware Suites
+
+- Automated profiling run: `tools/run_benchmark.sh 192.168.1.104`
+  - Builds/flashes `env:esp32-s3-devkitc-1-metrics`, selects each benchmark pattern, and captures `/api/frame-metrics`.
+  - Outputs CSV (`benchmark_results/benchmark_<timestamp>.csv`) + human-readable summary.
+- Hardware validation loop: `tools/run_hw_tests.sh --device /dev/tty.usbmodem212401`
+  - Builds each suite (`test_hw_led_driver`, `test_hw_audio_input`, `test_hw_graph_integration`), flashes, and streams Unity logs via `tools/parse_test_output.py`.
+- Stress suite: `pio test -e esp32-s3-devkitc-1 --filter test_stress_suite`.
+  - Default runs ~10 minutes; adjust `STRESS_TEST_DURATION_SCALE` to shorten/lengthen durations.
 
 ## Validation Tools (repo root `tools/`)
 - Beat‑phase logger (CSV):
