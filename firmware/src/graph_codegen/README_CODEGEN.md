@@ -41,6 +41,14 @@ pio run -e esp32-s3-devkitc-1
 
 The generated code compiles without errors or warnings and produces identical LED output frame-by-frame.
 
+> **Note:** The generated translation units are compiled behind feature flags so they don't conflict with the baseline firmware implementations.  
+> Define `USE_GENERATED_BLOOM_PATTERN` (and/or `USE_GENERATED_SPECTRUM_PATTERN`) in your build flags to link the generated versions instead of the hand-authored patterns, e.g.
+> ```ini
+> build_flags =
+>     ${env.build_flags}
+>     -DUSE_GENERATED_BLOOM_PATTERN
+> ```
+
 ## Graph Format
 
 The JSON graph defines nodes with dependencies:
