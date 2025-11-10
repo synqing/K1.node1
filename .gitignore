@@ -57,6 +57,7 @@ firmware/.pio/
 firmware/.pio_home/
 firmware/.platformio/
 firmware/.platformio/**
+firmware/.pio-core/
 webapp/node_modules/
 webapp/dist/
 webapp/.vite/
