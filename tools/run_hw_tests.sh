@@ -72,7 +72,7 @@ DURATION_SECONDS=0
 # Function to run a single test
 run_test() {
     local test_name=$1
-    local test_file="$FIRMWARE_DIR/test/$test_name/$test_name.cpp"
+    local test_file="$FIRMWARE_DIR/test/test_${test_name}.cpp"
     local log_file="$LOG_DIR/${test_name}.log"
 
     echo "=========================================="

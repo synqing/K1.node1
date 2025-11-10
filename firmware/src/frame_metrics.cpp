@@ -2,6 +2,7 @@
 // Lock-free concurrent access for frame recording
 
 #include "frame_metrics.h"
+#include <Arduino.h>
 
 #if FRAME_METRICS_ENABLED
 

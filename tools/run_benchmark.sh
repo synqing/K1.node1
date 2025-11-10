@@ -84,8 +84,8 @@ for pattern in "${PATTERNS[@]}"; do
     # Wait for pattern to settle
     sleep 1
 
-    # Collect metrics from device
-    METRICS_JSON=$(curl -s -m $TIMEOUT_SECONDS "http://$DEVICE_IP/api/metrics")
+    # Collect metrics from device (frame-metrics endpoint)
+    METRICS_JSON=$(curl -s -m $TIMEOUT_SECONDS "http://$DEVICE_IP/api/frame-metrics")
 
     if [ -z "$METRICS_JSON" ]; then
         log_error "Failed to retrieve metrics for pattern: $pattern"

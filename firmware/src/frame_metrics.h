@@ -13,7 +13,7 @@
 
 // Enable frame metrics collection (disabled by default for zero overhead)
 #ifndef FRAME_METRICS_ENABLED
-#define FRAME_METRICS_ENABLED 0
+#define FRAME_METRICS_ENABLED 1
 #endif
 
 // Ring buffer size: 64 frames (256 bytes overhead)
