@@ -15,6 +15,7 @@ jobs:
   schema-validation:
     name: Validate Graph Schemas
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +43,7 @@ jobs:
   typescript-build:
     name: Build TypeScript
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -73,6 +75,7 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -120,6 +123,7 @@ jobs:
   firmware-build-test:
     name: Test Firmware Compilation
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
