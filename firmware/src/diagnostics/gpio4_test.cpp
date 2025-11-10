@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <driver/gpio.h>
+#include "logging/logger.h"
 
 #define TEST_PIN 4
 
@@ -15,15 +16,15 @@ void test_gpio4_direct() {
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
 
     esp_err_t ret = gpio_config(&io_conf);
-    Serial.printf("GPIO4 config result: %s\n", esp_err_to_name(ret));
+    LOG_INFO(TAG_LED, "GPIO4 config result: %s", esp_err_to_name(ret));
 
     // Toggle GPIO 4 at 1Hz for 10 seconds
-    Serial.println("Starting GPIO4 toggle test (10 seconds)...");
+    LOG_INFO(TAG_LED, "Starting GPIO4 toggle test (10 seconds)...");
     for(int i = 0; i < 20; i++) {
         gpio_set_level((gpio_num_t)TEST_PIN, i % 2);
-        Serial.printf("GPIO4 = %d\n", i % 2);
+        LOG_DEBUG(TAG_LED, "GPIO4 = %d", i % 2);
         delay(500);
     }
 
-    Serial.println("GPIO4 test complete");
+    LOG_INFO(TAG_LED, "GPIO4 test complete");
 }

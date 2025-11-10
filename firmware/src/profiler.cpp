@@ -2,6 +2,14 @@
 #include "logging/logger.h"
 #include <atomic>
 
+// Optional diagnostics integration (runtime-configurable intervals)
+#if __has_include("diagnostics.h")
+#  include "diagnostics.h"
+#  define DIAG_AVAILABLE 1
+#else
+#  define DIAG_AVAILABLE 0
+#endif
+
 // Definitions
 float FPS_CPU = 0;
 float FPS_CPU_SAMPLES[16] = {0};
@@ -37,8 +45,16 @@ void watch_cpu_fps() {
 void print_fps() {
     static uint32_t last_print = 0;
     uint32_t now = millis();
+    // Default interval 3000ms; if diagnostics are enabled, honor its interval
+    uint32_t interval_ms = 3000;
+#if DIAG_AVAILABLE
+    if (diag_is_enabled()) {
+        uint32_t diag_interval = diag_get_interval_ms();
+        interval_ms = diag_interval ? diag_interval : 3000;  // safety fallback
+    }
+#endif
 
-    if (now - last_print > 1000) {  // Print every second
+    if (now - last_print > interval_ms) {  // Rate-limit profiler prints
         // Calculate per-frame averages
         // Use relaxed loads for statistics that don't require synchronization
         uint32_t frames = FRAMES_COUNTED.load(std::memory_order_relaxed);
@@ -48,8 +64,8 @@ void print_fps() {
         float avg_rmt_wait_ms = (float)ACCUM_RMT_WAIT_US.load(std::memory_order_relaxed) / frames / 1000.0f;
         float avg_rmt_tx_ms = (float)ACCUM_RMT_TRANSMIT_US.load(std::memory_order_relaxed) / frames / 1000.0f;
 
-        LOG_DEBUG(TAG_PROFILE, "FPS: %.1f", FPS_CPU);
-        LOG_DEBUG(TAG_PROFILE, "avg_ms render/quantize/wait/tx: %.2f / %.2f / %.2f / %.2f", avg_render_ms, avg_quantize_ms, avg_rmt_wait_ms, avg_rmt_tx_ms);
+        LOG_INFO(TAG_PROFILE, "FPS: %.1f", FPS_CPU);
+        LOG_INFO(TAG_PROFILE, "avg_ms render/quantize/wait/tx: %.2f / %.2f / %.2f / %.2f", avg_render_ms, avg_quantize_ms, avg_rmt_wait_ms, avg_rmt_tx_ms);
 
         // Reset accumulators with relaxed stores
         ACCUM_RENDER_US.store(0, std::memory_order_relaxed);

@@ -42,6 +42,13 @@ Lean, numbered navigation for repository documentation. This index maps to exist
 **Navigation:**
 - New: [K1N_NAVIGATION_v1.0_20251108.md](./K1N_NAVIGATION_v1.0_20251108.md) - Complete navigation guide (role-based, topic-based)
 
+### Graph System (Start Here)
+- **Schema Spec:** [GRAPH_SCHEMA_SPEC.md](./06-reference/GRAPH_SCHEMA_SPEC.md)
+- **Authoring Guide:** [GRAPH_AUTHORING_GUIDE.md](./09-implementation/GRAPH_AUTHORING_GUIDE.md)
+- **Node Catalog:** [NODE_CATALOG_REFERENCE.md](./06-reference/NODE_CATALOG_REFERENCE.md)
+- **Troubleshooting:** [GRAPH_TROUBLESHOOTING.md](./09-implementation/GRAPH_TROUBLESHOOTING.md)
+- **SB/Emotiscope Compatibility:** [SENSORY_BRIDGE_COMPAT.md](./06-reference/SENSORY_BRIDGE_COMPAT.md)
+
 ---
 
 ## Complete Document Index by Folder
@@ -59,8 +66,7 @@ Lean, numbered navigation for repository documentation. This index maps to exist
 - **ADR-0005-folder-structure.md** - Documentation folder structure
 - **ADR-0004-documentation-governance.md** - Documentation governance standards
 - **ADR-0003-parallel-execution-model.md** - Parallel execution model decision
-- **ADR-0002-global-brightness.md** - Global brightness control decision
-- **ADR-0001-fps-targets.md** - FPS performance targets
+- **ADR-0014-global-brightness-control.md** - Global brightness control decision
 - [View all ADRs](./02-adr/)
 
 ### 03-guides/ — How-To Guides & Procedures
@@ -75,10 +81,14 @@ Lean, numbered navigation for repository documentation. This index maps to exist
 - **K1NPlan_LOG_WEEK_1_STANDUP_v1.0_20251108.md** - Daily standup tracking
 - **K1NPlan_DECISION_GATE_NOV_13_v1.0_20251108.md** ⭐ - Nov 13 decision gate criteria
 - **K1NPlan_OVERVIEW_PHASE_v1.0_20251108.md** - Phase 2 overview and team allocation
+- **K1NPlan_TASK_ROADMAP_CORRECTED_v1.0_20251110.md** - Evidence-based corrected task roadmap
 - [View all plans](./04-planning/)
 
 ### 05-analysis/ — Technical Analysis & Research
 - **K1NAnalysis_RESEARCH_ESP_IDF_API_BREAKING_CHANGES_v1.0_20251108.md** ⭐ - Detailed API changes (I2S, RMT, GPIO) between ESP-IDF 4.4 and 5.x
+- **K1NAnalysis_IMPLEMENTATION_REALITY_CHECK_PHASE5_3_v1.0_20251110.md** - Phase 5.3 implementation reality check
+- **K1NAnalysis_PHASE5_3_CLAIMS_VS_REALITY_v1.0_20251110.md** - Claims vs reality matrix (Phase 5.3)
+- **K1NAnalysis_FORENSIC_ASSESSMENT_PHASE5_3_v1.0_20251110.md** - Forensic assessment of backend (Phase 5.3)
 - Pattern analysis, feasibility studies, dependency analysis
 - [View all analysis documents](./05-analysis/)
 
@@ -117,11 +127,16 @@ Lean, numbered navigation for repository documentation. This index maps to exist
 
 ### 09-implementation/ — Implementation Specifications
 - **K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md** - Detailed Phase 2 implementation plan
+- **K1NImpl_STRESS_TESTING_VALIDATION_FRAMEWORK_v1.0_20251110.md** ⭐ - Comprehensive stress testing framework (Task 12)
+- **K1NImpl_CONDUCTOR_DEPLOYMENT_RESILIENCE_v1.0_20251109.md** - 3-tier Conductor deployment architecture
+- **K1NImpl_RUNBOOK_LUT_INTEGRATION_v1.0_20251108.md** - LUT integration operational runbook
 - Technical specifications and implementation guides
 - [View all implementation docs](./09-implementation/)
 
 ### 09-reports/ — Phase & Milestone Reports
 - **K1NReport_SUMMARY_COMPILATION_ERROR_ROOT_CAUSE_v1.0_20251108.md** ⭐ - Root cause analysis for K1.node1 compilation errors
+- **K1NReport_AUDIT_EXECUTIVE_SUMMARY_v1.0_20251110.md** - Executive summary of task audit
+- **K1NReport_RESEARCH_DELIVERY_SUMMARY_CONDUCTOR_MCP_v1.0_20251108.md** - Research delivery summary (Conductor-MCP)
 - Phase completion reports, validation reports, delivery notes
 - [View all reports](./09-reports/)
 

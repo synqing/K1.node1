@@ -139,7 +139,7 @@ private:
 // ============================================================================
 //
 // Use Case: Color trails, bloom effects, mirror patterns
-// Size: ~2160 bytes (180 CRGBF)
+// Size: ~2160 bytes (180 CRGB)
 // Reset: On pattern change
 
 class ColorPersistNode {
@@ -154,12 +154,12 @@ public:
     }
 
     void init() {
-        memset(buffer, 0, sizeof(CRGBF) * buffer_size);
+        memset(buffer, 0, sizeof(CRGB) * buffer_size);
         state = StatefulNodeState::INITIALIZED;
     }
 
     void reset() {
-        memset(buffer, 0, sizeof(CRGBF) * buffer_size);
+        memset(buffer, 0, sizeof(CRGB) * buffer_size);
         state = StatefulNodeState::INITIALIZED;
     }
 
@@ -181,28 +181,28 @@ public:
         }
     }
 
-    void write(size_t index, const CRGBF& value) {
+    void write(size_t index, const CRGB& value) {
         if (state == StatefulNodeState::UNINITIALIZED) init();
         if (index < buffer_size) {
             buffer[index] = value;
         }
     }
 
-    CRGBF read(size_t index) const {
-        if (index >= buffer_size) return CRGBF(0, 0, 0);
+    CRGB read(size_t index) const {
+        if (index >= buffer_size) return CRGB(0, 0, 0);
         return buffer[index];
     }
 
-    CRGBF& operator[](size_t index) {
+    CRGB& operator[](size_t index) {
         if (state == StatefulNodeState::UNINITIALIZED) {
             const_cast<ColorPersistNode*>(this)->init();
         }
-        static CRGBF dummy(0, 0, 0);
+        static CRGB dummy(0, 0, 0);
         return (index < buffer_size) ? buffer[index] : dummy;
     }
 
-    const CRGBF& operator[](size_t index) const {
-        static const CRGBF dummy(0, 0, 0);
+    const CRGB& operator[](size_t index) const {
+        static const CRGB dummy(0, 0, 0);
         return (index < buffer_size) ? buffer[index] : dummy;
     }
 
@@ -211,7 +211,7 @@ public:
 
 private:
     const char* node_id;
-    CRGBF buffer[STATEFUL_NODE_BUFFER_SIZE] = {CRGBF(0, 0, 0)};
+    CRGB buffer[STATEFUL_NODE_BUFFER_SIZE] = {CRGB(0, 0, 0)};
     size_t buffer_size;
     float decay_factor;
     StatefulNodeState state;
@@ -380,7 +380,7 @@ private:
 // ============================================================================
 //
 // Use Case: Scrolling effects, directional animations
-// Size: ~4320 bytes (180 CRGBF * 2 for double-buffering)
+// Size: ~4320 bytes (180 CRGB * 2 for double-buffering)
 // Reset: On pattern change
 
 class SpriteScrollNode {
@@ -401,14 +401,14 @@ public:
     }
 
     void init() {
-        memset(current, 0, sizeof(CRGBF) * buffer_size);
-        memset(previous, 0, sizeof(CRGBF) * buffer_size);
+        memset(current, 0, sizeof(CRGB) * buffer_size);
+        memset(previous, 0, sizeof(CRGB) * buffer_size);
         state = StatefulNodeState::INITIALIZED;
     }
 
     void reset() {
-        memset(current, 0, sizeof(CRGBF) * buffer_size);
-        memset(previous, 0, sizeof(CRGBF) * buffer_size);
+        memset(current, 0, sizeof(CRGB) * buffer_size);
+        memset(previous, 0, sizeof(CRGB) * buffer_size);
         state = StatefulNodeState::INITIALIZED;
     }
 
@@ -425,36 +425,36 @@ public:
             for (int i = (int)buffer_size - 1; i > 0; i--) {
                 current[i] = previous[i - 1];
             }
-            current[0] = CRGBF(0, 0, 0);
+            current[0] = CRGB(0, 0, 0);
         } else {
             for (size_t i = 0; i < buffer_size - 1; i++) {
                 current[i] = previous[i + 1];
             }
-            current[buffer_size - 1] = CRGBF(0, 0, 0);
+            current[buffer_size - 1] = CRGB(0, 0, 0);
         }
     }
 
-    void write_center(const CRGBF& value) {
+    void write_center(const CRGB& value) {
         if (state == StatefulNodeState::UNINITIALIZED) init();
         size_t center = buffer_size / 2;
         current[center] = value;
     }
 
-    CRGBF& operator[](size_t index) {
+    CRGB& operator[](size_t index) {
         if (state == StatefulNodeState::UNINITIALIZED) {
             const_cast<SpriteScrollNode*>(this)->init();
         }
-        static CRGBF dummy(0, 0, 0);
+        static CRGB dummy(0, 0, 0);
         return (index < buffer_size) ? current[index] : dummy;
     }
 
-    const CRGBF& operator[](size_t index) const {
-        static const CRGBF dummy(0, 0, 0);
+    const CRGB& operator[](size_t index) const {
+        static const CRGB dummy(0, 0, 0);
         return (index < buffer_size) ? current[index] : dummy;
     }
 
     void persist_frame() {
-        memcpy(previous, current, sizeof(CRGBF) * buffer_size);
+        memcpy(previous, current, sizeof(CRGB) * buffer_size);
     }
 
     size_t size() const { return buffer_size; }
@@ -462,8 +462,8 @@ public:
 
 private:
     const char* node_id;
-    CRGBF current[STATEFUL_NODE_BUFFER_SIZE] = {CRGBF(0, 0, 0)};
-    CRGBF previous[STATEFUL_NODE_BUFFER_SIZE] = {CRGBF(0, 0, 0)};
+    CRGB current[STATEFUL_NODE_BUFFER_SIZE] = {CRGB(0, 0, 0)};
+    CRGB previous[STATEFUL_NODE_BUFFER_SIZE] = {CRGB(0, 0, 0)};
     size_t buffer_size;
     Direction direction;
     float speed;
@@ -644,5 +644,3 @@ private:
     uint8_t last_pattern_id;
     uint32_t magic;
 };
-
-#endif  // FIRMWARE_SRC_STATEFUL_NODES_H

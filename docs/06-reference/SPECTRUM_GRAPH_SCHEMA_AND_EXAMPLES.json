@@ -1,0 +1,541 @@
+{
+  "schema": {
+    "version": "1.0",
+    "title": "Spectrum Pattern Graph Schema",
+    "description": "Complete JSON schema for audio-reactive spectrum pattern graphs",
+    "last_updated": "2025-11-10",
+
+    "metadata_structure": {
+      "pattern": "string (required) - Pattern identifier (e.g., 'spectrum')",
+      "version": "string (required) - Graph version (semantic: major.minor.patch)",
+      "description": "string (optional) - Human-readable description",
+      "sample_rate_hz": "integer (required) - Audio sample rate in Hz (typically 16000)",
+      "fft_bins": "integer (required) - Number of FFT bins (typically 64)",
+      "led_count": "integer (required) - Number of LEDs in strip (typically 256)",
+      "frame_rate_hz": "integer (optional) - Target rendering frame rate (default: 60)"
+    },
+
+    "node_types": {
+      "audio_input": {
+        "description": "Thread-safe audio data snapshot from Goertzel FFT",
+        "inputs": {},
+        "outputs": {
+          "spectrum": {
+            "type": "float_array",
+            "size": "NUM_FREQS (64)",
+            "description": "Normalized frequency bins (55 Hz to ~6 kHz)"
+          }
+        },
+        "parameters": {},
+        "stateful": false,
+        "computational_cost_us": 10,
+        "memory_bytes": 512
+      },
+
+      "frequency_normalize": {
+        "description": "Auto-range or absolute loudness normalization",
+        "inputs": {
+          "spectrum": {
+            "type": "float_array",
+            "size": "NUM_FREQS (64)"
+          }
+        },
+        "outputs": {
+          "normalized_spectrum": {
+            "type": "float_array",
+            "size": "NUM_FREQS (64)",
+            "description": "Normalized spectrum values in [0, 1]"
+          }
+        },
+        "parameters": {
+          "use_absolute": {
+            "type": "boolean",
+            "default": false,
+            "description": "false: auto-range to [0,1] | true: preserve absolute loudness"
+          }
+        },
+        "stateful": false,
+        "computational_cost_us": 100,
+        "memory_bytes": 256
+      },
+
+      "band_extract": {
+        "description": "Extract frequency band and downsample to LED resolution",
+        "inputs": {
+          "spectrum": {
+            "type": "float_array",
+            "size": "NUM_FREQS (64)"
+          }
+        },
+        "outputs": {
+          "scalar_buffer": {
+            "type": "float_array",
+            "size": "led_count (256)",
+            "description": "One scalar value per LED, downsampled from spectrum"
+          }
+        },
+        "parameters": {
+          "start_bin": {
+            "type": "integer",
+            "default": 0,
+            "min": 0,
+            "max": 63,
+            "description": "Lowest frequency bin to include"
+          },
+          "end_bin": {
+            "type": "integer",
+            "default": 63,
+            "min": 0,
+            "max": 63,
+            "description": "Highest frequency bin to include"
+          }
+        },
+        "stateful": false,
+        "computational_cost_us": 200,
+        "memory_bytes": 1024
+      },
+
+      "frequency_smoothing": {
+        "description": "IIR exponential moving average filter on spectrum",
+        "inputs": {
+          "spectrum": {
+            "type": "float_array",
+            "size": "NUM_FREQS (64)"
+          }
+        },
+        "outputs": {
+          "smoothed_spectrum": {
+            "type": "float_array",
+            "size": "NUM_FREQS (64)",
+            "description": "Smoothed spectrum values"
+          }
+        },
+        "parameters": {
+          "alpha": {
+            "type": "float",
+            "default": 0.7,
+            "min": 0.0,
+            "max": 1.0,
+            "description": "IIR smoothing factor (0=no smoothing, 1=instant)"
+          }
+        },
+        "stateful": true,
+        "state_size_bytes": 256,
+        "computational_cost_us": 150,
+        "memory_bytes": 512
+      },
+
+      "gradient_map": {
+        "description": "Map scalar values to colors via palette",
+        "inputs": {
+          "scalars": {
+            "type": "float_array",
+            "size": "led_count (256)"
+          }
+        },
+        "outputs": {
+          "rgb_buffer": {
+            "type": "rgb_array",
+            "size": "led_count (256)",
+            "description": "RGB color values in [0.0, 1.0]"
+          }
+        },
+        "parameters": {
+          "palette": {
+            "type": "string or array",
+            "default": "hot",
+            "options": ["hot", "cool", "fire", "viridis", "spectrum", "custom"],
+            "description": "Palette name (string) or inline color array (RGB floats)"
+          }
+        },
+        "stateful": false,
+        "computational_cost_us": 300,
+        "memory_bytes": 3072
+      },
+
+      "mirror": {
+        "description": "Flip buffer vertically (reverse order)",
+        "inputs": {
+          "buffer": {
+            "type": "rgb_array",
+            "size": "led_count (256)"
+          }
+        },
+        "outputs": {
+          "flipped": {
+            "type": "rgb_array",
+            "size": "led_count (256)",
+            "description": "Flipped buffer"
+          }
+        },
+        "parameters": {},
+        "stateful": false,
+        "computational_cost_us": 200,
+        "memory_bytes": 3072
+      },
+
+      "led_output": {
+        "description": "Terminal node: convert float RGB to uint8_t and write to device",
+        "inputs": {
+          "rgb_buffer": {
+            "type": "rgb_array",
+            "size": "led_count (256)"
+          }
+        },
+        "outputs": {},
+        "parameters": {
+          "num_leds": {
+            "type": "integer",
+            "default": 256,
+            "description": "Number of LEDs to write"
+          }
+        },
+        "stateful": false,
+        "computational_cost_us": 250,
+        "memory_bytes": 1536
+      }
+    },
+
+    "data_types": {
+      "float_array": {
+        "description": "Array of 32-bit floating point values",
+        "range": "[0.0, 1.0] (typically, but not enforced)",
+        "alignment": "4 bytes"
+      },
+      "rgb_array": {
+        "description": "Array of CRGBF structs (3 floats per pixel)",
+        "format": "{ r: float, g: float, b: float }",
+        "range": "[0.0, 1.0] per channel",
+        "alignment": "16 bytes (SIMD-friendly)"
+      }
+    }
+  },
+
+  "examples": [
+    {
+      "name": "spectrum_basic",
+      "version": "1.0",
+      "description": "Basic full-spectrum visualization with auto-range normalization",
+      "metadata": {
+        "pattern": "spectrum",
+        "version": "1.0",
+        "description": "Visualize full audio spectrum with hot colormap",
+        "sample_rate_hz": 16000,
+        "fft_bins": 64,
+        "led_count": 256,
+        "frame_rate_hz": 60
+      },
+      "nodes": [
+        {
+          "id": "audio_snapshot",
+          "type": "audio_input",
+          "description": "Capture audio spectrum from Goertzel FFT"
+        },
+        {
+          "id": "frequency_normalize",
+          "type": "frequency_normalize",
+          "description": "Auto-range spectrum to [0, 1]",
+          "parameters": {
+            "use_absolute": false
+          }
+        },
+        {
+          "id": "band_extract",
+          "type": "band_extract",
+          "description": "Map full spectrum to LED strip",
+          "parameters": {
+            "start_bin": 0,
+            "end_bin": 63
+          }
+        },
+        {
+          "id": "gradient_map",
+          "type": "gradient_map",
+          "description": "Apply hot colormap (blue -> red)",
+          "parameters": {
+            "palette": "hot"
+          }
+        },
+        {
+          "id": "mirror_op",
+          "type": "mirror",
+          "description": "Flip buffer for symmetric display"
+        },
+        {
+          "id": "led_output",
+          "type": "led_output",
+          "description": "Write to LED device",
+          "parameters": {
+            "num_leds": 256
+          }
+        }
+      ],
+      "edges": [
+        { "from": "audio_snapshot", "to": "frequency_normalize" },
+        { "from": "frequency_normalize", "to": "band_extract" },
+        { "from": "band_extract", "to": "gradient_map" },
+        { "from": "gradient_map", "to": "mirror_op" },
+        { "from": "mirror_op", "to": "led_output" }
+      ]
+    },
+
+    {
+      "name": "spectrum_bass_focused",
+      "version": "1.0",
+      "description": "Bass-only visualization (55-440 Hz, cool colormap)",
+      "metadata": {
+        "pattern": "spectrum_bass",
+        "version": "1.0",
+        "description": "Visualize bass frequencies only (low energy kick/bass)",
+        "sample_rate_hz": 16000,
+        "fft_bins": 16,
+        "led_count": 256,
+        "frame_rate_hz": 60
+      },
+      "nodes": [
+        {
+          "id": "audio_snapshot",
+          "type": "audio_input"
+        },
+        {
+          "id": "frequency_normalize",
+          "type": "frequency_normalize",
+          "parameters": {
+            "use_absolute": false
+          }
+        },
+        {
+          "id": "band_extract_bass",
+          "type": "band_extract",
+          "description": "Extract bass band (bins 0-16 = 55-440 Hz)",
+          "parameters": {
+            "start_bin": 0,
+            "end_bin": 16
+          }
+        },
+        {
+          "id": "gradient_map",
+          "type": "gradient_map",
+          "description": "Cool colors for bass (blue -> cyan)",
+          "parameters": {
+            "palette": "cool"
+          }
+        },
+        {
+          "id": "mirror_op",
+          "type": "mirror"
+        },
+        {
+          "id": "led_output",
+          "type": "led_output",
+          "parameters": {
+            "num_leds": 256
+          }
+        }
+      ],
+      "edges": [
+        { "from": "audio_snapshot", "to": "frequency_normalize" },
+        { "from": "frequency_normalize", "to": "band_extract_bass" },
+        { "from": "band_extract_bass", "to": "gradient_map" },
+        { "from": "gradient_map", "to": "mirror_op" },
+        { "from": "mirror_op", "to": "led_output" }
+      ]
+    },
+
+    {
+      "name": "spectrum_absolute_smooth",
+      "version": "1.0",
+      "description": "Absolute loudness with smoothing (preserves overall amplitude)",
+      "metadata": {
+        "pattern": "spectrum_absolute",
+        "version": "1.0",
+        "description": "Visualize spectrum with absolute loudness preserved, smoothed for stability",
+        "sample_rate_hz": 16000,
+        "fft_bins": 64,
+        "led_count": 256,
+        "frame_rate_hz": 60
+      },
+      "nodes": [
+        {
+          "id": "audio_snapshot",
+          "type": "audio_input"
+        },
+        {
+          "id": "frequency_normalize",
+          "type": "frequency_normalize",
+          "description": "Use absolute loudness (no normalization)",
+          "parameters": {
+            "use_absolute": true
+          }
+        },
+        {
+          "id": "frequency_smooth",
+          "type": "frequency_smoothing",
+          "description": "Smooth spectrum to reduce flicker (alpha=0.7)",
+          "parameters": {
+            "alpha": 0.7
+          }
+        },
+        {
+          "id": "band_extract",
+          "type": "band_extract",
+          "parameters": {
+            "start_bin": 0,
+            "end_bin": 63
+          }
+        },
+        {
+          "id": "gradient_map",
+          "type": "gradient_map",
+          "description": "Fire colormap (black -> red -> yellow -> white)",
+          "parameters": {
+            "palette": "fire"
+          }
+        },
+        {
+          "id": "mirror_op",
+          "type": "mirror"
+        },
+        {
+          "id": "led_output",
+          "type": "led_output",
+          "parameters": {
+            "num_leds": 256
+          }
+        }
+      ],
+      "edges": [
+        { "from": "audio_snapshot", "to": "frequency_normalize" },
+        { "from": "frequency_normalize", "to": "frequency_smooth" },
+        { "from": "frequency_smooth", "to": "band_extract" },
+        { "from": "band_extract", "to": "gradient_map" },
+        { "from": "gradient_map", "to": "mirror_op" },
+        { "from": "mirror_op", "to": "led_output" }
+      ]
+    },
+
+    {
+      "name": "spectrum_treble_emphasized",
+      "version": "1.0",
+      "description": "Treble-focused visualization (1.76-6.4 kHz, bright colormap)",
+      "metadata": {
+        "pattern": "spectrum_treble",
+        "version": "1.0",
+        "description": "Visualize high-frequency content (cymbals, hi-hats, air)",
+        "sample_rate_hz": 16000,
+        "fft_bins": 16,
+        "led_count": 256,
+        "frame_rate_hz": 60
+      },
+      "nodes": [
+        {
+          "id": "audio_snapshot",
+          "type": "audio_input"
+        },
+        {
+          "id": "frequency_normalize",
+          "type": "frequency_normalize",
+          "parameters": {
+            "use_absolute": false
+          }
+        },
+        {
+          "id": "band_extract_treble",
+          "type": "band_extract",
+          "description": "Extract treble band (bins 48-63 = 1.76-6.4 kHz)",
+          "parameters": {
+            "start_bin": 48,
+            "end_bin": 63
+          }
+        },
+        {
+          "id": "gradient_map",
+          "type": "gradient_map",
+          "description": "Bright viridis colormap",
+          "parameters": {
+            "palette": "viridis"
+          }
+        },
+        {
+          "id": "mirror_op",
+          "type": "mirror"
+        },
+        {
+          "id": "led_output",
+          "type": "led_output",
+          "parameters": {
+            "num_leds": 256
+          }
+        }
+      ],
+      "edges": [
+        { "from": "audio_snapshot", "to": "frequency_normalize" },
+        { "from": "frequency_normalize", "to": "band_extract_treble" },
+        { "from": "band_extract_treble", "to": "gradient_map" },
+        { "from": "gradient_map", "to": "mirror_op" },
+        { "from": "mirror_op", "to": "led_output" }
+      ]
+    }
+  ],
+
+  "frequency_bin_reference": {
+    "description": "Goertzel FFT frequency mapping (64 bins, 16 kHz sample rate, musical scale)",
+    "base_frequency": "55 Hz (A1)",
+    "bins": [
+      { "index": 0, "frequency_hz": 55.0, "note": "A1", "instrument": "Kick drum (fundamental)" },
+      { "index": 4, "frequency_hz": 110.0, "note": "A2", "instrument": "Bass guitar (fundamental)" },
+      { "index": 8, "frequency_hz": 220.0, "note": "A3", "instrument": "Bass (low guitar)" },
+      { "index": 16, "frequency_hz": 440.0, "note": "A4", "instrument": "Vocal range (fundamental)" },
+      { "index": 24, "frequency_hz": 880.0, "note": "A5", "instrument": "Vocal (high)" },
+      { "index": 32, "frequency_hz": 1760.0, "note": "A6", "instrument": "Vocal (very high)" },
+      { "index": 48, "frequency_hz": 3520.0, "note": "A7", "instrument": "Cymbals, hi-hats" },
+      { "index": 63, "frequency_hz": 6400.0, "note": "~D#8", "instrument": "Air, presence" }
+    ]
+  },
+
+  "band_reference": {
+    "description": "Common frequency bands for audio reactive patterns",
+    "bands": [
+      {
+        "name": "bass",
+        "start_bin": 0,
+        "end_bin": 8,
+        "freq_range_hz": "55-220",
+        "contents": "Kick drums, bass guitar, low synths",
+        "character": "Physical, body-felt"
+      },
+      {
+        "name": "low_mids",
+        "start_bin": 8,
+        "end_bin": 16,
+        "freq_range_hz": "220-440",
+        "contents": "Kick body, bass notes, lower vocals",
+        "character": "Warmth, fullness"
+      },
+      {
+        "name": "mids",
+        "start_bin": 16,
+        "end_bin": 32,
+        "freq_range_hz": "440-880",
+        "contents": "Vocals, guitars, snares",
+        "character": "Musical fundamentals, clarity"
+      },
+      {
+        "name": "high_mids",
+        "start_bin": 32,
+        "end_bin": 48,
+        "freq_range_hz": "880-1760",
+        "contents": "Upper vocals, guitar harmonics, snare body",
+        "character": "Definition, intelligibility"
+      },
+      {
+        "name": "treble",
+        "start_bin": 48,
+        "end_bin": 63,
+        "freq_range_hz": "1760-6400",
+        "contents": "Cymbals, hi-hats, high harmonics",
+        "character": "Brightness, air, presence"
+      }
+    ]
+  }
+}

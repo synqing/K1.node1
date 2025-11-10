@@ -5,7 +5,7 @@
 **Status:** proposed
 **Scope:** Look-Up Table (LUT) optimization system for embedded performance
 **Related:**
-- [ADR-0012-lut-optimization-system.md](../02-adr/ADR-0012-lut-optimization-system.md)
+- [ADR-0017-lut-optimization-system.md](../02-adr/ADR-0017-lut-optimization-system.md)
 - [K1NAnalysis_ANALYSIS_LUT_OPTIMIZATION_v1.0_20251108.md](../05-analysis/K1NAnalysis_ANALYSIS_LUT_OPTIMIZATION_v1.0_20251108.md)
 - [K1NImpl_RUNBOOK_LUT_INTEGRATION_v1.0_20251108.md](../09-implementation/K1NImpl_RUNBOOK_LUT_INTEGRATION_v1.0_20251108.md)
 **Tags:** `architecture`, `performance`, `lut`, `optimization`, `esp32-s3`

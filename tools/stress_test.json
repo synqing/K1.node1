@@ -1,0 +1,115 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "description": "K1.node1 Stress Test Configuration",
+    "created": "2025-11-10",
+    "target_device": "ESP32-S3-DevKit-C1"
+  },
+  "stress_tests": [
+    {
+      "id": 1,
+      "name": "long_duration_pattern",
+      "description": "Run single pattern for 6 hours, measure FPS degradation",
+      "duration_seconds": 21600,
+      "duration_test_seconds": 60,
+      "pattern": "gradient",
+      "target_fps": 44.5,
+      "fps_tolerance_percent": 5,
+      "success_criteria": {
+        "fps_min": 42.3,
+        "heap_leak_bytes_max": 20000,
+        "heap_leak_percent_max": 5,
+        "errors_max": 3
+      }
+    },
+    {
+      "id": 2,
+      "name": "pattern_switching",
+      "description": "Switch patterns every 2 seconds for 2 hours, verify state cleanup",
+      "duration_seconds": 7200,
+      "duration_test_seconds": 120,
+      "switch_interval_ms": 2000,
+      "num_patterns": 5,
+      "target_fps": 40.0,
+      "success_criteria": {
+        "min_switches": 60,
+        "heap_leak_bytes_max": 100000,
+        "errors_max": 0
+      }
+    },
+    {
+      "id": 3,
+      "name": "memory_pressure",
+      "description": "Allocate/deallocate patterns repeatedly, check for heap leaks",
+      "num_cycles": 1000,
+      "cycle_alloc_size_bytes": 2048,
+      "success_criteria": {
+        "allocation_failures_max": 0,
+        "final_heap_delta_bytes_max": 10000,
+        "final_heap_delta_percent_max": 2
+      }
+    },
+    {
+      "id": 4,
+      "name": "audio_input_stress",
+      "description": "Simulate I2S microphone at max rate for 1 hour, verify no hangs",
+      "duration_seconds": 3600,
+      "duration_test_seconds": 60,
+      "sample_rate_hz": 16000,
+      "chunk_size_samples": 512,
+      "success_criteria": {
+        "chunk_process_success_percent_min": 95,
+        "i2s_timeouts_max": 2,
+        "dft_errors_max": 0
+      }
+    },
+    {
+      "id": 5,
+      "name": "rmt_transmission_stress",
+      "description": "Render max complexity pattern for 30 minutes, measure RMT gaps",
+      "duration_seconds": 1800,
+      "duration_test_seconds": 30,
+      "pattern": "bloom",
+      "target_fps": 30.1,
+      "fps_tolerance_percent": 10,
+      "num_leds": 300,
+      "success_criteria": {
+        "fps_min": 27.1,
+        "rmt_max_gap_us": 50000,
+        "rmt_gap_outliers_percent_max": 5
+      }
+    }
+  ],
+  "thermal_limits": {
+    "sustained_max_celsius": 70,
+    "peak_max_celsius": 80,
+    "shutdown_celsius": 85
+  },
+  "heap_limits": {
+    "min_free_kb": 200,
+    "alloc_failure_threshold_percent": 5
+  },
+  "error_codes": {
+    "i2s_timeout": {"code": 16384, "category": "audio", "limit": 3},
+    "rmt_error": {"code": 20480, "category": "led", "limit": 3},
+    "heap_alloc_fail": {"code": 8192, "category": "memory", "limit": 1},
+    "pattern_error": {"code": 12288, "category": "rendering", "limit": 3}
+  },
+  "telemetry": {
+    "capture_interval_ms": 30000,
+    "metrics_to_collect": [
+      "timestamp_ms",
+      "frame_count",
+      "fps",
+      "heap_free_bytes",
+      "cpu_percent",
+      "error_count",
+      "thermal_celsius"
+    ]
+  },
+  "reporting": {
+    "output_csv": "stress_results.csv",
+    "output_json": "stress_results.json",
+    "summary_report": "STRESS_TEST_REPORT.md"
+  }
+}

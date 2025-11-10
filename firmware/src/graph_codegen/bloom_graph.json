@@ -1,0 +1,48 @@
+{
+  "name": "bloom_pattern_poc",
+  "description": "Bloom pattern PoC: audio input -> spectral analysis -> buffer persist -> colorize -> mirror -> LED output",
+  "num_leds": 256,
+  "nodes": [
+    {
+      "id": "audio_input",
+      "type": "AudioSpectrum",
+      "description": "Audio input interface (spectrum 256-bin, energy envelope)"
+    },
+    {
+      "id": "band_shape",
+      "type": "BandShape",
+      "description": "Convert audio spectrum to scalar LED shape (ramp for PoC)",
+      "inputs": ["audio_input"],
+      "outputs": ["tmp_f0"]
+    },
+    {
+      "id": "persist",
+      "type": "BufferPersist",
+      "description": "Exponential decay persistence buffer",
+      "decay_factor": 0.92,
+      "inputs": ["band_shape"],
+      "outputs": ["state.persist_buf"]
+    },
+    {
+      "id": "colorize",
+      "type": "Colorize",
+      "description": "Map scalar buffer to grayscale RGB (PoC: simple grayscale)",
+      "inputs": ["persist"],
+      "outputs": ["tmp_rgb0"]
+    },
+    {
+      "id": "mirror",
+      "type": "Mirror",
+      "description": "Mirror/flip buffer horizontally",
+      "inputs": ["colorize"],
+      "outputs": ["tmp_rgb1"]
+    },
+    {
+      "id": "led_output",
+      "type": "LedOutput",
+      "description": "Clamp and quantize to 8-bit RGB output",
+      "inputs": ["mirror"],
+      "outputs": ["out.leds"]
+    }
+  ]
+}

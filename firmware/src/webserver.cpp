@@ -13,6 +13,7 @@
 #include <ESPmDNS.h>
 #include "profiler.h"        // For performance metrics (FPS, micro-timings)
 #include "cpu_monitor.h"     // For CPU usage monitoring
+#include "frame_metrics.h"   // For frame-level metrics
 #include <AsyncWebSocket.h>  // For WebSocket real-time updates
 #include "webserver_rate_limiter.h"        // Per-route rate limiting
 #include "webserver_response_builders.h"  // JSON response building utilities
@@ -974,16 +975,50 @@ public:
     void handle(RequestContext& ctx) override {
         const RmtProbe* p1 = nullptr; const RmtProbe* p2 = nullptr;
         rmt_probe_get(&p1, &p2);
-        StaticJsonDocument<256> doc;
+        StaticJsonDocument<320> doc;
+        doc["wait_timeouts"] = g_led_rmt_wait_timeouts.load(std::memory_order_relaxed);
         if (p1) {
             JsonObject ch1 = doc.createNestedObject("ch1");
             ch1["empty"] = p1->mem_empty_count;
             ch1["maxgap_us"] = p1->max_gap_us;
+            ch1["trans_done"] = p1->trans_done_count;
+            ch1["last_empty_us"] = (uint32_t)(p1->last_empty_us & 0xFFFFFFFF);
         }
         if (p2) {
             JsonObject ch2 = doc.createNestedObject("ch2");
             ch2["empty"] = p2->mem_empty_count;
             ch2["maxgap_us"] = p2->max_gap_us;
+            ch2["trans_done"] = p2->trans_done_count;
+            ch2["last_empty_us"] = (uint32_t)(p2->last_empty_us & 0xFFFFFFFF);
+        }
+        String out; serializeJson(doc, out);
+        ctx.sendJson(200, out);
+    }
+};
+
+// POST /api/rmt/reset - Reset RMT probe counters and LED wait timeouts
+class PostRmtResetHandler : public K1RequestHandler {
+public:
+    PostRmtResetHandler() : K1RequestHandler(ROUTE_RMT_RESET, ROUTE_POST) {}
+    void handle(RequestContext& ctx) override {
+        rmt_probe_reset();
+        g_led_rmt_wait_timeouts.store(0, std::memory_order_relaxed);
+
+        const RmtProbe* p1 = nullptr; const RmtProbe* p2 = nullptr;
+        rmt_probe_get(&p1, &p2);
+        StaticJsonDocument<192> doc;
+        doc["wait_timeouts"] = g_led_rmt_wait_timeouts.load(std::memory_order_relaxed);
+        if (p1) {
+            JsonObject ch1 = doc.createNestedObject("ch1");
+            ch1["empty"] = p1->mem_empty_count;
+            ch1["maxgap_us"] = p1->max_gap_us;
+            ch1["trans_done"] = p1->trans_done_count;
+        }
+        if (p2) {
+            JsonObject ch2 = doc.createNestedObject("ch2");
+            ch2["empty"] = p2->mem_empty_count;
+            ch2["maxgap_us"] = p2->max_gap_us;
+            ch2["trans_done"] = p2->trans_done_count;
         }
         String out; serializeJson(doc, out);
         ctx.sendJson(200, out);
@@ -1331,6 +1366,46 @@ public:
     }
 };
 
+// GET /api/frame-metrics - Frame-level profiling metrics for benchmarking
+class GetFrameMetricsHandler : public K1RequestHandler {
+public:
+    GetFrameMetricsHandler() : K1RequestHandler("/api/frame-metrics", ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        auto& buf = FrameMetricsBuffer::instance();
+        uint32_t frame_count = buf.count();
+
+        DynamicJsonDocument doc(16384);
+        doc["frame_count"] = frame_count;
+        doc["buffer_size"] = FRAME_METRICS_BUFFER_SIZE;
+
+        // Summary statistics
+        AverageMetrics avg = frame_metrics_average(0);
+        doc["avg_render_us"] = avg.avg_render_us;
+        doc["avg_quantize_us"] = avg.avg_quantize_us;
+        doc["avg_rmt_wait_us"] = avg.avg_rmt_wait_us;
+        doc["avg_rmt_tx_us"] = avg.avg_rmt_tx_us;
+        doc["avg_total_us"] = avg.avg_total_us;
+
+        // Frame array
+        JsonArray frames = doc.createNestedArray("frames");
+        for (uint32_t i = 0; i < frame_count && i < FRAME_METRICS_BUFFER_SIZE; ++i) {
+            FrameMetric fm = buf.get_frame(i);
+            JsonObject f = frames.createNestedObject();
+            f["render_us"] = fm.render_us;
+            f["quantize_us"] = fm.quantize_us;
+            f["rmt_wait_us"] = fm.rmt_wait_us;
+            f["rmt_tx_us"] = fm.rmt_tx_us;
+            f["total_us"] = fm.total_us;
+            f["heap_free"] = fm.heap_free;
+            f["fps"] = fm.fps_snapshot / 100.0f;
+        }
+
+        String output;
+        serializeJson(doc, output);
+        ctx.sendJson(200, output);
+    }
+};
+
 // GET /api/beat-events/dump - Ring-buffer snapshot with attachment headers
 class GetBeatEventsDumpHandler : public K1RequestHandler {
 public:
@@ -1434,6 +1509,30 @@ public:
 // GET /api/realtime/config - WebSocket realtime telemetry configuration
 static bool s_realtime_ws_enabled = (REALTIME_WS_ENABLED_DEFAULT != 0);
 static uint32_t s_realtime_ws_interval_ms = REALTIME_WS_DEFAULT_INTERVAL_MS;
+// NVS persistence for realtime websocket config
+static void load_realtime_ws_config_from_nvs() {
+    Preferences prefs;
+    if (!prefs.begin("realtime_ws", true)) {
+        return;
+    }
+    bool enabled = prefs.getBool("enabled", s_realtime_ws_enabled);
+    uint32_t interval = prefs.getUInt("interval_ms", s_realtime_ws_interval_ms);
+    prefs.end();
+    s_realtime_ws_enabled = enabled;
+    if (interval < 100) interval = 100;
+    if (interval > 5000) interval = 5000;
+    s_realtime_ws_interval_ms = interval;
+}
+
+static void save_realtime_ws_config_to_nvs() {
+    Preferences prefs;
+    if (!prefs.begin("realtime_ws", false)) {
+        return;
+    }
+    prefs.putBool("enabled", s_realtime_ws_enabled);
+    prefs.putUInt("interval_ms", s_realtime_ws_interval_ms);
+    prefs.end();
+}
 class GetRealtimeConfigHandler : public K1RequestHandler {
 public:
     GetRealtimeConfigHandler() : K1RequestHandler(ROUTE_REALTIME_CONFIG, ROUTE_GET) {}
@@ -1489,6 +1588,8 @@ public:
             return;
         }
 
+        // Persist changes to NVS
+        save_realtime_ws_config_to_nvs();
         StaticJsonDocument<192> resp;
         resp["enabled"] = s_realtime_ws_enabled;
         resp["interval_ms"] = s_realtime_ws_interval_ms;
@@ -1525,6 +1626,8 @@ public:
             beat_events_set_probe_interval_ms(interval_ms);
         }
 
+        // Persist diagnostics settings
+        diag_save_to_nvs();
         StaticJsonDocument<128> resp;
         resp["enabled"] = diag_is_enabled();
         resp["interval_ms"] = diag_get_interval_ms();
@@ -1550,6 +1653,13 @@ public:
 // ============================================================================
 // Initialize web server with REST API endpoints
 void init_webserver() {
+    // Load persisted diagnostics settings and mirror to latency probe
+    diag_load_from_nvs();
+    beat_events_set_probe_logging(diag_is_enabled());
+    beat_events_set_probe_interval_ms(diag_get_interval_ms());
+
+    // Load persisted realtime websocket configuration
+    load_realtime_ws_config_from_nvs();
     // Register GET handlers (with built-in rate limiting)
     registerGetHandler(server, ROUTE_PATTERNS, new GetPatternsHandler());
     registerGetHandler(server, ROUTE_PARAMS, new GetParamsHandler());
@@ -1560,6 +1670,7 @@ void init_webserver() {
     registerGetHandler(server, ROUTE_TEST_CONNECTION, new GetTestConnectionHandler());
     registerGetHandler(server, ROUTE_HEALTH, new GetHealthHandler());
     registerGetHandler(server, ROUTE_LED_FRAME, new GetLedFrameHandler());
+    registerGetHandler(server, "/api/frame-metrics", new GetFrameMetricsHandler());
 
     // Register POST handlers (with built-in rate limiting and JSON parsing)
     registerPostHandler(server, ROUTE_PARAMS, new PostParamsHandler());
@@ -1594,6 +1705,7 @@ void init_webserver() {
     registerGetHandler(server, ROUTE_AUDIO_ARRAYS, new GetAudioArraysHandler());
     registerGetHandler(server, ROUTE_REALTIME_CONFIG, new GetRealtimeConfigHandler());
     registerPostHandler(server, ROUTE_REALTIME_CONFIG, new PostRealtimeConfigHandler());
+    registerPostHandler(server, ROUTE_RMT_RESET, new PostRmtResetHandler());
 
     // Register remaining GET handlers
     registerGetHandler(server, ROUTE_AUDIO_CONFIG, new GetAudioConfigHandler());

@@ -104,4 +104,18 @@ fi
 echo ""
 echo "✅ Docs naming check completed (non-blocking). Issues: $DOC_ERRORS"
 echo ""
+
+# --- Managed .claude guardrail ---
+echo "Managed .claude changes check…"
+if git diff --cached --name-only --diff-filter=ACM | grep -qE '^\\.claude/'; then
+  echo "❌ COMMIT BLOCKED - Changes detected in managed .claude/"
+  echo "Use tools/claude_infra_sync.sh to update from central repo."
+  echo "Set ALLOW_CLAUDE_CHANGES=1 to bypass this guardrail."
+  if [ -z "$ALLOW_CLAUDE_CHANGES" ]; then
+    exit 1
+  else
+    echo "Bypass: ALLOW_CLAUDE_CHANGES=1 set; proceeding."
+  fi
+fi
+
 exit 0

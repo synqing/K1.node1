@@ -4,7 +4,7 @@
 **Version:** 1.0
 **Status:** Implemented
 **Date:** 2025-11-09
-**Related ADR:** ADR-0013-conductor-deployment-resilience
+**Related ADR:** ADR-0019-conductor-deployment-resilience
 **Owner:** Claude Code Agent
 
 ---
@@ -58,7 +58,7 @@
 
 ### 1. Architecture Decision Record
 
-**File:** `docs/02-adr/ADR-0013-conductor-deployment-resilience.md`
+**File:** `docs/02-adr/ADR-0019-conductor-deployment-resilience.md`
 **Purpose:** Documents 3-tier fallback architecture decision
 **Key Sections:**
 - Context (3 critical risks)
@@ -262,7 +262,7 @@ postgres:
 K1.node1/
 ├── docs/
 │   ├── 02-adr/
-│   │   └── ADR-0013-conductor-deployment-resilience.md  # Architecture decision
+│   │   └── ADR-0019-conductor-deployment-resilience.md  # Architecture decision
 │   └── 09-implementation/
 │       └── K1NImpl_CONDUCTOR_DEPLOYMENT_RESILIENCE_v1.0_20251109.md  # This file
 ├── .conductor/
@@ -579,7 +579,7 @@ docker-compose restart
 
 ## References
 
-- **ADR:** [ADR-0013](../02-adr/ADR-0013-conductor-deployment-resilience.md)
+- **ADR:** [ADR-0019](../02-adr/ADR-0019-conductor-deployment-resilience.md)
 - **Comprehensive Docs:** [K1N_COMPREHENSIVE_TECHNICAL_DOCUMENTATION_v1.0_20251109.md](../01-architecture/K1N_COMPREHENSIVE_TECHNICAL_DOCUMENTATION_v1.0_20251109.md)
 - **Conductor OSS:** https://conductor.netflix.com
 - **PostgreSQL Docs:** https://conductor.netflix.com/devguide/running/conductor-on-postgres.html

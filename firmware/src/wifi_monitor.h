@@ -46,6 +46,11 @@ void wifi_monitor_update_credentials(const char* ssid, const char* pass);
 void wifi_monitor_get_credentials(char* ssid_out, size_t ssid_len,
                                   char* pass_out, size_t pass_len);
 
+// Secondary network credential management (used as fallback after primary fails)
+bool wifi_monitor_save_secondary_credentials_to_nvs(const char* ssid, const char* pass);
+bool wifi_monitor_load_secondary_credentials_from_nvs(char* ssid_out, size_t ssid_len,
+                                                      char* pass_out, size_t pass_len);
+
 // AP fallback (captive portal) status
 bool wifi_monitor_is_ap_mode_enabled();
 

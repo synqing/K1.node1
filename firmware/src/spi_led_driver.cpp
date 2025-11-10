@@ -1,4 +1,5 @@
-﻿#include "led_driver.h"
+#include "led_driver.h"
+#include "logging/logger.h"
 #if USE_SPI_SECONDARY
 // SPI-based LED driver for secondary channel (GPIO 4)
 // Uses SPI peripheral to generate WS2812B timing
@@ -25,12 +26,12 @@ static const size_t spi_buffer_size = NUM_LEDS * 3 * 4 + 64;  // 4 SPI bytes per
 
 // Initialize SPI for LED output
 esp_err_t init_spi_led_driver() {
-    Serial.println("Initializing SPI LED driver for GPIO 4...");
+    LOG_INFO(TAG_LED, "Initializing SPI LED driver for GPIO 4...");
 
     // Allocate DMA-capable buffer
     spi_buffer = (uint8_t*)heap_caps_malloc(spi_buffer_size, MALLOC_CAP_DMA);
     if (!spi_buffer) {
-        Serial.println("Failed to allocate SPI buffer!");
+        LOG_ERROR(TAG_LED, "Failed to allocate SPI buffer!");
         return ESP_ERR_NO_MEM;
     }
     memset(spi_buffer, 0, spi_buffer_size);
@@ -47,7 +48,7 @@ esp_err_t init_spi_led_driver() {
 
     esp_err_t ret = spi_bus_initialize(SPI_HOST, &bus_config, SPI_DMA_CH_AUTO);
     if (ret != ESP_OK) {
-        Serial.printf("SPI bus init failed: %s\n", esp_err_to_name(ret));
+        LOG_ERROR(TAG_LED, "SPI bus init failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
@@ -61,11 +62,11 @@ esp_err_t init_spi_led_driver() {
 
     ret = spi_bus_add_device(SPI_HOST, &dev_config, &spi_device);
     if (ret != ESP_OK) {
-        Serial.printf("SPI device add failed: %s\n", esp_err_to_name(ret));
+        LOG_ERROR(TAG_LED, "SPI device add failed: %s", esp_err_to_name(ret));
         return ret;
     }
 
-    Serial.println("SPI LED driver initialized for GPIO 4");
+    LOG_INFO(TAG_LED, "SPI LED driver initialized for GPIO 4");
     return ESP_OK;
 }
 
@@ -119,7 +120,7 @@ void spi_transmit_leds(const uint8_t* led_data) {
         static uint32_t last_err = 0;
         uint32_t now = millis();
         if (now - last_err > 1000) {
-            Serial.printf("SPI transmit error: %s\n", esp_err_to_name(ret));
+            LOG_ERROR(TAG_LED, "SPI transmit error: %s", esp_err_to_name(ret));
             last_err = now;
         }
     }

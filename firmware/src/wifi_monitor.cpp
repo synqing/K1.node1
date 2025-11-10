@@ -7,12 +7,17 @@
 
 #include "connection_state.h"
 
+// Forward declarations for file-scope static functions used before definition
+static bool is_device_provisioned();
+static void mark_device_provisioned();
+
 namespace {
 
 constexpr uint32_t WIFI_ASSOC_TIMEOUT_MS = 20000;
 constexpr uint32_t WIFI_RECONNECT_INTERVAL_MS = 5000;
-constexpr uint8_t MAX_NETWORK_CONNECT_ATTEMPTS = 5;
-constexpr uint8_t FALLBACK_ATTEMPT_THRESHOLD = 3;  // Switch to fallback after 3 failures
+constexpr uint8_t PRIMARY_RETRIES = 3;                // Retry primary network 3 times
+constexpr uint8_t SECONDARY_RETRIES = 3;              // Retry secondary network 3 times
+constexpr uint8_t AP_FALLBACK_THRESHOLD = 6;          // AP fallback after 3+3 = 6 total failures
 constexpr uint32_t WIFI_KEEPALIVE_INTERVAL_MS = 30000;  // Send keepalive every 30 seconds
 constexpr uint32_t NETWORK_PAUSE_DEFAULT_MS = 500;      // Short pause before disconnect
 
@@ -135,15 +140,6 @@ static void schedule_reconnect(const char* reason, uint32_t delay_ms) {
     // Increment total failures
     total_connection_failures++;
 
-    // Switch to fallback network if primary network fails too many times
-    if (!using_fallback && total_connection_failures >= FALLBACK_ATTEMPT_THRESHOLD) {
-        using_fallback = true;
-        strncpy(stored_ssid, fallback_ssid, sizeof(stored_ssid) - 1);
-        strncpy(stored_pass, fallback_pass, sizeof(stored_pass) - 1);
-        reconnect_attempts = 0;  // Reset attempts counter for fallback
-        connection_logf("WARN", "PRIMARY NETWORK FAILED - Switching to FALLBACK network: '%s'", fallback_ssid);
-    }
-
     // Exponential backoff to reduce reconnect thrash; cap at 60s
     uint8_t backoff_exp = std::min<uint8_t>(reconnect_attempts, static_cast<uint8_t>(5));
     uint32_t factor = 1u << backoff_exp; // 1,2,4,8,16,32
@@ -152,7 +148,7 @@ static void schedule_reconnect(const char* reason, uint32_t delay_ms) {
     connection_logf("WARN", "Scheduling reconnect in %lums (attempt %d/%d) (%s)",
                     static_cast<unsigned long>(effective_delay),
                     reconnect_attempts + 1,
-                    using_fallback ? 999 : FALLBACK_ATTEMPT_THRESHOLD,
+                    AP_FALLBACK_THRESHOLD,
                     reason);
     connection_state_transition(ConnectionState::Recovering, reason);
 
@@ -208,12 +204,13 @@ static void send_wifi_keepalive(uint32_t now_ms) {
 }
 
 static void start_ap_fallback_if_needed() {
-    // Start captive portal AP when credentials are empty or repeated STA failures occur
+    // Start captive portal AP when credentials are empty or all networks exhausted
     if (ap_mode_enabled) return;
     if (stored_ssid[0] == '\0') {
         // No credentials configured; start AP immediately
-    } else if (reconnect_attempts < MAX_NETWORK_CONNECT_ATTEMPTS && credentials_failures_since_update < 3) {
-        return; // Not yet time for AP fallback
+    } else if (credentials_failures_since_update < AP_FALLBACK_THRESHOLD) {
+        // Still have retries left (primary: 3, secondary: 3)
+        return;
     }
 
     // Build AP SSID using MAC suffix for uniqueness
@@ -228,10 +225,34 @@ static void start_ap_fallback_if_needed() {
     ap_mode_enabled = ok;
     if (ok) {
         IPAddress ip = WiFi.softAPIP();
-        connection_logf("WARN", "AP fallback enabled: SSID '%s', IP %s", ap_ssid, ip.toString().c_str());
+        connection_logf("WARN", "AP fallback enabled: SSID '%s', IP %s (Primary: %d/%d, Secondary: %d/%d)",
+                        ap_ssid, ip.toString().c_str(),
+                        std::min(credentials_failures_since_update, (uint8_t)PRIMARY_RETRIES),
+                        PRIMARY_RETRIES,
+                        std::max((uint8_t)0, (uint8_t)(credentials_failures_since_update - PRIMARY_RETRIES)),
+                        SECONDARY_RETRIES);
         connection_state_transition(ConnectionState::Recovering, "AP fallback active");
     } else {
         connection_logf("ERROR", "Failed to start AP fallback");
+    }
+}
+
+static void try_switch_to_secondary_network() {
+    // Switch from primary to secondary network after primary failures exceed threshold
+    if (using_fallback || fallback_ssid[0] == '\0') {
+        return; // Already using fallback or no secondary network configured
+    }
+
+    if (credentials_failures_since_update >= PRIMARY_RETRIES) {
+        using_fallback = true;
+        strncpy(stored_ssid, fallback_ssid, sizeof(stored_ssid) - 1);
+        strncpy(stored_pass, fallback_pass, sizeof(stored_pass) - 1);
+        credentials_failures_since_update = PRIMARY_RETRIES; // Track that we've exhausted primary
+
+        connection_logf("INFO", "Primary network failed (%d/%d attempts). Switching to secondary: '%s'",
+                        PRIMARY_RETRIES, PRIMARY_RETRIES, stored_ssid);
+
+        wifi_monitor_reassociate_now("Switching to secondary network");
     }
 }
 
@@ -309,6 +330,59 @@ bool wifi_monitor_load_link_options_from_nvs(WifiLinkOptions& out_options) {
     return true;
 }
 
+// Secondary network credential management
+bool wifi_monitor_save_secondary_credentials_to_nvs(const char* ssid, const char* pass) {
+    Preferences prefs;
+    if (!prefs.begin("wifi_fallback", false)) {
+        return false;
+    }
+    prefs.putString("ssid", ssid ? ssid : "");
+    prefs.putString("pass", pass ? pass : "");
+    prefs.end();
+    return true;
+}
+
+bool wifi_monitor_load_secondary_credentials_from_nvs(char* ssid_out, size_t ssid_len,
+                                                      char* pass_out, size_t pass_len) {
+    Preferences prefs;
+    if (!prefs.begin("wifi_fallback", true)) {
+        ssid_out[0] = '\0';
+        pass_out[0] = '\0';
+        return false;
+    }
+    String ssid = prefs.getString("ssid", "");
+    String pass = prefs.getString("pass", "");
+    prefs.end();
+    strncpy(ssid_out, ssid.c_str(), ssid_len - 1);
+    ssid_out[ssid_len - 1] = '\0';
+    strncpy(pass_out, pass.c_str(), pass_len - 1);
+    pass_out[pass_len - 1] = '\0';
+    return ssid.length() > 0;
+}
+
+// Check if device has been provisioned (completed first successful connection)
+static bool is_device_provisioned() {
+    Preferences prefs;
+    if (!prefs.begin("device_state", true)) {
+        return false;  // First boot
+    }
+    bool provisioned = prefs.getBool("provisioned", false);
+    prefs.end();
+    return provisioned;
+}
+
+// Mark device as provisioned (after first successful connection)
+static void mark_device_provisioned() {
+    Preferences prefs;
+    if (!prefs.begin("device_state", false)) {
+        connection_logf("WARN", "Failed to mark device as provisioned");
+        return;
+    }
+    prefs.putBool("provisioned", true);
+    prefs.end();
+    connection_logf("INFO", "Device marked as provisioned");
+}
+
 void wifi_monitor_init(const char* ssid, const char* pass) {
     connection_state_init();
 
@@ -324,15 +398,38 @@ void wifi_monitor_init(const char* ssid, const char* pass) {
     }
     connection_logf("INFO", "Build default WiFi credentials: '%s'", stored_ssid);
 
-    // Prefer LAST CONNECTED credentials from NVS, when available
-    char last_ssid[64] = {0};
-    char last_pass[64] = {0};
-    if (wifi_monitor_load_credentials_from_nvs(last_ssid, sizeof(last_ssid), last_pass, sizeof(last_pass)) && last_ssid[0] != '\0') {
-        strncpy(stored_ssid, last_ssid, sizeof(stored_ssid) - 1);
-        strncpy(stored_pass, last_pass, sizeof(stored_pass) - 1);
-        connection_logf("INFO", "Using LAST connected WiFi credentials from NVS: '%s'", stored_ssid);
+    // FIRST-BOOT DETECTION: Only load from NVS if device has been provisioned
+    bool provisioned = is_device_provisioned();
+
+    if (provisioned) {
+        // Device is provisioned: load LAST CONNECTED credentials from NVS
+        char last_ssid[64] = {0};
+        char last_pass[64] = {0};
+        if (wifi_monitor_load_credentials_from_nvs(last_ssid, sizeof(last_ssid), last_pass, sizeof(last_pass)) && last_ssid[0] != '\0') {
+            strncpy(stored_ssid, last_ssid, sizeof(stored_ssid) - 1);
+            strncpy(stored_pass, last_pass, sizeof(stored_pass) - 1);
+            connection_logf("INFO", "PRIMARY: Using provisioned WiFi credentials from NVS: '%s'", stored_ssid);
+        }
     } else {
-        connection_logf("INFO", "No NVS credentials found; using build defaults");
+        // FIRST BOOT: Ignore any old NVS and use compiled defaults
+        strncpy(stored_ssid, "VX220-013F", sizeof(stored_ssid) - 1);
+        strncpy(stored_pass, "3232AA90E0F24", sizeof(stored_pass) - 1);
+        connection_logf("INFO", "PRIMARY: FIRST BOOT detected; using compiled defaults: '%s' (3 retries)", stored_ssid);
+    }
+
+    // Load secondary (fallback) network credentials from NVS
+    char fallback_ssid_nvs[64] = {0};
+    char fallback_pass_nvs[64] = {0};
+    if (wifi_monitor_load_secondary_credentials_from_nvs(fallback_ssid_nvs, sizeof(fallback_ssid_nvs),
+                                                          fallback_pass_nvs, sizeof(fallback_pass_nvs))) {
+        strncpy(fallback_ssid, fallback_ssid_nvs, sizeof(fallback_ssid) - 1);
+        strncpy(fallback_pass, fallback_pass_nvs, sizeof(fallback_pass) - 1);
+        connection_logf("INFO", "SECONDARY: WiFi network loaded from NVS: '%s' (3 retries)", fallback_ssid);
+    } else {
+        // No NVS secondary; use compiled defaults
+        strncpy(fallback_ssid, "OPTUS_738CC0N", sizeof(fallback_ssid) - 1);
+        strncpy(fallback_pass, "parrs45432vw", sizeof(fallback_pass) - 1);
+        connection_logf("INFO", "SECONDARY: No NVS configured; using compiled defaults: '%s' (3 retries)", fallback_ssid);
     }
 
     // Ensure STA interface is enabled before attempting to connect
@@ -506,6 +603,10 @@ void wifi_monitor_loop() {
             stop_ap_fallback_if_active();
             // Persist LAST connected credentials so we prefer them on next boot
             wifi_monitor_save_credentials_to_nvs(stored_ssid, stored_pass);
+            // Mark device as provisioned on first successful connection (enables NVS loading on future boots)
+            if (!is_device_provisioned()) {
+                mark_device_provisioned();
+            }
             if (on_connect_cb) {
                 on_connect_cb();
             }
@@ -538,9 +639,15 @@ void wifi_monitor_loop() {
             // Record failure against most recent credentials update
             if (credentials_last_update_ms != 0) {
                 credentials_failures_since_update++;
-                if (credentials_failures_since_update >= 3 && credentials_cooldown_until_ms == 0) {
+                connection_logf("WARN", "SSID unavailable. Failures: %d/%d", credentials_failures_since_update, AP_FALLBACK_THRESHOLD);
+
+                // Try secondary network after 3 primary failures
+                try_switch_to_secondary_network();
+
+                // Start AP fallback after 6 total failures (3 primary + 3 secondary)
+                if (credentials_failures_since_update >= AP_FALLBACK_THRESHOLD && credentials_cooldown_until_ms == 0) {
                     credentials_cooldown_until_ms = millis() + 120000; // 2min cooldown
-                    connection_logf("WARN", "Credentials cooldown: %lu ms", (unsigned long)120000);
+                    connection_logf("WARN", "Network exhaustion cooldown activated: %lu ms", (unsigned long)120000);
                 }
             }
             start_ap_fallback_if_needed();
@@ -553,15 +660,18 @@ void wifi_monitor_loop() {
                 on_disconnect_cb();
             }
             connection_live = false;
-            if (reconnect_attempts >= MAX_NETWORK_CONNECT_ATTEMPTS) {
-                connection_logf("ERROR", "Max reconnect attempts reached (SSID %s)", stored_ssid);
-            }
             // Record failure against most recent credentials update
             if (credentials_last_update_ms != 0) {
                 credentials_failures_since_update++;
-                if (credentials_failures_since_update >= 3 && credentials_cooldown_until_ms == 0) {
+                connection_logf("WARN", "Connection failed. Failures: %d/%d", credentials_failures_since_update, AP_FALLBACK_THRESHOLD);
+
+                // Try secondary network after 3 primary failures
+                try_switch_to_secondary_network();
+
+                // Start AP fallback after 6 total failures (3 primary + 3 secondary)
+                if (credentials_failures_since_update >= AP_FALLBACK_THRESHOLD && credentials_cooldown_until_ms == 0) {
                     credentials_cooldown_until_ms = millis() + 120000; // 2min cooldown
-                    connection_logf("WARN", "Credentials cooldown: %lu ms", (unsigned long)120000);
+                    connection_logf("WARN", "Network exhaustion cooldown activated: %lu ms", (unsigned long)120000);
                 }
             }
             start_ap_fallback_if_needed();

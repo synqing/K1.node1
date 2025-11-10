@@ -83,10 +83,10 @@ find . -type f \( -name "*.md" -o -name "*.sh" -o -name "*.json" \) -exec sed -i
 3. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0006-codegen-abandonment.md` - 15+ references
 
 ### HIGH (affects agent instructions and planning)
-4. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0004-institutional-memory-adoption.md` - 10+ references
+4. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0011-institutional-memory-adoption.md` - 10+ references
 5. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/04-planning/K1NPlan_PLAN_K1_MIGRATION_MASTER_v1.0_20251108.md` - 25+ references
 6. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/09-implementation/K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md` - 12+ references
-7. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0005-backend-framework-fastapi.md` - 2 references
+7. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0013-backend-framework-fastapi.md` - 2 references
 8. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/README.md` - 3 references
 
 ### MEDIUM (affects training and governance)
@@ -97,7 +97,7 @@ find . -type f \( -name "*.md" -o -name "*.sh" -o -name "*.json" \) -exec sed -i
 ### LOW (affects tools and specs)
 12. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/tools/governance/add_frontmatter.sh` - 1 reference
 13. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/.kiro/steering/structure.md` - 5 references
-14. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0001-led_driver_header_split.md` - 2 references
+14. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0015-led-driver-header-split.md` - 2 references
 15. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/04-planning/K1NPlan_DECISION_GATE_NOV_13_v1.0_20251108.md` - 2 references
 16. `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/04-planning/K1NPlan_PLAN_WEEK_1_EXECUTION_KICKOFF_v1.0_20251108.md` - 1 reference
 
@@ -136,4 +136,3 @@ git reset --hard HEAD~1 # Rollback if needed
 ## REFERENCE DOCUMENT
 
 Full audit details: `/Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/08-governance/K1NGov_AUDIT_K1_NODE1_LEGACY_PATH_v1.0_20251108.md`
-

@@ -15,16 +15,20 @@ const SelectSeparatorImpl = lazy(() => import("./select.full").then(m => ({ defa
 const SelectTriggerImpl = lazy(() => import("./select.full").then(m => ({ default: m.SelectTrigger })));
 const SelectValueImpl = lazy(() => import("./select.full").then(m => ({ default: m.SelectValue })));
 
-const fallbackEl = <div className="h-8 w-full rounded bg-[color-mix(in_oklab,var(--foreground)_15%,transparent)]/10" />;
+const fallbackEl = (
+  <div className="h-8 w-full rounded bg-[color-mix(in_oklab,var(--foreground)_15%,transparent)]/10" />
+);
 
-function withSuspense<T extends object>(Comp: React.ComponentType<any>) {
-  return function Wrapper(props: T) {
+function withSuspense<P>(Comp: React.ComponentType<P>) {
+  const Wrapper: React.FC<P> = (props) => {
     return (
       <Suspense fallback={fallbackEl}>
         <Comp {...props} />
       </Suspense>
     );
   };
+  Wrapper.displayName = `WithSuspense(${(Comp as any).displayName ?? (Comp as any).name ?? 'Component'})`;
+  return Wrapper;
 }
 
 const Select = withSuspense(SelectImpl);

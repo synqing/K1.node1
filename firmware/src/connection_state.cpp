@@ -3,6 +3,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include "logging/logger.h"
 
 struct ConnectionStateContext {
     ConnectionState state = ConnectionState::Idle;
@@ -28,7 +29,7 @@ static void log_transition(ConnectionState new_state, const char* reason) {
 
 void connection_logf(const char* level, const char* fmt, ...) {
     if (level == nullptr) {
-        level = "LOG";
+        level = "INFO";
     }
 
     char message[192];
@@ -37,7 +38,15 @@ void connection_logf(const char* level, const char* fmt, ...) {
     vsnprintf(message, sizeof(message), fmt, args);
     va_end(args);
 
-    printf("[CONN][%s] %s\n", level, message);
+    if (strcmp(level, "ERROR") == 0) {
+        LOG_ERROR(TAG_WIFI, "%s", message);
+    } else if (strcmp(level, "WARN") == 0) {
+        LOG_WARN(TAG_WIFI, "%s", message);
+    } else if (strcmp(level, "DEBUG") == 0) {
+        LOG_DEBUG(TAG_WIFI, "%s", message);
+    } else {
+        LOG_INFO(TAG_WIFI, "%s", message);
+    }
 }
 
 void connection_state_init() {

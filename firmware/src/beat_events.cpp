@@ -1,5 +1,6 @@
 #include "beat_events.h"
 #include <Arduino.h>
+#include "logging/logger.h"
 #include <string.h>
 #include <atomic>
 
@@ -112,7 +113,8 @@ void beat_events_probe_end(const char* label) {
         uint32_t last_print = s_probe_last_print_ms.load(std::memory_order_acquire);
         uint32_t interval = s_probe_print_interval_ms.load(std::memory_order_acquire);
         if ((now_ms - last_print) >= interval) {
-            Serial.printf("[latency] %s: %.2f ms (events=%u)\n", label ? label : "probe", delta_ms, (unsigned)beat_events_count());
+            LOG_INFO(TAG_BEAT, "Latency %s: %.2f ms (events=%u)",
+                     label ? label : "probe", delta_ms, (unsigned)beat_events_count());
             s_probe_last_print_ms.store(now_ms, std::memory_order_release);
         }
     }

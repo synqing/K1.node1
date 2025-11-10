@@ -76,7 +76,7 @@
 
 // Soft timeout before considering an RMT frame "late"
 #ifndef LED_RMT_WAIT_TIMEOUT_MS
-#define LED_RMT_WAIT_TIMEOUT_MS 20
+#define LED_RMT_WAIT_TIMEOUT_MS 35
 #endif
 // Additional window used for graceful recovery when a soft timeout occurs
 #ifndef LED_RMT_WAIT_RECOVERY_MS

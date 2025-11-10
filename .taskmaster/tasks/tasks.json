@@ -5,7 +5,7 @@
         "id": 1,
         "title": "Remove WiFi Credentials from Firmware Source Code",
         "description": "Eliminate hardcoded WiFi credentials from firmware codebase and implement secure certificate-based provisioning flow using existing NVS infrastructure and AP fallback mechanisms",
-        "status": "pending",
+        "status": "completed",
         "dependencies": [],
         "priority": "high",
         "details": "Critical security vulnerabilities identified in firmware/src/main.cpp:63-64 and wifi_monitor.cpp:20-25 with hardcoded WiFi credentials exposed in source code. The codebase already includes sophisticated provisioning infrastructure: 1) NVS-based credential storage (wifi_monitor_save_credentials_to_nvs/wifi_monitor_load_credentials_from_nvs), 2) AP fallback mode with K1-Setup-{MAC} SSID for provisioning, 3) Web API endpoints (/api/wifi/credentials, /api/wifi/scan) for credential management, 4) Advanced security modules (network_security_module.h, advanced_wifi_manager.h) supporting WPA3, 802.1X, certificate-based auth, and enterprise features. Implementation requires: 1) Remove hardcoded credentials from main.cpp (WIFI_SSID/WIFI_PASS) and wifi_monitor.cpp (primary_ssid/primary_pass, fallback_ssid/fallback_pass), 2) Implement certificate-based provisioning using existing SecurityConfig.enable_802_1x and CertificateManager infrastructure, 3) Enhance AP provisioning flow to use certificates for secure onboarding, 4) Integrate with existing NVS persistence patterns for secure credential storage, 5) Update connection flow to prioritize NVS-stored credentials over hardcoded values.",
@@ -80,7 +80,7 @@
         "testStrategy": "1000-iteration stress test with pattern changes, audio pipeline responsiveness under load, no timeout errors in logs, error injection testing",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "completed",
         "subtasks": [
           {
             "id": 1,
@@ -549,7 +549,7 @@
         "id": 9,
         "title": "Implement Stateful Node System",
         "description": "Create stateful node types (beat detector, spectrum analyzer) with persistence and audio reactivity",
-        "status": "pending",
+        "status": "completed",
         "dependencies": [
           6
         ],

@@ -1,6 +1,7 @@
 #include "udp_echo.h"
 #include <Arduino.h>
 #include <WiFiUdp.h>
+#include "logging/logger.h"
 
 static TaskHandle_t s_udp_task_handle = nullptr;
 static uint16_t s_udp_port = 0;
@@ -9,11 +10,11 @@ static void udp_echo_task(void* param) {
     WiFiUDP udp;
     uint16_t port = s_udp_port;
     if (!udp.begin(port)) {
-        Serial.printf("[udp_echo] Failed to bind UDP port %u\n", (unsigned)port);
+        LOG_ERROR(TAG_WIFI, "UDP Echo: Failed to bind UDP port %u", (unsigned)port);
         vTaskDelete(nullptr);
         return;
     }
-    Serial.printf("[udp_echo] Listening on UDP port %u\n", (unsigned)port);
+    LOG_INFO(TAG_WIFI, "UDP Echo: Listening on UDP port %u", (unsigned)port);
 
     // Simple loop: poll for packets, echo back payload
     char buf[1024];

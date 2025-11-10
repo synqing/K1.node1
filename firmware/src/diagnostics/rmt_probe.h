@@ -27,3 +27,6 @@ void rmt_probe_init(rmt_channel_handle_t chan, const char* name);
 
 // Snapshot current counters into user variables
 void rmt_probe_get(const RmtProbe** ch1, const RmtProbe** ch2);
+
+// Reset counters for both probes (ch1 and ch2)
+void rmt_probe_reset();

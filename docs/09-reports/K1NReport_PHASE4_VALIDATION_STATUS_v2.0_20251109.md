@@ -225,7 +225,7 @@ URL: https://repo1.maven.org/maven2/com/netflix/conductor/conductor-server/3.15.
 | `.conductor/docker/server/startup.sh` | 2.1 KB | Startup script |
 | `ops/scripts/conductor-start.sh` | 8.2 KB | 3-tier fallback |
 | `tests/validate_conductor_resilience.sh` | 11.4 KB | 7-test suite |
-| `docs/02-adr/ADR-0013-conductor-deployment-resilience.md` | 5.2 KB | Architecture decision |
+| `docs/02-adr/ADR-0019-conductor-deployment-resilience.md` | 5.2 KB | Architecture decision |
 | `docs/09-implementation/K1NImpl_CONDUCTOR_DEPLOYMENT_RESILIENCE_v1.0_20251109.md` | 15.1 KB | Implementation guide |
 | `docs/09-reports/K1NReport_PHASE4_VALIDATION_STATUS_v2.0_20251109.md` | (this file) | Validation report |
 

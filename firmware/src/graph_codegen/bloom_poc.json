@@ -1,0 +1,94 @@
+{
+  "name": "bloom_poc",
+  "version": "v1.0",
+  "meta": {
+    "description": "Bloom pattern PoC: Audio spectrum → band filter → persistent trail → colorize → mirror → output",
+    "author": "K1.node1 Engineering",
+    "created": "2025-11-10",
+    "status": "poc",
+    "scope": "Validate pattern-as-graph hypothesis; single pattern only",
+    "related_docs": [
+      "docs/04-planning/K1NPlan_TASK7_BLOOM_GRAPH_POC_ROADMAP_v1.0_20251110.md",
+      "docs/04-planning/K1NPlan_TASK7_BLOOM_POC_JSON_AND_EMITTER_v1.0_20251110.md",
+      "docs/06-reference/GRAPH_SCHEMA_SPEC.md"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "audio_spectrum",
+      "type": "AudioSpectrum",
+      "meta": {
+        "name": "Audio Input",
+        "comment": "Capture current audio spectrum (64 bins, linearly spaced 0–8 kHz)"
+      }
+    },
+    {
+      "id": "band_shape",
+      "type": "BandShape",
+      "inputs": {
+        "src": "audio_spectrum"
+      },
+      "params": {
+        "gain": 1.0,
+        "smoothing": 0.6,
+        "center_bin": 32,
+        "bandwidth": 8
+      },
+      "meta": {
+        "name": "Band Shaper",
+        "comment": "Convert audio spectrum to per-LED response via frequency band filtering. PoC: generates ramp [0,1] across 256 LEDs."
+      }
+    },
+    {
+      "id": "trail",
+      "type": "BufferPersist",
+      "inputs": {
+        "src": "band_shape"
+      },
+      "params": {
+        "decay": 0.92
+      },
+      "meta": {
+        "name": "Trail Effect / Exponential Decay",
+        "comment": "Persistence layer: state.persist_buf[i] = 0.92 * state[i] + 0.08 * input[i]. Creates afterglow trail across frames."
+      }
+    },
+    {
+      "id": "colorize",
+      "type": "ColorizeBuffer",
+      "inputs": {
+        "index_buf": "trail"
+      },
+      "params": {
+        "mode": "grayscale",
+        "palette_id": 0
+      },
+      "meta": {
+        "name": "Grayscale Colorizer",
+        "comment": "Map scalar [0, 1] values to grayscale RGB: {v, v, v}. Future: palette support."
+      }
+    },
+    {
+      "id": "mirror",
+      "type": "Mirror",
+      "inputs": {
+        "src": "colorize"
+      },
+      "meta": {
+        "name": "Horizontal Mirror",
+        "comment": "Flip buffer: out[i] = src[255 - i]"
+      }
+    },
+    {
+      "id": "output",
+      "type": "LedOutput",
+      "inputs": {
+        "color": "mirror"
+      },
+      "meta": {
+        "name": "LED Terminal / Output Emitter",
+        "comment": "Clamp RGB to [0, 1], convert to uint8 [0, 255], write to PatternOutput struct for firmware emission"
+      }
+    }
+  ]
+}

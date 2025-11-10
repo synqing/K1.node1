@@ -5,6 +5,7 @@
 #include "led_driver.h"
 #include <Arduino.h>
 #include <cstring>
+#include "logging/logger.h"
 
 // ============================================================================
 // GLOBAL STATE DEFINITIONS
@@ -82,9 +83,25 @@ esp_err_t rmt_new_led_strip_encoder(const led_strip_encoder_config_t *config, rm
         .flags = { .msb_first = 1 }
     };
 
-	rmt_new_bytes_encoder(&bytes_encoder_config, &strip_encoder.bytes_encoder);
+    // Create sub-encoders with error propagation and cleanup on failure
+	ret = rmt_new_bytes_encoder(&bytes_encoder_config, &strip_encoder.bytes_encoder);
+	if (ret != ESP_OK) {
+#if __has_include(<esp_log.h>)
+		ESP_LOGE(TAG, "Failed to create bytes encoder (primary): 0x%x", ret);
+#endif
+		return ret;
+	}
+
 	rmt_copy_encoder_config_t copy_encoder_config = {};
-	rmt_new_copy_encoder(&copy_encoder_config, &strip_encoder.copy_encoder);
+	ret = rmt_new_copy_encoder(&copy_encoder_config, &strip_encoder.copy_encoder);
+	if (ret != ESP_OK) {
+#if __has_include(<esp_log.h>)
+		ESP_LOGE(TAG, "Failed to create copy encoder (primary): 0x%x", ret);
+#endif
+		rmt_del_encoder(strip_encoder.bytes_encoder);
+		strip_encoder.bytes_encoder = NULL;
+		return ret;
+	}
 
     // Reset: ≥50us low. At 20 MHz, 50us = 1000 ticks. Double to ensure latch.
     strip_encoder.reset_code = (rmt_symbol_word_t) { 1000, 0, 1000, 0 };
@@ -100,12 +117,12 @@ esp_err_t rmt_new_led_strip_encoder(const led_strip_encoder_config_t *config, rm
 esp_err_t rmt_new_led_strip_encoder_2(const led_strip_encoder_config_t *config, rmt_encoder_handle_t *ret_encoder) {
 	esp_err_t ret = ESP_OK;
 
-	printf("DEBUG: Assigning encoder functions for secondary channel\n");
-	printf("  &strip_encoder_2 = %p\n", &strip_encoder_2);
-	printf("  &strip_encoder_2.base = %p\n", &strip_encoder_2.base);
+    LOG_DEBUG(TAG_LED, "Assigning encoder functions for secondary channel");
+    LOG_DEBUG(TAG_LED, "  &strip_encoder_2 = %p", &strip_encoder_2);
+    LOG_DEBUG(TAG_LED, "  &strip_encoder_2.base = %p", &strip_encoder_2.base);
 
 	strip_encoder_2.base.encode = rmt_encode_led_strip_2;
-	printf("  Assigned encode function = %p\n", (void*)strip_encoder_2.base.encode);
+    LOG_DEBUG(TAG_LED, "  Assigned encode function = %p", (void*)strip_encoder_2.base.encode);
 	strip_encoder_2.base.del    = rmt_del_led_strip_encoder;
 	strip_encoder_2.base.reset  = rmt_led_strip_encoder_reset;
 
@@ -117,9 +134,25 @@ esp_err_t rmt_new_led_strip_encoder_2(const led_strip_encoder_config_t *config, 
         .flags = { .msb_first = 1 }
     };
 
-	rmt_new_bytes_encoder(&bytes_encoder_config, &strip_encoder_2.bytes_encoder);
+    // Create sub-encoders with error propagation and cleanup on failure
+	ret = rmt_new_bytes_encoder(&bytes_encoder_config, &strip_encoder_2.bytes_encoder);
+	if (ret != ESP_OK) {
+#if __has_include(<esp_log.h>)
+		ESP_LOGE(TAG, "Failed to create bytes encoder (secondary): 0x%x", ret);
+#endif
+		return ret;
+	}
+
 	rmt_copy_encoder_config_t copy_encoder_config = {};
-	rmt_new_copy_encoder(&copy_encoder_config, &strip_encoder_2.copy_encoder);
+	ret = rmt_new_copy_encoder(&copy_encoder_config, &strip_encoder_2.copy_encoder);
+	if (ret != ESP_OK) {
+#if __has_include(<esp_log.h>)
+		ESP_LOGE(TAG, "Failed to create copy encoder (secondary): 0x%x", ret);
+#endif
+		rmt_del_encoder(strip_encoder_2.bytes_encoder);
+		strip_encoder_2.bytes_encoder = NULL;
+		return ret;
+	}
 
     // Reset: ≥50us low. At 20 MHz, 50us = 1000 ticks. Double to ensure latch.
     strip_encoder_2.reset_code = (rmt_symbol_word_t) { 1000, 0, 1000, 0 };
@@ -133,11 +166,11 @@ esp_err_t rmt_new_led_strip_encoder_2(const led_strip_encoder_config_t *config, 
 // ============================================================================
 
 void init_rmt_driver() {
-    printf("init_rmt_driver\n");
+    LOG_INFO(TAG_LED, "init_rmt_driver");
 #if __has_include(<driver/rmt_tx.h>)
-    printf("USING RMT V2 API (rmt_tx.h)\n");
+    LOG_INFO(TAG_LED, "USING RMT V2 API (rmt_tx.h)");
 #else
-    printf("USING LEGACY RMT V1 API\n");
+    LOG_INFO(TAG_LED, "USING LEGACY RMT V1 API");
 #endif
 
     // ========== PRIMARY CHANNEL (GPIO 5) ==========
@@ -151,17 +184,17 @@ void init_rmt_driver() {
         .flags = { .with_dma = 1 },            // DMA enabled to reduce ISR pressure
     };
 
-	printf("rmt_new_tx_channel (primary)\n");
+LOG_DEBUG(TAG_LED, "rmt_new_tx_channel (primary)");
 	ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &tx_chan));
 
     ESP_LOGI(TAG, "Install led strip encoder (primary)");
     led_strip_encoder_config_t encoder_config = {
         .resolution = 20000000,
     };
-	printf("rmt_new_led_strip_encoder (primary)\n");
+LOG_DEBUG(TAG_LED, "rmt_new_led_strip_encoder (primary)");
 	ESP_ERROR_CHECK(rmt_new_led_strip_encoder(&encoder_config, &led_encoder));
 
-	printf("rmt_enable (primary)\n");
+LOG_DEBUG(TAG_LED, "rmt_enable (primary)");
 	ESP_ERROR_CHECK(rmt_enable(tx_chan));
 
     // ========== SECONDARY CHANNEL (GPIO 4) ==========
@@ -175,22 +208,22 @@ void init_rmt_driver() {
         .flags = { .with_dma = 1 },              // DMA enabled to reduce ISR pressure
     };
 
-	printf("rmt_new_tx_channel (secondary) - GPIO %d\n", LED_DATA_PIN_2);
+LOG_DEBUG(TAG_LED, "rmt_new_tx_channel (secondary) - GPIO %d", LED_DATA_PIN_2);
 	esp_err_t ch2_result = rmt_new_tx_channel(&tx_chan_config_2, &tx_chan_2);
-	printf("  Secondary channel creation result: %s (0x%x)\n", esp_err_to_name(ch2_result), ch2_result);
-	printf("  tx_chan_2 handle = %p\n", tx_chan_2);
+LOG_DEBUG(TAG_LED, "  Secondary channel creation result: %s (0x%x)", esp_err_to_name(ch2_result), ch2_result);
+LOG_DEBUG(TAG_LED, "  tx_chan_2 handle = %p", tx_chan_2);
 	ESP_ERROR_CHECK(ch2_result);
 
     ESP_LOGI(TAG, "Install led strip encoder (secondary)");
-	printf("rmt_new_led_strip_encoder_2 (secondary)\n");
+LOG_DEBUG(TAG_LED, "rmt_new_led_strip_encoder_2 (secondary)");
 	esp_err_t enc2_result = rmt_new_led_strip_encoder_2(&encoder_config, &led_encoder_2);
-	printf("  Secondary encoder creation result: %s (0x%x)\n", esp_err_to_name(enc2_result), enc2_result);
-	printf("  led_encoder_2 handle = %p\n", led_encoder_2);
+LOG_DEBUG(TAG_LED, "  Secondary encoder creation result: %s (0x%x)", esp_err_to_name(enc2_result), enc2_result);
+LOG_DEBUG(TAG_LED, "  led_encoder_2 handle = %p", led_encoder_2);
 	ESP_ERROR_CHECK(enc2_result);
 
-	printf("rmt_enable (secondary)\n");
+LOG_DEBUG(TAG_LED, "rmt_enable (secondary)");
 	esp_err_t en2_result = rmt_enable(tx_chan_2);
-	printf("  Secondary channel enable result: %s (0x%x)\n", esp_err_to_name(en2_result), en2_result);
+LOG_DEBUG(TAG_LED, "  Secondary channel enable result: %s (0x%x)", esp_err_to_name(en2_result), en2_result);
 	ESP_ERROR_CHECK(en2_result);
 
     // Register RMT probe callbacks for telemetry (measures refill cadence and max gaps)
@@ -198,19 +231,19 @@ void init_rmt_driver() {
     rmt_probe_init(tx_chan,   "ch1");
     rmt_probe_init(tx_chan_2, "ch2");
 
-	printf("SECONDARY CHANNEL FULLY INITIALIZED - GPIO %d READY\n", LED_DATA_PIN_2);
+LOG_INFO(TAG_LED, "SECONDARY CHANNEL FULLY INITIALIZED - GPIO %d READY", LED_DATA_PIN_2);
 
 	// Critical debug: Verify global handles
-	printf("DEBUG: Global handle verification:\n");
-	printf("  tx_chan (primary) = %p\n", tx_chan);
-	printf("  tx_chan_2 (secondary) = %p\n", tx_chan_2);
-	printf("  led_encoder (primary) = %p\n", led_encoder);
-	printf("  led_encoder_2 (secondary) = %p\n", led_encoder_2);
-	printf("  &strip_encoder = %p\n", &strip_encoder);
-	printf("  &strip_encoder_2 = %p\n", &strip_encoder_2);
+LOG_DEBUG(TAG_LED, "DEBUG: Global handle verification:");
+LOG_DEBUG(TAG_LED, "  tx_chan (primary) = %p", tx_chan);
+LOG_DEBUG(TAG_LED, "  tx_chan_2 (secondary) = %p", tx_chan_2);
+LOG_DEBUG(TAG_LED, "  led_encoder (primary) = %p", led_encoder);
+LOG_DEBUG(TAG_LED, "  led_encoder_2 (secondary) = %p", led_encoder_2);
+LOG_DEBUG(TAG_LED, "  &strip_encoder = %p", &strip_encoder);
+LOG_DEBUG(TAG_LED, "  &strip_encoder_2 = %p", &strip_encoder_2);
 
 	if (tx_chan_2 == NULL || led_encoder_2 == NULL) {
-		printf("FATAL ERROR: Secondary channel handles are NULL!\n");
+        LOG_ERROR(TAG_LED, "FATAL ERROR: Secondary channel handles are NULL!");
 		while(1) { vTaskDelay(1000); }  // Halt if initialization failed
 	}
 }
@@ -227,7 +260,7 @@ rmt_channel_t v1_rmt_channel_2 = RMT_CHANNEL_1;
 rmt_item32_t v1_items_2[NUM_LEDS * 24 + 64];     // Secondary buffer
 
 void init_rmt_driver() {
-    printf("USING LEGACY RMT V1 - ADDING DUAL CHANNEL SUPPORT\n");
+    LOG_INFO(TAG_LED, "USING LEGACY RMT V1 - ADDING DUAL CHANNEL SUPPORT");
 
     // PRIMARY CHANNEL (GPIO 5, RMT Channel 0)
     rmt_config_t config = {};
@@ -244,15 +277,15 @@ void init_rmt_driver() {
 
     esp_err_t err = rmt_config(&config);
     if (err != ESP_OK) {
-        printf("Primary rmt_config failed: %d\n", (int)err);
+        LOG_ERROR(TAG_LED, "Primary rmt_config failed: %d", (int)err);
         return;
     }
 
     err = rmt_driver_install(config.channel, 0, 0);
     if (err != ESP_OK) {
-        printf("Primary rmt_driver_install failed: %d\n", (int)err);
+        LOG_ERROR(TAG_LED, "Primary rmt_driver_install failed: %d", (int)err);
     } else {
-        printf("Primary channel (GPIO %d) initialized OK\n", LED_DATA_PIN);
+        LOG_INFO(TAG_LED, "Primary channel (GPIO %d) initialized OK", LED_DATA_PIN);
     }
 
     // SECONDARY CHANNEL (GPIO 4, RMT Channel 1)
@@ -270,17 +303,17 @@ void init_rmt_driver() {
 
     err = rmt_config(&config2);
     if (err != ESP_OK) {
-        printf("Secondary rmt_config failed: %d\n", (int)err);
+        LOG_ERROR(TAG_LED, "Secondary rmt_config failed: %d", (int)err);
         return;
     }
 
     err = rmt_driver_install(config2.channel, 0, 0);
     if (err != ESP_OK) {
-        printf("Secondary rmt_driver_install failed: %d\n", (int)err);
+        LOG_ERROR(TAG_LED, "Secondary rmt_driver_install failed: %d", (int)err);
     } else {
-        printf("Secondary channel (GPIO %d) initialized OK\n", LED_DATA_PIN_2);
+        LOG_INFO(TAG_LED, "Secondary channel (GPIO %d) initialized OK", LED_DATA_PIN_2);
     }
-    printf("Legacy RMT v1 secondary channel ready on GPIO 4\n");
+    LOG_INFO(TAG_LED, "Legacy RMT v1 secondary channel ready on GPIO 4");
 }
 #else
 void init_rmt_driver() {
