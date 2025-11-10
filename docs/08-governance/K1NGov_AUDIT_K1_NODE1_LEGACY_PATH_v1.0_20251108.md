@@ -65,7 +65,7 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 - Line 204: `- **Quick Reference**: \`/docs/05-analysis/led_driver_refactoring_summary.md\` (one-page summary for engineers)`
 - Context: ADR references (NOTE: These are actually docs/analysis references)
 
-**7. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0006-codegen-abandonment.md**
+**7. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md**
 - Line 11: `  - docs/01-architecture/K1_ARCHITECTURAL_REVIEW.md`
 - Line 12: `  - docs/01-architecture/ARCHITECTURAL_REVIEW_SUMMARY.md`
 - Context: Front matter related_docs list
@@ -191,7 +191,7 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 - Line 20: `- BOTTLENECK_N from docs/05-analysis/{subsystem}/bottleneck_matrix.md`
 - Update to: `docs/05-analysis/{subsystem}/bottleneck_matrix.md`
 
-**10. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0006-codegen-abandonment.md**
+**10. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md**
 - Line 26: `- Finding #2 from \`docs/09-reports/COMPLETE_AUDIT_SYNTHESIS_PHASE2D1.md\``
 - Line 395: `- **ADR README:** \`docs/02-adr/README.md\` (ADR process & governance)`
 - Update to: `docs/02-adr/README.md` and `docs/09-reports/COMPLETE_AUDIT_SYNTHESIS_PHASE2D1.md`
@@ -253,7 +253,7 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 - Line 204: `- **Quick Reference**: \`/docs/05-analysis/led_driver_refactoring_summary.md\` (one-page summary for engineers)`
 - Update to: `/docs/05-analysis/`
 
-**7. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0006-codegen-abandonment.md**
+**7. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md**
 - Line 303: `- \`docs/05-analysis/firmware_technical_audit_phase2d1.md\` - Codegen finding (Finding #2)`
 - Line 376: `- **Pattern Reversibility Study:** \`docs/05-analysis/pattern_reverse_engineering_feasibility.md\` (1,582 lines)`
 - Line 378: `- **Executive Summary:** \`docs/05-analysis/K1NAnalysis_SUMMARY_PATTERN_ANALYSIS_EXECUTIVE_v1.0_20251108.md\``
@@ -391,7 +391,7 @@ K1.node1 codebase ALREADY has the numbered documentation structure implemented. 
 - Line 25: `- Validation Analysis: [docs/09-reports/poc_validation_analysis.md](../reports/poc_validation_analysis.md)`
 - Line 284: `- **PoC Decision:** [docs/09-reports/POC_FINAL_DECISION.md](../reports/POC_FINAL_DECISION.md)`
 
-**6. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0006-codegen-abandonment.md**
+**6. /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md**
 - Line 26: `- Finding #2 from \`docs/09-reports/COMPLETE_AUDIT_SYNTHESIS_PHASE2D1.md\``
 - Line 372: `- **Audit Synthesis:** \`docs/09-reports/COMPLETE_AUDIT_SYNTHESIS_PHASE2D1.md\` (Section 1.2: "Two-Stage Compilation Pipeline Not Implemented")`
 
@@ -529,7 +529,7 @@ Total files requiring updates: **16**
 |-----------|-------------------|----------|
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/CLAUDE.md | adr, architecture, analysis, planning, reports, templates, resources, guides | CRITICAL |
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/TASKS.md | architecture, analysis, adr, planning, reports, templates | HIGH |
-| /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0006-codegen-abandonment.md | architecture, analysis, reports, adr | HIGH |
+| /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md | architecture, analysis, reports, adr | HIGH |
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/02-adr/ADR-0011-institutional-memory-adoption.md | reports, resources | HIGH |
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/04-planning/K1NPlan_PLAN_K1_MIGRATION_MASTER_v1.0_20251108.md | adr, architecture, analysis, planning, reports, guides, reference, templates | HIGH |
 | /Users/spectrasynq/Workspace_Management/Software/K1.node1/docs/09-implementation/K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md | adr, planning, reports, architecture, analysis | MEDIUM |
