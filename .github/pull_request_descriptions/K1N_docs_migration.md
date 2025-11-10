@@ -21,7 +21,7 @@ Realigns project documentation to the K1N naming convention while preserving fol
 ## Not Changed
 
 - Folder names remain as-is (no structure changes)
-- ADRs under `docs/02-adr/ADR-*.md` keep canonical ADR naming
+- ADRs under `docs/02-adr/K1NADR_*.md` use canonical K1NADR naming
 - Preserved specialized nested docs:
   - `docs/05-analysis/tab5/**`
   - `docs/03-guides/builderio.starterkit/**` and `docs/03-guides/builderio.guide/**`
@@ -30,7 +30,7 @@ Realigns project documentation to the K1N naming convention while preserving fol
 ## Validator
 
 - Extended `.githooks/pre-commit` to validate K1N naming for docs
-- Exemptions: `docs/archive/**`, `docs/02-adr/ADR-*.md`, `README.md`, `docs/_README_TEMPLATE.md`, `docs/05-analysis/Conductor/**`, `docs/05-analysis/tab5/**`, and `docs/03-guides/builderio*`
+- Exemptions: `docs/archive/**`, `docs/02-adr/K1NADR_*.md`, `README.md`, `docs/_README_TEMPLATE.md`, `docs/05-analysis/Conductor/**`, `docs/05-analysis/tab5/**`, and `docs/03-guides/builderio*`
 - Blocking ON by default (set `DOCS_NAMING_ENFORCE=0` to temporarily allow commits)
 
 ## Migration Report
@@ -63,4 +63,3 @@ Realigns project documentation to the K1N naming convention while preserving fol
 
 - Decide if preserved nested docs should be migrated in a future pass
 - If stable, keep validator in blocking mode in CI and developer environments
-

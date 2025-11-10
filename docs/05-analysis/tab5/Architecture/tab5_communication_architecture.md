@@ -5,7 +5,7 @@ date: 2025-11-05
 status: proposed
 scope: Tab5 ↔ K1.node1 network protocol and control flow
 related:
-  - docs/02-adr/ADR-0001-tab5-protocol-choice.md (to be created)
+- docs/02-adr/K1NADR_0001_TAB5_PROTOCOL_CHOICE_v1.0_20251110.md (to be created)
   - docs/09-implementation/tab5_implementation_guide.md (to be created)
 tags: [architecture, tab5, networking, websocket, rest, real-time]
 ---

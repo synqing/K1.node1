@@ -58,7 +58,7 @@
 
 ### 1. Architecture Decision Record
 
-**File:** `docs/02-adr/ADR-0019-conductor-deployment-resilience.md`
+**File:** `docs/02-adr/K1NADR_0019_CONDUCTOR_DEPLOYMENT_RESILIENCE_v1.0_20251110.md`
 **Purpose:** Documents 3-tier fallback architecture decision
 **Key Sections:**
 - Context (3 critical risks)

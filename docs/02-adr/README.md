@@ -208,7 +208,7 @@ Examples:
 ## Quick Reference
 
 **Creating an ADR:**
-1. `cp ADR-template.md ADR-0001-your-decision.md`
+1. `cp K1NADR_TEMPLATE_v1.0_20251110.md K1NADR_0001_YOUR_DECISION_v1.0_YYYYMMDD.md`
 2. Fill all sections
 3. Link from source analysis
 4. Request review via PR

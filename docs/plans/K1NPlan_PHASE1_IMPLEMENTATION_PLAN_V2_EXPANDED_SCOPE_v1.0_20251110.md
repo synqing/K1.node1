@@ -1018,7 +1018,7 @@ For each of 35-40 node types, implement code generator:
    - Troubleshooting (common errors, validation messages)
    - Performance tuning (scratch cap, DCE implications)
 
-2. Create `docs/02-adr/ADR-0010-graph-compiler-architecture.md`:
+2. Create `docs/02-adr/K1NADR_0010_GRAPH_COMPILER_ARCHITECTURE_v1.0_20251110.md`:
    - Status: `accepted`
    - Decision: 5-stage pipeline (parse, validate, optimize, schedule, emit)
    - Trade-offs: clarity vs. single-pass simplicity
@@ -1314,4 +1314,3 @@ Days 9–11 (Validation + Docs + Handoff):
 **This plan is ALIGNED WITH:** `docs/04-planning/K1NPlan_TASK_ROADMAP_CORRECTED_v1.0_20251110.md` (AUTHORITATIVE)
 
 **Valid through:** Phase 1 completion (Day 11, November 21, 2025)
-

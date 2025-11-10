@@ -321,7 +321,7 @@ If issues arise during implementation:
 - **Primary Document:** `/docs/AUDIT_REPORT_2025_11_05.md`
 - **Implementation Plan:** `/docs/04-planning/K1NPlan_AUDIT_PHASE_2D1_START_HERE_v1.0_20251108.md`
 - **Governance Standards:** `/docs/08-governance/K1NGov_GOVERNANCE_v1.0_20251108.md`
-- **ADR Template:** `/docs/02-adr/ADR-template.md`
+- **ADR Template:** `/docs/02-adr/K1NADR_TEMPLATE_v1.0_20251110.md`
 
 ---
 

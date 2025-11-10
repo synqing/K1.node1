@@ -62,7 +62,7 @@ Lean, numbered navigation for repository documentation. This index maps to exist
 - **ADR-0009-phase-2d1-critical-fixes.md** ⭐ - Phase 2D1 critical fixes and decisions
 - **ADR-0008-pattern-migration-strategy.md** - Pattern migration approach
 - **ADR-0007-stateful-node-architecture.md** - Stateful node architectural choice
-- **ADR-0006-codegen-abandonment.md** - Code generation tool decision
+- **K1NADR_0006_CODEGEN_ABANDONMENT_v1.0_20251110.md** - Code generation tool decision
 - **ADR-0005-folder-structure.md** - Documentation folder structure
 - **ADR-0004-documentation-governance.md** - Documentation governance standards
 - **ADR-0003-parallel-execution-model.md** - Parallel execution model decision

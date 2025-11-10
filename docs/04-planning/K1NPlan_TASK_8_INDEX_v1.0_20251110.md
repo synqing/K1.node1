@@ -276,7 +276,7 @@ Complete JSON schema definition with 4 working examples.
 2. `/docs/04-planning/K1NPlan_TASK_8_EXECUTIVE_SUMMARY_v1.0_20251110.md` (CREATED)
 3. `/docs/06-reference/SPECTRUM_GRAPH_SCHEMA_AND_EXAMPLES.json` (CREATED)
 4. `/docs/09-implementation/SPECTRUM_CODEGEN_IMPLEMENTATION_GUIDE.md` (TO CREATE M6)
-5. `/docs/02-adr/ADR-0020-spectrum-graph-codegen.md` (TO CREATE M6)
+5. `/docs/02-adr/K1NADR_0020_CODE_GENERATION_ARCHITECTURE_v1.0_20251110.md` (TO CREATE M6)
 
 ### Code
 6. `/firmware/src/graph_codegen/graph_runtime.h` (MODIFY M2)

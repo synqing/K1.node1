@@ -97,7 +97,7 @@ NO POST-HOC CHANGES ALLOWED:
 - Criteria locked in this meeting; cannot change post-Nov 13
 ```
 
-**Document:** Save in `docs/02-adr/ADR-0018-phase3-decision-gate.md`
+**Document:** Save in `docs/02-adr/K1NADR_0018_PHASE3_DECISION_GATE_v1.0_20251110.md`
 
 **Approval Checklist:**
 - [ ] All stakeholders agree to criteria? (document signatures)

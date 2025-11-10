@@ -4,7 +4,7 @@ date: 2025-11-06
 status: draft
 intent: Deep technical execution plan for Dual Independent LED Channel architecture (Task 21)
 related:
-  - docs/02-adr/ADR-0018-dual-channel-leds.md
+  - docs/02-adr/K1NADR_0018_DUAL_CHANNEL_LEDS_v1.0_20251110.md
   - firmware/src/main.cpp
   - firmware/src/led_driver.h
   - firmware/src/parameters.cpp
@@ -294,7 +294,7 @@ Add channel-aware endpoints while keeping legacy compatibility:
 ## 9. Deliverables & Artifacts
 - **Firmware code:** `firmware/src/render_channel.*`, `visual_scheduler.*`, refactored `led_driver.*`, pattern runtime updates, parameter routing.
 - **Docs:**
-  - Update `docs/02-adr/ADR-0018-dual-channel-leds.md` to `accepted` with new scheduler diagram.
+- Update `docs/02-adr/K1NADR_0018_DUAL_CHANNEL_LEDS_v1.0_20251110.md` to `accepted` with new scheduler diagram.
   - Create `docs/09-implementation/dual_channel_runbook.md` focusing on wiring, configuration, validation scripts.
   - Append migration notes to `docs/04-planning/K1NPlan_STRATEGY_PHASE_2D1_GRAPH_PARALLEL_MASTER_v1.0_20251108.md` linking to this blueprint.
 - **Tests:** Add integration harness capturing dual-channel timings (serial logging or WebSocket). Extend firmware unit tests verifying parameter isolation.
