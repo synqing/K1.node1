@@ -50,3 +50,5 @@ This document outlines the initial phase of a major firmware refactoring. The ke
 - The introduction of a `PatternRenderContext` to provide a clean, dependency-injected interface for all pattern rendering.
 
 All tasks in the initial migration roadmap are now complete. The firmware is now in a more modular state, with clearer dependencies and a solid foundation for future development.
+
+For the next phase of refactoring, which focuses on consolidating duplicated helper functions, please refer to the [Helper Function Consolidation Plan](../04-planning/RFC_HELPER_CONSOLIDATION.md).

@@ -4,7 +4,7 @@
 #pragma once
 #include "../pattern_base.h"
 #include "../pattern_audio_interface.h"
-#include "../emotiscope_helpers.h"
+#include "../pattern_helpers.h"
 #include "../logging/logger.h"
 
 // Test pattern that visualizes the 5 new audio parameters

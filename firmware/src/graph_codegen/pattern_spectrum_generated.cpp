@@ -3,6 +3,7 @@
 #include "../stateful_nodes.h"
 #include "../parameters.h"
 #include "../pattern_audio_interface.h"
+#include "../pattern_helpers.h"
 
 // Forward declaration of the global LEDs buffer
 extern CRGBF leds[NUM_LEDS];
@@ -83,7 +84,7 @@ void draw_spectrum_generated(float time, const PatternParameters& params) {
         float hue = bin_float / (float)NUM_FREQ_BINS;
         float sat = 0.95f;
         float value = magnitude * params.brightness;
-        CRGBF color = hsv_to_rgb(hue, sat, value);
+        CRGBF color = hsv(hue, sat, value);
 
         // Write symmetrically to the temporary buffer
         tmp_rgb0[half_leds - 1 - i] = color;

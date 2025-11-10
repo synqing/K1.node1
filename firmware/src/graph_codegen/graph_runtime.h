@@ -171,28 +171,6 @@ inline void compose_layers(const CRGBF* base, const CRGBF* overlay, CRGBF* out,
 // COLOR OPERATIONS
 // ============================================================================
 
-/**
- * HSV to RGB conversion
- */
-inline CRGBF hsv_to_rgb(float h, float s, float v) {
-    // Wrap hue to [0, 1)
-    h = h - floorf(h);
-
-    float c = v * s;
-    float h_prime = h * 6.0f;
-    float x = c * (1.0f - fabsf(fmodf(h_prime, 2.0f) - 1.0f));
-
-    CRGBF rgb1;
-    if (h_prime < 1.0f) { rgb1 = {c, x, 0.0f}; }
-    else if (h_prime < 2.0f) { rgb1 = {x, c, 0.0f}; }
-    else if (h_prime < 3.0f) { rgb1 = {0.0f, c, x}; }
-    else if (h_prime < 4.0f) { rgb1 = {0.0f, x, c}; }
-    else if (h_prime < 5.0f) { rgb1 = {x, 0.0f, c}; }
-    else { rgb1 = {c, 0.0f, x}; }
-
-    float m = v - c;
-    return {rgb1.r + m, rgb1.g + m, rgb1.b + m};
-}
 
 /**
  * Desaturate to grayscale

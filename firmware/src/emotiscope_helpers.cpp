@@ -134,38 +134,6 @@ float get_color_range_hue(float progress) {
 	return progress * 0.66f;
 }
 
-CRGBF hsv_enhanced(float h, float s, float v) {
-	h = std::fmod(h, 1.0f);
-	if (h < 0.0f) {
-		h += 1.0f;
-	}
-
-	s = clip_float(s);
-	v = clip_float(v);
-
-	if (s < 0.001f) {
-		return CRGBF(v, v, v);
-	}
-
-	float h_sector = h * 6.0f;
-	int sector = static_cast<int>(h_sector);
-	float f = h_sector - static_cast<float>(sector);
-
-	float p = v * (1.0f - s);
-	float q = v * (1.0f - s * f);
-	float t = v * (1.0f - s * (1.0f - f));
-
-	switch (sector % 6) {
-		case 0: return CRGBF(v, t, p);
-		case 1: return CRGBF(q, v, p);
-		case 2: return CRGBF(p, v, t);
-		case 3: return CRGBF(p, q, v);
-		case 4: return CRGBF(t, p, v);
-		case 5: return CRGBF(v, p, q);
-		default: return CRGBF(0.0f, 0.0f, 0.0f);
-	}
-}
-
 void draw_sprite(CRGBF* target, CRGBF* source, int target_size,
                  int source_size, float position, float alpha) {
 	if (target == nullptr || source == nullptr ||

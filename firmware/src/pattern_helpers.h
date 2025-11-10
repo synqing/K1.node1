@@ -27,48 +27,36 @@ inline void apply_background_overlay(const PatternRenderContext& context) {
     }
 }
 
-/**
- * HSV to RGB color conversion
- * Input: h, s, v all in range 0.0-1.0
- * Output: CRGBF with r, g, b in range 0.0-1.0
- *
- * Used by beat/tempo reactive patterns to generate colors from hue values
- */
+#define HSV_HUE_ENTRIES 256
+extern CRGBF hue_wheel[HSV_HUE_ENTRIES];
+void init_hue_wheel_lut();
+
+inline float hsv_clip(float val) {
+    return fmax(0.0f, fmin(1.0f, val));
+}
+
 inline CRGBF hsv(float h, float s, float v) {
-	// Normalize hue to 0-1 range
-	h = fmodf(h, 1.0f);
-	if (h < 0.0f) h += 1.0f;
+    // Clamp inputs to valid range
+    h = hsv_clip(h);
+    s = hsv_clip(s);
+    v = hsv_clip(v);
 
-	// Clamp saturation and value
-	s = fmaxf(0.0f, fminf(1.0f, s));
-	v = fmaxf(0.0f, fminf(1.0f, v));
+    // Step 1: Look up base hue from pre-computed wheel
+    int hue_idx = (int)(h * (HSV_HUE_ENTRIES - 1));
+    CRGBF base = hue_wheel[hue_idx];
 
-	// Handle achromatic (gray) case
-	if (s == 0.0f) {
-		return CRGBF(v, v, v);
-	}
+    // Step 2: Desaturate by blending toward white
+    float desat = 1.0f - s;
+    base.r = base.r * s + desat;
+    base.g = base.g * s + desat;
+    base.b = base.b * s + desat;
 
-	// Convert HSV to RGB using standard algorithm
-	float h_i = h * 6.0f;
-	int i = (int)h_i;
-	float f = h_i - floorf(h_i);
+    // Step 3: Apply brightness scaling
+    base.r *= v;
+    base.g *= v;
+    base.b *= v;
 
-	float p = v * (1.0f - s);
-	float q = v * (1.0f - s * f);
-	float t = v * (1.0f - s * (1.0f - f));
-
-	CRGBF result;
-	switch (i % 6) {
-		case 0: result = CRGBF(v, t, p); break;
-		case 1: result = CRGBF(q, v, p); break;
-		case 2: result = CRGBF(p, v, t); break;
-		case 3: result = CRGBF(p, q, v); break;
-		case 4: result = CRGBF(t, p, v); break;
-		case 5: result = CRGBF(v, p, q); break;
-		default: result = CRGBF(0.0f, 0.0f, 0.0f); break;
-	}
-
-	return result;
+    return base;
 }
 
 struct HSVF {
