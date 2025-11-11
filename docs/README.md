@@ -13,11 +13,24 @@ Central documentation hub for all K1.node1 project information, decisions, plans
 
 - **Comprehensive API Index:** `09-implementation/api-index.md`
 - **API Reference (selected endpoints):** `06-reference/firmware-api.md`
+- **API Reference (complete):** `06-reference/K1NRef_FIRMWARE_API_COMPLETE_v1.0_20251111.md`
+- **OpenAPI Spec (YAML):** `06-reference/firmware_openapi.yaml`
 - **API Quick Tests:** `09-implementation/api-quick-tests.md`
 - **Realtime WebSocket Protocol:** `06-reference/realtime-websocket.md`
 - **Rate‑Limit Policy:** `06-reference/rate-limit-policy.md`
 - **Endpoint Specs (Top Routes):** `06-reference/endpoint-specs.md`
 - **HTTP Server Architecture:** `09-implementation/http-architecture.md`
+
+### Phase 2 Completion & Validation
+
+- **Phase 2 Completion Report:** `09-reports/K1NReport_PHASE2_COMPLETION_v1.0_20251111.md`
+- **Validation Script:** `tools/validate_phase2.sh <device-ip-or-url>`
+- **Key Endpoints:** `/api/select`, `/api/frame-metrics`, `/api/leds/frame`
+
+### Endpoint Expansions (Phase 2)
+- **Reference:** `06-reference/K1NRef_ENDPOINT_EXPANSIONS_PHASE2_v1.0_20251111.md`
+- Adds query params (`limit`, `step`, `fmt=hsv`) and monitoring
+- Introduces `/api/visual/config` and `/api/v1/*` aliases
 
 ### Start Here: Graph System
 
