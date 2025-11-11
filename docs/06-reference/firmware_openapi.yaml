@@ -1,0 +1,1203 @@
+# yaml-language-server: $schema=https://spec.openapis.org/oas/3.0/schema/2021-09-28
+# cSpell:words Downsampling Downsample chromagram RRGGBB rssi
+openapi: "3.0.3"
+info:
+  title: K1 Firmware HTTP API
+  description: |
+    OpenAPI 3.0 specification for the K1 node firmware HTTP server.
+    This mirrors the comprehensive API reference documented in `K1NRef_FIRMWARE_API_COMPLETE_v1.0_20251111.md`.
+
+    Notes:
+    - Most endpoints are available at `/api/*` and have versioned aliases at `/api/v1/*`.
+    - Error responses are standardized (see `ErrorResponse`).
+    - Some endpoints return attachments with `Content-Disposition` headers (documented where applicable).
+  version: 1.0.0-2025-11-11
+servers:
+  - url: http://{deviceHost}
+    description: Device HTTP server
+    variables:
+      deviceHost:
+        default: "192.168.4.1"
+        description: Device IP or hostname
+tags:
+  - name: Core
+  - name: Device
+  - name: Patterns
+  - name: Parameters
+  - name: Palettes
+  - name: Frame
+  - name: Audio
+  - name: Beat & Latency
+  - name: RMT
+  - name: WiFi
+  - name: Diagnostics
+  - name: Realtime
+  - name: Config
+
+paths:
+  /api/health:
+    get:
+      tags: [Core]
+      summary: Health status
+      description: Returns status ok and system metrics.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/test-connection:
+    get:
+      tags: [Core]
+      summary: Connectivity test
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  timestamp:
+                    type: integer
+                    format: int64
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/device-info:
+    get:
+      tags: [Device]
+      summary: Device information
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceInfo'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/device-performance:
+    get:
+      tags: [Device]
+      summary: Device performance metrics
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevicePerformance'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/patterns:
+    get:
+      tags: [Patterns]
+      summary: List available patterns
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatternList'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/palettes:
+    get:
+      tags: [Palettes]
+      summary: List available palettes
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaletteList'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/params:
+    get:
+      tags: [Parameters]
+      summary: Get parameter values
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParamsResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Parameters]
+      summary: Update parameter values
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParamsUpdateRequest'
+      responses:
+        '200':
+          description: Updated values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParamsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/params/bounds:
+    get:
+      tags: [Parameters]
+      summary: Get parameter bounds
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParamsBoundsResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/frame-metrics:
+    get:
+      tags: [Frame]
+      summary: Frame rendering metrics
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 16
+          description: Number of historical frames to include (max 16)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrameMetricsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/leds/frame:
+    get:
+      tags: [Frame]
+      summary: Current LED frame data
+      parameters:
+        - in: query
+          name: n
+          schema:
+            type: integer
+            minimum: 0
+          description: Max number of LED entries to include (default NUM_LEDS)
+        - in: query
+          name: step
+          schema:
+            type: integer
+            minimum: 1
+          description: Downsampling stride (default 1)
+        - in: query
+          name: fmt
+          schema:
+            type: string
+            enum: [hex, rgb, hsv]
+          description: Output format (default hex)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LedFrameResponse'
+        '400':
+          description: Invalid format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/audio-config:
+    get:
+      tags: [Audio]
+      summary: Get audio configuration
+      parameters:
+        - in: query
+          name: monitor
+          schema:
+            type: integer
+            enum: [0,1]
+          description: Include real-time audio snapshot
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioConfigResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Audio]
+      summary: Update audio configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AudioConfigUpdateRequest'
+      responses:
+        '200':
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioConfigResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/audio-noise-calibrate:
+    post:
+      tags: [Audio]
+      summary: Trigger background noise calibration
+      responses:
+        '200':
+          description: Calibration started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/audio-tempo:
+    get:
+      tags: [Audio]
+      summary: Audio tempo and beat telemetry
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioTempoResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/audio-arrays:
+    get:
+      tags: [Audio]
+      summary: Spectrogram and tempi slices
+      parameters:
+        - in: query
+          name: count
+          schema: { type: integer, minimum: 1 }
+          description: Number of slices to return
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0 }
+          description: Offset into history buffer
+        - in: query
+          name: stride
+          schema: { type: integer, minimum: 1 }
+          description: Downsample stride across slices
+        - in: query
+          name: history
+          schema: { type: integer, minimum: 0 }
+          description: Use historical spectrogram instead of current frame
+        - in: query
+          name: frames
+          schema: { type: integer, minimum: 1 }
+          description: Number of frames per slice
+        - in: query
+          name: include_chromagram
+          schema: { type: integer, enum: [0,1] }
+        - in: query
+          name: include_novelty
+          schema: { type: integer, enum: [0,1] }
+        - in: query
+          name: novelty_count
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: order
+          schema: { type: string, enum: [oldest, newest] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioArraysResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/metrics:
+    get:
+      tags: [Core]
+      summary: Prometheus metrics
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/beat-events/info:
+    get:
+      tags: [Beat & Latency]
+      summary: Beat events buffer info
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RingBufferInfo'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/beat-events/recent:
+    get:
+      tags: [Beat & Latency]
+      summary: Recent beat events
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer }
+                  capacity: { type: integer }
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BeatEvent'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/beat-events/dump:
+    get:
+      tags: [Beat & Latency]
+      summary: Dump beat events as JSON attachment
+      responses:
+        '200':
+          description: OK
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BeatEvent'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/led-tx/info:
+    get:
+      tags: [Beat & Latency]
+      summary: LED TX buffer info
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RingBufferInfo'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/led-tx/recent:
+    get:
+      tags: [Beat & Latency]
+      summary: Recent LED TX timestamps
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: since_us
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: until_us
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: around_us
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: max_delta_us
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: order
+          schema: { type: string, enum: [oldest, newest] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer }
+                  capacity: { type: integer }
+                  timestamps_us:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/led-tx/dump:
+    get:
+      tags: [Beat & Latency]
+      summary: Dump LED TX timestamps as JSON attachment
+      parameters:
+        - in: query
+          name: order
+          schema: { type: string, enum: [oldest, newest] }
+        - in: query
+          name: since_us
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: until_us
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: around_us
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: max_delta_us
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: OK
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+                  format: int64
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/latency/probe:
+    get:
+      tags: [Beat & Latency]
+      summary: Latency snapshot
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LatencyProbeResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/latency/align:
+    get:
+      tags: [Beat & Latency]
+      summary: Align timestamps
+      parameters:
+        - in: query
+          name: t_us
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: max_delta_us
+          schema: { type: integer, format: int64 }
+        - in: query
+          name: strategy
+          schema: { type: string, enum: [nearest, before, after] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LatencyAlignResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/rmt/diag:
+    get:
+      tags: [RMT]
+      summary: RMT telemetry
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RmtDiagResponse'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/rmt/reset:
+    post:
+      tags: [RMT]
+      summary: Reset RMT counters
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/realtime/config:
+    get:
+      tags: [Realtime]
+      summary: Get realtime WS telemetry config
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeConfig'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Realtime]
+      summary: Update realtime WS telemetry config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RealtimeConfigUpdate'
+      responses:
+        '200':
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeConfig'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/diag:
+    get:
+      tags: [Diagnostics]
+      summary: Get diagnostics settings
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticsConfig'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Diagnostics]
+      summary: Update diagnostics settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosticsConfigUpdate'
+      responses:
+        '200':
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosticsConfig'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/config/backup:
+    get:
+      tags: [Config]
+      summary: Export full configuration as JSON attachment
+      responses:
+        '200':
+          description: OK
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigBackup'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/config/restore:
+    post:
+      tags: [Config]
+      summary: Import configuration from JSON
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigBackup'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/wifi/status:
+    get:
+      tags: [WiFi]
+      summary: Current WiFi status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WifiStatus'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/wifi/link-options:
+    get:
+      tags: [WiFi]
+      summary: Get WiFi link options
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WifiLinkOptions'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [WiFi]
+      summary: Update WiFi link options
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WifiLinkOptions'
+      responses:
+        '200':
+          description: Updated options
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WifiLinkOptions'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/wifi/credentials:
+    get:
+      tags: [WiFi]
+      summary: Get stored WiFi credentials (masked)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WifiCredentialsMasked'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [WiFi]
+      summary: Update WiFi credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WifiCredentialsUpdate'
+      responses:
+        '200':
+          description: Updated credentials saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WifiCredentialsMasked'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/wifi/scan:
+    post:
+      tags: [WiFi]
+      summary: Trigger WiFi network scan (async)
+      responses:
+        '200':
+          description: Scan initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [started]
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/wifi/scan/results:
+    get:
+      tags: [WiFi]
+      summary: Get WiFi scan results
+      description: May log results to serial; response content can be minimal.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: logging_to_serial
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimited:
+      description: Too Many Requests
+      headers:
+        X-RateLimit-Window:
+          schema: { type: integer }
+        X-RateLimit-NextAllowedMs:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServerError:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+        message: { type: string }
+        timestamp: { type: integer, format: int64 }
+        status: { type: integer }
+
+    HealthResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [ok] }
+        uptime_ms: { type: integer }
+        fps: { type: number }
+        cpu_percent: { type: number }
+        memory_free_kb: { type: integer }
+        memory_total_kb: { type: integer }
+        wifi:
+          $ref: '#/components/schemas/WifiStatus'
+
+    DeviceInfo:
+      type: object
+      properties:
+        device: { type: string }
+        uptime_ms: { type: integer }
+        ip: { type: string }
+        mac: { type: string }
+        build:
+          type: object
+          properties:
+            arduino: { type: string }
+            idf_ver: { type: string }
+            platformio_platform: { type: string }
+            framework: { type: string }
+
+    DevicePerformance:
+      type: object
+      properties:
+        fps: { type: number }
+        frame_time_us: { type: integer }
+        avg_render_us: { type: integer }
+        avg_quantize_us: { type: integer }
+        avg_rmt_wait_us: { type: integer }
+        avg_rmt_tx_us: { type: integer }
+        cpu_percent: { type: number }
+        heap_free: { type: integer }
+        heap_total: { type: integer }
+        memory_percent: { type: number }
+
+    PatternList:
+      type: object
+      description: Shape mirrors build_patterns_json()
+      properties:
+        patterns:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              audio_reactive: { type: boolean }
+
+    PaletteList:
+      type: object
+      description: Shape mirrors build_palettes_json()
+      properties:
+        palettes:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+
+    ParamsResponse:
+      type: object
+      additionalProperties:
+        oneOf:
+          - { type: number }
+          - { type: integer }
+          - { type: string }
+          - { type: boolean }
+
+    ParamsUpdateRequest:
+      type: object
+      additionalProperties:
+        oneOf:
+          - { type: number }
+          - { type: integer }
+          - { type: string }
+          - { type: boolean }
+
+    ParamsBoundsResponse:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          min: { type: number }
+          max: { type: number }
+          type: { type: string, nullable: true }
+
+    FrameMetricsResponse:
+      type: object
+      properties:
+        frame_count: { type: integer }
+        buffer_size: { type: integer }
+        avg_render_us: { type: integer }
+        avg_quantize_us: { type: integer }
+        avg_rmt_wait_us: { type: integer }
+        avg_rmt_tx_us: { type: integer }
+        avg_total_us: { type: integer }
+        frames:
+          type: array
+          items:
+            type: object
+            properties:
+              render_us: { type: integer }
+              quantize_us: { type: integer }
+              total_us: { type: integer }
+              heap_free: { type: integer }
+              fps: { type: number }
+
+    LedFrameResponse:
+      type: object
+      properties:
+        count: { type: integer }
+        limit: { type: integer }
+        format: { type: string, enum: [hex, rgb, hsv] }
+        step: { type: integer }
+        data:
+          type: array
+          items:
+            oneOf:
+              - { type: string, description: "HEX RGB color (e.g., '#RRGGBB')" }
+              - type: object
+                properties:
+                  r: { type: integer, minimum: 0, maximum: 255 }
+                  g: { type: integer, minimum: 0, maximum: 255 }
+                  b: { type: integer, minimum: 0, maximum: 255 }
+              - type: object
+                properties:
+                  h: { type: number }
+                  s: { type: number }
+                  v: { type: number }
+
+    AudioConfigResponse:
+      type: object
+      properties:
+        mic_gain: { type: number }
+        vu_floor: { type: number }
+        active: { type: boolean }
+        tuning:
+          type: object
+          properties:
+            audio_sensitivity: { type: number }
+            audio_responsiveness: { type: number }
+            bass_treble_balance: { type: number }
+        monitor:
+          type: object
+          nullable: true
+          properties:
+            vu_level: { type: number }
+            tempo_confidence: { type: number }
+            timestamp_us: { type: integer, format: int64 }
+
+    AudioConfigUpdateRequest:
+      type: object
+      properties:
+        mic_gain: { type: number }
+        vu_floor: { type: number }
+        active: { type: boolean }
+        audio_sensitivity: { type: number }
+        audio_responsiveness: { type: number }
+        bass_treble_balance: { type: number }
+
+    AudioTempoResponse:
+      type: object
+      properties:
+        tempo_bpm: { type: number }
+        confidence: { type: number }
+        last_beat_us: { type: integer, format: int64 }
+
+    AudioArraysResponse:
+      type: object
+      properties:
+        meta:
+          type: object
+          properties:
+            count: { type: integer }
+            offset: { type: integer }
+            stride: { type: integer }
+            history: { type: integer }
+            frames: { type: integer }
+            order: { type: string, enum: [oldest, newest] }
+            bins:
+              type: object
+              properties:
+                spectrogram_bins: { type: integer }
+                tempi_bins: { type: integer }
+        spectrogram:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        tempi_slices:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        chromagram:
+          type: array
+          nullable: true
+          items:
+            type: array
+            items:
+              type: number
+        novelty_curve:
+          type: array
+          nullable: true
+          items:
+            type: number
+
+    RingBufferInfo:
+      type: object
+      properties:
+        capacity: { type: integer }
+        count: { type: integer }
+
+    BeatEvent:
+      type: object
+      properties:
+        timestamp_us: { type: integer, format: int64 }
+        confidence: { type: number }
+
+    LatencyProbeResponse:
+      type: object
+      properties:
+        timestamp_us: { type: integer, format: int64 }
+        render_us: { type: integer }
+        quantize_us: { type: integer }
+        rmt_wait_us: { type: integer }
+        rmt_tx_us: { type: integer }
+
+    LatencyAlignResponse:
+      type: object
+      properties:
+        input_timestamp_us: { type: integer, format: int64 }
+        aligned_timestamp_us: { type: integer, format: int64 }
+        delta_us: { type: integer, format: int64 }
+        strategy: { type: string }
+
+    RmtDiagResponse:
+      type: object
+      properties:
+        tx_count: { type: integer }
+        wait_us_sum: { type: integer }
+        tx_us_sum: { type: integer }
+        overruns: { type: integer }
+
+    RealtimeConfig:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        interval_ms: { type: integer }
+
+    RealtimeConfigUpdate:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        interval_ms: { type: integer }
+
+    DiagnosticsConfig:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        print_interval_ms: { type: integer }
+
+    DiagnosticsConfigUpdate:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        print_interval_ms: { type: integer }
+
+    ConfigBackup:
+      type: object
+      description: Comprehensive configuration snapshot including parameters, selection, and device info
+      properties:
+        device: { type: string }
+        params: { $ref: '#/components/schemas/ParamsResponse' }
+        patterns: { $ref: '#/components/schemas/PatternList' }
+        current_pattern:
+          type: object
+          properties:
+            idx: { type: integer }
+            id: { type: string }
+            name: { type: string }
+            audio_reactive: { type: boolean }
+        build: { type: object }
+
+    WifiStatus:
+      type: object
+      properties:
+        ssid: { type: string }
+        rssi: { type: integer }
+        ip: { type: string }
+        mac: { type: string }
+        firmware_version: { type: string }
+        link_options:
+          $ref: '#/components/schemas/WifiLinkOptions'
+
+    WifiLinkOptions:
+      type: object
+      properties:
+        force_bg_only: { type: boolean }
+        force_ht20: { type: boolean }
+
+    WifiCredentialsMasked:
+      type: object
+      properties:
+        ssid: { type: string }
+        password_masked: { type: string }
+
+    WifiCredentialsUpdate:
+      type: object
+      required: [ssid, password]
+      properties:
+        ssid:
+          type: string
+          minLength: 1
+          maxLength: 32
+        password:
+          type: string
+          minLength: 8
+          maxLength: 64
