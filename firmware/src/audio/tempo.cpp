@@ -6,7 +6,7 @@
 
 #include "goertzel.h"
 #include "vu.h"
-#include "validation/tempo_validation.h"
+// #include "validation/tempo_validation.h"  // DISABLED for testing
 
 // ============================================================================ 
 // GLOBAL STATE (Emotiscope parity)
@@ -128,8 +128,8 @@ void init_tempo_goertzel_constants() {
 }
 
 void init_tempo_validation_system() {
-    init_tempo_validation();
-    Serial.println("[Tempo] Phase 3 validation system initialized");
+    // DISABLED for testing - validation layer removed
+    Serial.println("[Tempo] Validation DISABLED - using original Emotiscope tempo detection");
 }
 
 static float calculate_magnitude_of_tempo(uint16_t tempo_bin) {
@@ -329,45 +329,20 @@ static void sync_beat_phase(uint16_t tempo_bin, float delta) {
 void update_tempi_phase(float delta) {
     tempi_power_sum = 0.00000001f;
 
-    // ========================================================================
-    // PHASE 3: Enhanced tempo processing with validation
-    // ========================================================================
-
     for (uint16_t tempo_bin = 0; tempo_bin < NUM_TEMPI; tempo_bin++) {
         float tempi_magnitude = tempi[tempo_bin].magnitude;
 
-        // PHASE 3: Apply 3-point median filter for outlier rejection
-        float filtered_magnitude = apply_median_filter(&tempo_median_filter, tempi_magnitude);
-
-        // PHASE 3: Adaptive smoothing based on confidence
-        float confidence = tempo_confidence_metrics.combined;
-        float alpha = calculate_adaptive_alpha(filtered_magnitude, tempi_smooth[tempo_bin], confidence);
-
-        // Apply adaptive exponential smoothing
-        tempi_smooth[tempo_bin] = tempi_smooth[tempo_bin] * (1.0f - alpha) + filtered_magnitude * alpha;
+        tempi_smooth[tempo_bin] = tempi_smooth[tempo_bin] * 0.92f + tempi_magnitude * 0.08f;
         tempi_power_sum += tempi_smooth[tempo_bin];
 
         sync_beat_phase(tempo_bin, delta);
     }
 
-    // ========================================================================
-    // PHASE 3: Multi-metric confidence calculation
-    // ========================================================================
+    float max_contribution = 0.000001f;
+    for (uint16_t tempo_bin = 0; tempo_bin < NUM_TEMPI; tempo_bin++) {
+        float contribution = tempi_smooth[tempo_bin] / tempi_power_sum;
+        max_contribution = fmaxf(contribution, max_contribution);
+    }
 
-    // Calculate all confidence metrics (peak ratio, entropy, temporal stability)
-    update_confidence_metrics(tempi_smooth, NUM_TEMPI, tempi_power_sum);
-
-    // Update temporal stability with current dominant tempo
-    uint16_t dominant_bin = find_dominant_tempo_bin(tempi_smooth, NUM_TEMPI);
-    float current_tempo_bpm = tempi_bpm_values_hz[dominant_bin] * 60.0f;
-    update_tempo_history(current_tempo_bpm);
-
-    // Store locked tempo for state machine
-    tempo_lock_tracker.locked_tempo_bpm = current_tempo_bpm;
-
-    // PHASE 3: Update tempo lock state machine
-    update_tempo_lock_state(t_now_ms);
-
-    // Maintain backward compatibility with existing code
-    tempo_confidence = tempo_confidence_metrics.combined;
+    tempo_confidence = max_contribution;
 }
