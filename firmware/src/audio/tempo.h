@@ -58,6 +58,9 @@ extern uint32_t t_now_ms;
 // Initialize tempo Goertzel constants and tracking state
 void init_tempo_goertzel_constants();
 
+// PHASE 3: Initialize validation components (call after init_tempo_goertzel_constants)
+void init_tempo_validation_system();
+
 // ============================================================================
 // PUBLIC API - TEMPO PROCESSING (called by audio task on Core 1)
 // ============================================================================
