@@ -7,61 +7,13 @@
 
 #pragma once
 
-
 #include "pattern_registry.h"
 #include "pattern_audio_interface.h"
-#include "pattern_effects.h"
-#include "pattern_audio_extended.h"
 #include "palettes.h"
 #include "emotiscope_helpers.h"
 #include "dsps_helpers.h"
 #include "logging/logger.h"
 #include "pattern_helpers.h"
-
-// ============================================================================
-// PULSE WAVE STATE (needed before patterns_emotiscope_exact.h)
-// ============================================================================
-#define MAX_PULSE_WAVES 6
-
-typedef struct {
-	float position;      // 0.0-1.0 normalized position from center
-	float speed;         // LEDs per frame
-	float hue;           // Color from dominant chroma note
-	float brightness;    // Initial amplitude from beat strength
-	uint16_t age;        // Frames since spawned
-	bool active;         // Is this wave active?
-} pulse_wave;
-
-static pulse_wave pulse_waves[MAX_PULSE_WAVES];
-
-// ============================================================================
-// HELPER FUNCTIONS (needed before patterns_emotiscope_exact.h)
-// ============================================================================
-
-/**
- * Perlin-like noise function (pseudo-random based on sine)
- * Not true Perlin noise but provides smooth variation
- * Used by procedural patterns like Perlin noise mode
- */
-inline float perlin_noise_simple(float x, float y) {
-	float n = sinf(x * 12.9898f + y * 78.233f) * 43758.5453f;
-	return fmodf(n, 1.0f);
-}
-
-/**
- * Fill array with Perlin-like noise values
- * Used for procedural noise pattern generation
- */
-inline void fill_array_with_perlin(float* array, uint16_t length, float x, float y, float scale) {
-	for (uint16_t i = 0; i < length; i++) {
-		float t = i / (float)length;
-		float noise_x = x + t * scale;
-		float noise_y = y + scale * 0.5f;
-		array[i] = perlin_noise_simple(noise_x, noise_y);
-	}
-}
-
-#include "patterns_emotiscope_exact.h"
 #include <math.h>
 #include <cstring>
 #include <algorithm>
@@ -111,6 +63,29 @@ inline void blend_sprite(CRGBF* dest, const CRGBF* sprite, uint32_t length, floa
 #define TEMPO_PROGRESS(i) ((float)(i) / (float)NUM_TEMPI)
 
 /**
+ * Perlin-like noise function (pseudo-random based on sine)
+ * Not true Perlin noise but provides smooth variation
+ * Used by procedural patterns like Perlin noise mode
+ */
+inline float perlin_noise_simple(float x, float y) {
+	float n = sinf(x * 12.9898f + y * 78.233f) * 43758.5453f;
+	return fmodf(n, 1.0f);
+}
+
+/**
+ * Fill array with Perlin-like noise values
+ * Used for procedural noise pattern generation
+ */
+inline void fill_array_with_perlin(float* array, uint16_t length, float x, float y, float scale) {
+	for (uint16_t i = 0; i < length; i++) {
+		float t = i / (float)length;
+		float noise_x = x + t * scale;
+		float noise_y = y + scale * 0.5f;
+		array[i] = perlin_noise_simple(noise_x, noise_y);
+	}
+}
+
+/**
  * Get hue from position (0.0-1.0) across visible spectrum
  * Maps: red → orange → yellow → green → cyan → blue → magenta → red
  * Used to create rainbow gradients across LED strips
@@ -140,6 +115,7 @@ void draw_departure(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
 
 	// CENTER-ORIGIN COMPLIANT: Journey from darkness to light to growth
 	// Dark earth → golden light → pure white → emerald green
@@ -195,6 +171,7 @@ void draw_lava(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
 	// Lava palette colors (converted from node graph)
 	const CRGBF palette_colors[] = { 
 		CRGBF(0.00f, 0.00f, 0.00f), CRGBF(0.07f, 0.00f, 0.00f), CRGBF(0.44f, 0.00f, 0.00f), 
@@ -246,6 +223,7 @@ void draw_twilight(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
 	// Twilight palette colors (converted from node graph)
 	const CRGBF palette_colors[] = { 
 		CRGBF(1.00f, 0.65f, 0.00f), CRGBF(0.94f, 0.50f, 0.00f), CRGBF(0.86f, 0.31f, 0.08f), 
@@ -300,8 +278,82 @@ void draw_twilight(const PatternRenderContext& context) {
  * - Center-origin: render half, mirror to other half
  */
 void draw_spectrum(const PatternRenderContext& context) {
-	// Use exact Emotiscope 2.0/SensoryBridge implementation
-	draw_spectrum_emotiscope_exact(context);
+    const float time = context.time;
+    const PatternParameters& params = context.params;
+    CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
+    #define AUDIO_IS_FRESH() (audio.update_counter > 0) // Simplified for context
+    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
+    #define AUDIO_SPECTRUM (audio.spectrogram)
+    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
+
+	#ifndef SPECTRUM_CENTER_OFFSET
+	#define SPECTRUM_CENTER_OFFSET 0
+	#endif
+
+	// Fallback to ambient if no audio
+	if (!AUDIO_IS_AVAILABLE()) {
+		CRGBF ambient_color = color_from_palette(
+			params.palette_id,
+			clip_float(params.color),
+			clip_float(params.background) * clip_float(params.brightness)
+		);
+		for (int i = 0; i < NUM_LEDS; i++) {
+			leds[i] = ambient_color;
+		}
+		return;
+	}
+
+	// Optional optimization: skip render if no new audio frame
+	if (!AUDIO_IS_FRESH()) {
+		return;
+	}
+
+	// Graded decay based on audio age (smoother silence handling)
+	float age_ms = (float)AUDIO_AGE_MS();
+	float age_factor = 1.0f - fminf(age_ms, 250.0f) / 250.0f; // 0..1 over ~250ms
+	age_factor = fmaxf(0.0f, age_factor);
+
+	// Render spectrum (center-origin, so render half and mirror)
+	int half_leds = NUM_LEDS / 2;
+	auto wrap_idx = [](int idx) {
+		while (idx < 0) idx += NUM_LEDS;
+		while (idx >= NUM_LEDS) idx -= NUM_LEDS;
+		return idx;
+	};
+
+	float smooth_mix = clip_float(params.custom_param_3); // 0.0 = raw, 1.0 = fully smoothed
+
+	for (int i = 0; i < half_leds; i++) {
+		// Map LED position to frequency bin (0-63)
+		float progress = (float)i / half_leds;
+		// Blend raw and smoothed spectrum to control responsiveness
+		float raw_mag = clip_float(interpolate(progress, AUDIO_SPECTRUM, NUM_FREQS));
+		float smooth_mag = clip_float(AUDIO_SPECTRUM_INTERP(progress));
+		float magnitude = (raw_mag * (1.0f - smooth_mix) + smooth_mag * smooth_mix);
+		// Emphasize separation and apply age-based decay
+		magnitude = response_sqrt(magnitude) * age_factor;
+
+		// Get color from palette using progress and magnitude
+		CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
+
+		// Apply global brightness
+		color.r *= params.brightness;
+		color.g *= params.brightness;
+		color.b *= params.brightness;
+
+		// Mirror from center (centre-origin architecture)
+		int left_index = wrap_idx(((NUM_LEDS / 2) - 1 - i) + SPECTRUM_CENTER_OFFSET);
+		int right_index = wrap_idx(((NUM_LEDS / 2) + i) + SPECTRUM_CENTER_OFFSET);
+
+		leds[left_index] = color;
+		leds[right_index] = color;
+	}
+
+	// Uniform background handling across patterns
+	apply_background_overlay(context);
 }
 
 /**
@@ -315,8 +367,69 @@ void draw_spectrum(const PatternRenderContext& context) {
  * - Center-origin: render half, mirror to other half
  */
 void draw_octave(const PatternRenderContext& context) {
-	// Use exact Emotiscope 2.0/SensoryBridge implementation
-	draw_octave_emotiscope_exact(context);
+    const float time = context.time;
+    const PatternParameters& params = context.params;
+    CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
+    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
+    #define AUDIO_VU (audio.vu_level)
+    #define AUDIO_NOVELTY (audio.novelty_curve)
+    #define AUDIO_CHROMAGRAM (audio.chromagram)
+
+    // Fallback to time-based animation if no audio
+    if (!AUDIO_IS_AVAILABLE()) {
+        float phase = fmodf(time * params.speed * 0.5f, 1.0f);
+        for (int i = 0; i < NUM_LEDS; i++) {
+            float position = fmodf(phase + (float)i / NUM_LEDS, 1.0f);
+            leds[i] = color_from_palette(
+                params.palette_id,
+                position,
+                clip_float(params.background) * clip_float(params.brightness)
+            );
+        }
+        return;
+    }
+
+	// Energy emphasis (boost brightness on strong audio activity)
+    float energy_gate = fminf(1.0f, (AUDIO_VU * 0.7f) + (AUDIO_NOVELTY * 0.4f));
+    float energy_boost = 1.0f + (beat_gate(energy_gate) * 0.5f);
+	// Graded decay based on audio age
+	float age_ms = (float)AUDIO_AGE_MS();
+	float age_factor = 1.0f - fminf(age_ms, 250.0f) / 250.0f;
+	age_factor = fmaxf(0.0f, age_factor);
+
+	// Render chromagram (12 musical notes)
+	int half_leds = NUM_LEDS / 2;
+
+	for (int i = 0; i < half_leds; i++) {
+		// Map LED to chromagram bin (0-11)
+		float progress = (float)i / half_leds;
+		// USE INTERPOLATION for smooth chromagram mapping!
+		float magnitude = interpolate(progress, AUDIO_CHROMAGRAM, 12);
+		// Normalize gently and emphasize peaks, apply age and energy gates
+		magnitude = response_sqrt(magnitude) * age_factor * energy_boost;
+		magnitude = fmaxf(0.0f, fminf(1.0f, magnitude));
+
+		// Get color from palette
+		CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
+
+		// Apply global brightness
+		color.r *= params.brightness;
+		color.g *= params.brightness;
+		color.b *= params.brightness;
+
+		// Mirror from center
+		int left_index = (NUM_LEDS / 2) - 1 - i;
+		int right_index = (NUM_LEDS / 2) + i;
+
+        leds[left_index] = color;
+        leds[right_index] = color;
+    }
+
+    // Uniform background handling across patterns
+    apply_background_overlay(context);
 }
 
 /**
@@ -330,13 +443,208 @@ void draw_octave(const PatternRenderContext& context) {
 #include "pattern_channel.h"
 
 void draw_bloom(const PatternRenderContext& context) {
-	// Use exact Emotiscope 2.0/SensoryBridge implementation
-	draw_bloom_emotiscope_exact(context);
+    const float time = context.time;
+    const PatternParameters& params = context.params;
+    CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
+    #define AUDIO_VU (audio.vu_level)
+    #define AUDIO_NOVELTY (audio.novelty_curve)
+    #define AUDIO_BASS_ABS() get_audio_band_energy_absolute(audio, 0, 8)
+    #define AUDIO_MIDS_ABS() get_audio_band_energy_absolute(audio, 16, 32)
+    #define AUDIO_TREBLE_ABS() get_audio_band_energy_absolute(audio, 48, 63)
+
+    static float bloom_trail[2][NUM_LEDS] = {{0.0f}};
+    static float bloom_trail_prev[2][NUM_LEDS] = {{0.0f}};
+    const uint8_t ch_idx = get_pattern_channel_index();
+
+    float spread_speed = 0.125f + 0.875f * clip_float(params.speed);
+    // Reduce saturation: decay incorporates softness (persistence)
+    float trail_decay = 0.92f + 0.06f * clip_float(params.softness); // 0.92..0.98
+    // Accelerate: pre-scale previous trail with DSPS mulc, then use alpha=1.0
+    dsps_mulc_f32_inplace(bloom_trail_prev[ch_idx], NUM_LEDS, trail_decay);
+    draw_sprite_float(bloom_trail[ch_idx], bloom_trail_prev[ch_idx], NUM_LEDS, NUM_LEDS, spread_speed, 1.0f);
+
+	if (AUDIO_IS_AVAILABLE()) {
+		// Loudness-aware injection using absolute bands, with sqrt response to favor quiet content
+		float energy_gate = fminf(1.0f, (AUDIO_VU * 0.9f) + (AUDIO_NOVELTY * 0.5f));
+		float inject_base = response_sqrt(AUDIO_BASS_ABS()) * 0.6f
+			+ response_sqrt(AUDIO_MIDS_ABS()) * 0.3f
+			+ response_sqrt(AUDIO_TREBLE_ABS()) * 0.2f;
+		// User-adjustable low-level boost (custom_param_3 ∈ [0,1] → boost ∈ [1.0,2.0])
+		float boost = 1.0f + fmaxf(0.0f, fminf(1.0f, params.custom_param_3)) * 1.0f;
+		float inject = inject_base * (0.25f + energy_gate * 0.85f) * boost;
+		// Minimal floor to avoid vanishing on near-silence when energy is present
+		if (inject < 0.02f && energy_gate > 0.05f) inject = 0.02f;
+		bloom_trail[ch_idx][0] = fmaxf(bloom_trail[ch_idx][0], inject);
+		// Seed an adjacent cell to improve initial spread
+		bloom_trail[ch_idx][1] = fmaxf(bloom_trail[ch_idx][1], inject * 0.6f);
+	}
+
+	int half_leds = NUM_LEDS >> 1;
+	for (int i = 0; i < half_leds; ++i) {
+		float brightness = clip_float(bloom_trail[ch_idx][i]);
+		CRGBF color = color_from_palette(params.palette_id, static_cast<float>(i) / half_leds, brightness);
+		color.r *= params.brightness;
+		color.g *= params.brightness;
+		color.b *= params.brightness;
+
+		int left_index = (half_leds - 1) - i;
+		int right_index = half_leds + i;
+		leds[left_index] = color;
+		leds[right_index] = color;
+	}
+
+    // Accelerated copy (wrapper uses memcpy underneath)
+    dsps_memcpy_accel(bloom_trail_prev[ch_idx], bloom_trail[ch_idx], sizeof(float) * NUM_LEDS);
+
+	// Uniform background handling across patterns
+	apply_background_overlay(context);
 }
 
 void draw_bloom_mirror(const PatternRenderContext& context) {
-	// Use exact Emotiscope 2.0/SensoryBridge implementation
-	draw_bloom_mirror_emotiscope_exact(context);
+    const float time = context.time;
+    const PatternParameters& params = context.params;
+    CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
+    #define AUDIO_VU (audio.vu_level)
+    #define AUDIO_NOVELTY (audio.novelty_curve)
+    #define AUDIO_CHROMAGRAM (audio.chromagram)
+
+	static CRGBF bloom_buffer[2][NUM_LEDS];
+	static CRGBF bloom_buffer_prev[2][NUM_LEDS];
+	const uint8_t ch_idx = get_pattern_channel_index();
+
+	// Scroll the full strip outward and apply decay
+	float scroll_speed = 0.25f + 1.75f * clip_float(params.speed);
+	for (int i = 0; i < NUM_LEDS; ++i) bloom_buffer[ch_idx][i] = CRGBF{0.0f, 0.0f, 0.0f};
+	// Tuned decay to reduce washout; respect softness
+	float decay = 0.92f + 0.06f * clip_float(params.softness); // 0.92..0.98
+	draw_sprite(bloom_buffer[ch_idx], bloom_buffer_prev[ch_idx], NUM_LEDS, NUM_LEDS, scroll_speed, decay);
+
+	// Build chromagram-driven colour blend (Sensory Bridge style)
+	CRGBF wave_color = { 0.0f, 0.0f, 0.0f };
+	float brightness_accum = 0.0f;
+	bool chromatic_mode = (params.custom_param_1 >= 0.5f);
+
+	if (AUDIO_IS_AVAILABLE()) {
+		const float energy_gate = fminf(1.0f, (AUDIO_VU * 0.7f) + (AUDIO_NOVELTY * 0.4f));
+		const float share = 1.0f / 6.0f;
+		for (int i = 0; i < 12; ++i) {
+			float bin = clip_float(AUDIO_CHROMAGRAM[i]);
+			// Emphasize peaks and gate by audio energy for separation
+			bin = clip_float(bin * bin);
+			bin *= (0.25f + energy_gate * 0.75f);
+			float energy = clip_float(bin * share);
+
+			if (chromatic_mode) {
+				float progress = (static_cast<float>(i) + 0.5f) / 12.0f;
+				CRGBF add = color_from_palette(params.palette_id, progress, energy);
+				wave_color.r += add.r;
+				wave_color.g += add.g;
+				wave_color.b += add.b;
+			}
+			else {
+				brightness_accum += energy;
+			}
+		}
+	}
+	else if (chromatic_mode) {
+		wave_color = color_from_palette(params.palette_id, 0.0f, 0.05f);
+	}
+	else {
+		brightness_accum = 0.05f;
+	}
+
+	if (!chromatic_mode) {
+		float base_progress = clip_float(params.color);
+		wave_color = color_from_palette(params.palette_id, base_progress, clip_float(brightness_accum));
+	}
+	else {
+		wave_color.r = std::min(1.0f, wave_color.r);
+		wave_color.g = std::min(1.0f, wave_color.g);
+		wave_color.b = std::min(1.0f, wave_color.b);
+
+		float square_mix = clip_float(params.custom_param_2);
+		if (square_mix > 0.0f) {
+			wave_color.r = wave_color.r * (1.0f - square_mix) + (wave_color.r * wave_color.r) * square_mix;
+			wave_color.g = wave_color.g * (1.0f - square_mix) + (wave_color.g * wave_color.g) * square_mix;
+			wave_color.b = wave_color.b * (1.0f - square_mix) + (wave_color.b * wave_color.b) * square_mix;
+		}
+	}
+
+	wave_color = force_saturation(wave_color, params.saturation);
+	HSVF wave_hsv = rgb_to_hsv(wave_color);
+	float hue_offset = chromatic_mode ? wave_hsv.h : 0.0f;
+
+	// Inject new wave energy at the centre using audio energy
+	int center = NUM_LEDS >> 1;
+	float conf_inject = fminf(1.0f, (AUDIO_VU * 0.9f) + (AUDIO_NOVELTY * 0.5f));
+	// Small floor ensures visible response in quiet scenes
+	conf_inject = fmaxf(conf_inject, 0.06f);
+	// Apply user-adjustable low-level boost (custom_param_3 ∈ [0,1] → [1.0,2.0])
+	float boost_mirror = 1.0f + fmaxf(0.0f, fminf(1.0f, params.custom_param_3)) * 1.0f;
+	conf_inject *= boost_mirror;
+	bloom_buffer[ch_idx][center - 1].r += wave_color.r * conf_inject;
+	bloom_buffer[ch_idx][center - 1].g += wave_color.g * conf_inject;
+	bloom_buffer[ch_idx][center - 1].b += wave_color.b * conf_inject;
+	bloom_buffer[ch_idx][center].r += wave_color.r * conf_inject;
+	bloom_buffer[ch_idx][center].g += wave_color.g * conf_inject;
+	bloom_buffer[ch_idx][center].b += wave_color.b * conf_inject;
+
+	// Preserve unfaded frame for next scroll before rendering adjustments
+	std::memcpy(bloom_buffer_prev[ch_idx], bloom_buffer[ch_idx], sizeof(CRGBF) * NUM_LEDS);
+
+	// Apply tail fade on the far end (rendering only)
+	int fade_span = NUM_LEDS >> 2;
+	for (int i = 0; i < fade_span; ++i) {
+		float prog = static_cast<float>(i) / static_cast<float>(fade_span);
+		float atten = prog * prog;
+		int idx = NUM_LEDS - 1 - i;
+		bloom_buffer[ch_idx][idx].r *= atten;
+		bloom_buffer[ch_idx][idx].g *= atten;
+		bloom_buffer[ch_idx][idx].b *= atten;
+	}
+
+	// Mirror right half onto left for symmetry
+	for (int i = 0; i < center; ++i) {
+		bloom_buffer[ch_idx][i] = bloom_buffer[ch_idx][(NUM_LEDS - 1) - i];
+	}
+
+	// Output to LED buffer with brightness applied
+	int half_leds = center;
+	for (int i = 0; i < NUM_LEDS; ++i) {
+		int mirrored_idx = (i < center) ? (center - 1 - i) : (i - center);
+		float radial = (half_leds > 1)
+			? static_cast<float>(mirrored_idx) / static_cast<float>(half_leds - 1)
+			: 0.0f;
+
+		float palette_progress = radial;
+		if (chromatic_mode) {
+			palette_progress = fmodf(radial + hue_offset, 1.0f);
+			if (palette_progress < 0.0f) {
+				palette_progress += 1.0f;
+			}
+		}
+
+		HSVF px_hsv = rgb_to_hsv(bloom_buffer[ch_idx][i]);
+		float px_brightness = clip_float(px_hsv.v);
+
+		CRGBF palette_color = color_from_palette(
+			params.palette_id,
+			palette_progress,
+			px_brightness * params.brightness
+		);
+
+		leds[i] = palette_color;
+	}
+
+	// Uniform background handling across patterns
+	apply_background_overlay(context);
+
 }
 
 /**
@@ -368,6 +676,19 @@ void draw_bloom_mirror(const PatternRenderContext& context) {
 // float eased = ease_cubic_in_out(progress);
 // float position = eased * NUM_LEDS;  // Use eased position instead of linear
 
+#define MAX_PULSE_WAVES 6
+
+typedef struct {
+	float position;      // 0.0-1.0 normalized position from center
+	float speed;         // LEDs per frame
+	float hue;           // Color from dominant chroma note
+	float brightness;    // Initial amplitude from beat strength
+	uint16_t age;        // Frames since spawned
+	bool active;         // Is this wave active?
+} pulse_wave;
+
+static pulse_wave pulse_waves[MAX_PULSE_WAVES];
+
 // Helper: get dominant chromatic note (highest energy in chromagram)
 float get_dominant_chroma_hue() {
 	AudioDataSnapshot audio{};
@@ -392,8 +713,128 @@ float get_dominant_chroma_hue() {
 }
 
 void draw_pulse(const PatternRenderContext& context) {
-	// Use exact Emotiscope 2.0/SensoryBridge implementation
-	draw_pulse_emotiscope_exact(context);
+    const float time = context.time;
+    const PatternParameters& params = context.params;
+    CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
+    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
+    #define AUDIO_VU (audio.vu_level)
+    #define AUDIO_NOVELTY (audio.novelty_curve)
+    #define AUDIO_KICK() get_audio_band_energy(audio, KICK_START, KICK_END)
+
+    // Frame-rate independent delta time
+    static float last_time_pulse = 0.0f;
+    float dt_pulse = time - last_time_pulse;
+    if (dt_pulse < 0.0f) dt_pulse = 0.0f;
+    if (dt_pulse > 0.05f) dt_pulse = 0.05f; // clamp large jumps
+    last_time_pulse = time;
+
+	// Diagnostic logging (once per second)
+	static uint32_t last_diagnostic = 0;
+	uint32_t now = millis();
+	if (now - last_diagnostic > 1000) {
+		last_diagnostic = now;
+		LOG_DEBUG(TAG_GPU, "[PULSE] audio_available=%d, brightness=%.2f, speed=%.2f",
+			(int)AUDIO_IS_AVAILABLE(), params.brightness, params.speed);
+	}
+
+	// Fallback to ambient if no audio
+	if (!AUDIO_IS_AVAILABLE()) {
+		for (int i = 0; i < NUM_LEDS; i++) {
+			leds[i] = color_from_palette(params.palette_id, 0.5f, params.background);
+		}
+		return;
+	}
+
+	// Energy-driven wave spawning using raw audio features
+	const float energy_gate = fminf(
+		1.0f,
+		(AUDIO_VU * 0.8f) +
+		(AUDIO_KICK() * 0.6f) +
+		(AUDIO_NOVELTY * 0.4f)
+	);
+	const float spawn_threshold = 0.18f;
+    if (energy_gate > spawn_threshold) {
+		// Spawn new wave on beat
+		for (uint16_t i = 0; i < MAX_PULSE_WAVES; i++) {
+			if (!pulse_waves[i].active) {
+				pulse_waves[i].position = 0.0f;
+                // Speed expressed as normalized units per second (formerly per frame)
+                pulse_waves[i].speed = (0.25f + params.speed * 0.75f);
+				pulse_waves[i].hue = get_dominant_chroma_hue();
+				pulse_waves[i].brightness = fmaxf(energy_gate, 0.25f);
+				pulse_waves[i].age = 0;
+				pulse_waves[i].active = true;
+				break; // Only spawn one wave per frame
+			}
+		}
+	}
+
+	// Clear LED buffer
+	for (int i = 0; i < NUM_LEDS; i++) {
+		leds[i] = CRGBF(0.0f, 0.0f, 0.0f);
+	}
+
+	// Update and render all active waves
+	float decay_factor = 0.02f + (params.softness * 0.03f);
+	float base_width = 0.08f;
+	float width_growth = 0.05f;
+
+	for (uint16_t w = 0; w < MAX_PULSE_WAVES; w++) {
+		if (!pulse_waves[w].active) continue;
+
+        // Update wave position (frame-rate independent)
+        pulse_waves[w].position += pulse_waves[w].speed * dt_pulse;
+		pulse_waves[w].age++;
+
+		// Deactivate if wave traveled past LEDs
+		if (pulse_waves[w].position > 1.5f) {
+			pulse_waves[w].active = false;
+			continue;
+		}
+
+		// Render wave as Gaussian bell curve
+		float decay = expf(-(float)pulse_waves[w].age * decay_factor);
+		float wave_width = base_width + width_growth * pulse_waves[w].age;
+
+		for (int i = 0; i < (NUM_LEDS >> 1); i++) {
+			float led_progress = LED_PROGRESS(i);
+
+			// Gaussian bell curve centered at wave position
+			float distance = fabsf(led_progress - pulse_waves[w].position);
+			float gaussian = expf(-(distance * distance) / (2.0f * wave_width * wave_width));
+
+			// Combine brightness with decay and age-based audio decay
+			float age_ms = (float)AUDIO_AGE_MS();
+			float age_factor = 1.0f - fminf(age_ms, 250.0f) / 250.0f;
+			age_factor = fmaxf(0.0f, age_factor);
+			float intensity = pulse_waves[w].brightness * gaussian * decay * age_factor;
+			intensity = fmaxf(0.0f, fminf(1.0f, intensity));
+
+			// Use palette system directly from web UI selection
+			CRGBF color = color_from_palette(params.palette_id, pulse_waves[w].hue, intensity);
+
+			// Additive blending for overlapping waves
+			leds[i].r = fmaxf(0.0f, fminf(1.0f, leds[i].r + color.r * intensity));
+			leds[i].g = fmaxf(0.0f, fminf(1.0f, leds[i].g + color.g * intensity));
+			leds[i].b = fmaxf(0.0f, fminf(1.0f, leds[i].b + color.b * intensity));
+		}
+	}
+
+	// Mirror from center
+	apply_mirror_mode(leds, true);
+
+	// Apply global brightness
+	for (int i = 0; i < NUM_LEDS; i++) {
+		leds[i].r *= params.brightness;
+		leds[i].g *= params.brightness;
+		leds[i].b *= params.brightness;
+	}
+
+    // Apply uniform background overlay
+    apply_background_overlay(context);
 }
 
 /**
@@ -424,8 +865,62 @@ void draw_pulse(const PatternRenderContext& context) {
 // float eased = ease_cubic_in_out(progress);
 // float position = eased * NUM_LEDS;  // Use eased position instead of linear
 void draw_tempiscope(const PatternRenderContext& context) {
-	// Use exact Emotiscope 2.0/SensoryBridge implementation
-	draw_tempiscope_emotiscope_exact(context);
+    const float time = context.time;
+    const PatternParameters& params = context.params;
+    CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
+    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000)) > 50)
+    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
+
+	// Diagnostic logging (once per second)
+	static uint32_t last_diagnostic = 0;
+	uint32_t now = millis();
+	if (now - last_diagnostic > 1000) {
+		last_diagnostic = now;
+		LOG_DEBUG(TAG_GPU, "[TEMPISCOPE] audio_available=%d, brightness=%.2f, speed=%.2f",
+			(int)AUDIO_IS_AVAILABLE(), params.brightness, params.speed);
+	}
+
+	// Fallback to animated gradient if no audio
+	if (!AUDIO_IS_AVAILABLE()) {
+		float phase = fmodf(time * params.speed * 0.3f, 1.0f);
+		for (int i = 0; i < NUM_LEDS; i++) {
+			float position = fmodf(phase + LED_PROGRESS(i), 1.0f);
+			leds[i] = color_from_palette(params.palette_id, position, params.background);
+		}
+		return;
+	}
+
+	// Clear LED buffer
+	for (int i = 0; i < NUM_LEDS; i++) {
+		leds[i] = CRGBF(0.0f, 0.0f, 0.0f);
+	}
+
+	// Render frequency bands using smoothed spectrum data
+	const int half_leds = NUM_LEDS >> 1;
+	const float freshness = AUDIO_IS_STALE() ? 0.6f : 1.0f;
+	const float speed_scale = 0.4f + params.speed * 0.6f;
+	for (int i = 0; i < half_leds; i++) {
+		float progress = (half_leds > 1) ? ((float)i / (float)(half_leds - 1)) : 0.0f;
+		float spectrum = AUDIO_SPECTRUM_INTERP(progress);
+		float brightness = powf(spectrum, 0.85f) * speed_scale * freshness;
+		brightness = clip_float(brightness);
+
+		CRGBF color = color_from_palette(params.palette_id, progress, brightness * params.saturation);
+		color.r *= params.brightness;
+		color.g *= params.brightness;
+		color.b *= params.brightness;
+
+		int left_index = (half_leds - 1) - i;
+		int right_index = half_leds + i;
+		leds[left_index] = color;
+		leds[right_index] = color;
+	}
+
+    // Apply uniform background overlay
+    apply_background_overlay(context);
 }
 
 // ============================================================================
@@ -469,13 +964,186 @@ static CRGBF tunnel_glow_image_prev[NUM_LEDS];
 static float tunnel_glow_angle = 0.0f;
 
 void draw_beat_tunnel(const PatternRenderContext& context) {
-	// Use exact Emotiscope 2.0/SensoryBridge implementation
-	draw_beat_tunnel_emotiscope_exact(context);
+    const float time = context.time;
+    const PatternParameters& params = context.params;
+    CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
+    #define AUDIO_VU (audio.vu_level)
+    #define AUDIO_NOVELTY (audio.novelty_curve)
+    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
+
+	const uint8_t ch_idx = get_pattern_channel_index();
+
+	static float last_time_bt = 0.0f;
+	float dt_bt = time - last_time_bt;
+	if (dt_bt < 0.0f) dt_bt = 0.0f;
+	if (dt_bt > 0.05f) dt_bt = 0.05f;
+	last_time_bt = time;
+
+	for (int i = 0; i < NUM_LEDS; i++) {
+		beat_tunnel_image[ch_idx][i] = CRGBF(0.0f, 0.0f, 0.0f);
+	}
+
+	float speed = 0.0015f + 0.0065f * clip_float(params.speed);
+	beat_tunnel_angle += speed * (dt_bt > 0.0f ? (dt_bt * 1000.0f) : 1.0f);
+	if (beat_tunnel_angle > static_cast<float>(2.0 * M_PI)) {
+		beat_tunnel_angle = fmodf(beat_tunnel_angle, static_cast<float>(2.0 * M_PI));
+	}
+
+	float position = (0.125f + 0.875f * clip_float(params.speed)) * sinf(beat_tunnel_angle) * 0.5f;
+	// Respect global softness in persistence/decay
+	float decay = 0.90f + 0.08f * clip_float(params.softness); // 0.90..0.98
+	draw_sprite(beat_tunnel_image[ch_idx], beat_tunnel_image_prev[ch_idx], NUM_LEDS, NUM_LEDS, position, decay);
+
+	if (!AUDIO_IS_AVAILABLE()) {
+		for (int i = 0; i < NUM_LEDS; i++) {
+			float led_pos = LED_PROGRESS(i);
+			float distance = fabsf(led_pos - (position * 0.5f + 0.5f));
+			float brightness = expf(-(distance * distance) / (2.0f * 0.08f * 0.08f));
+			brightness = clip_float(brightness * clip_float(params.background));
+			CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
+			beat_tunnel_image[ch_idx][i].r += color.r * brightness;
+			beat_tunnel_image[ch_idx][i].g += color.g * brightness;
+			beat_tunnel_image[ch_idx][i].b += color.b * brightness;
+		}
+	} else {
+		float energy = fminf(1.0f, (AUDIO_VU * 0.8f) + (AUDIO_NOVELTY * 0.5f));
+		for (int i = 0; i < NUM_LEDS; i++) {
+			float led_pos = LED_PROGRESS(i);
+			float spectrum = AUDIO_SPECTRUM_INTERP(led_pos);
+			float brightness = powf(spectrum, 0.9f) * (0.3f + energy * 0.7f);
+			brightness = clip_float(brightness);
+
+			CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
+			beat_tunnel_image[ch_idx][i].r += color.r * brightness;
+			beat_tunnel_image[ch_idx][i].g += color.g * brightness;
+			beat_tunnel_image[ch_idx][i].b += color.b * brightness;
+		}
+	}
+
+	for (int i = 0; i < NUM_LEDS; i++) {
+		beat_tunnel_image[ch_idx][i].r = clip_float(beat_tunnel_image[ch_idx][i].r);
+		beat_tunnel_image[ch_idx][i].g = clip_float(beat_tunnel_image[ch_idx][i].g);
+		beat_tunnel_image[ch_idx][i].b = clip_float(beat_tunnel_image[ch_idx][i].b);
+	}
+
+	apply_mirror_mode(beat_tunnel_image[ch_idx], true);
+
+	for (int i = 0; i < NUM_LEDS; i++) {
+		leds[i].r = beat_tunnel_image[ch_idx][i].r * params.brightness;
+		leds[i].g = beat_tunnel_image[ch_idx][i].g * params.brightness;
+		leds[i].b = beat_tunnel_image[ch_idx][i].b * params.brightness;
+	}
+
+    // Apply uniform background overlay
+    apply_background_overlay(context);
+
+	for (int i = 0; i < NUM_LEDS; i++) {
+		beat_tunnel_image_prev[ch_idx][i] = beat_tunnel_image[ch_idx][i];
+	}
 }
 
 void draw_beat_tunnel_variant(const PatternRenderContext& context) {
-	// Use exact Emotiscope 2.0/SensoryBridge implementation
-	draw_beat_tunnel_variant_emotiscope_exact(context);
+    const float time = context.time;
+    const PatternParameters& params = context.params;
+    CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
+    #define AUDIO_VU (audio.vu_level)
+    #define AUDIO_NOVELTY (audio.novelty_curve)
+    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
+
+    const uint8_t ch_idx = get_pattern_channel_index();
+
+    // Frame-rate independent delta time
+    static float last_time_bt = 0.0f;
+    float dt_bt = time - last_time_bt;
+    if (dt_bt < 0.0f) dt_bt = 0.0f;
+    if (dt_bt > 0.05f) dt_bt = 0.05f; // clamp to avoid large jumps
+    last_time_bt = time;
+
+	// Diagnostic logging (once per second)
+	static uint32_t last_diagnostic = 0;
+	uint32_t now = millis();
+	if (now - last_diagnostic > 1000) {
+		last_diagnostic = now;
+		LOG_DEBUG(TAG_GPU, "[BEAT_TUNNEL] audio_available=%d, brightness=%.2f, speed=%.2f",
+			(int)AUDIO_IS_AVAILABLE(), params.brightness, params.speed);
+	}
+
+	// Clear frame buffer
+    for (int i = 0; i < NUM_LEDS; i++) {
+        beat_tunnel_variant_image[ch_idx][i] = CRGBF(0.0f, 0.0f, 0.0f);
+	}
+
+    // Animate sprite position using sine wave modulation (rate per second)
+    // Previously per-frame 0.001; approximate 120 FPS => 0.12 rad/sec
+    float angle_speed = 0.12f * (0.5f + params.speed * 0.5f);
+    beat_tunnel_variant_angle += angle_speed * dt_bt;
+    float position = (0.125f + 0.875f * params.speed) * sinf(beat_tunnel_variant_angle) * 0.5f;
+
+    // Use draw_sprite for proper scrolling motion effect!
+    float decay = 0.6f + (0.38f * fmaxf(0.0f, fminf(1.0f, params.softness)));
+    draw_sprite(beat_tunnel_variant_image[ch_idx], beat_tunnel_variant_image_prev[ch_idx], NUM_LEDS, NUM_LEDS, position, decay);
+
+	if (!AUDIO_IS_AVAILABLE()) {
+		// Fallback: simple animated pattern using palette system
+		for (int i = 0; i < NUM_LEDS; i++) {
+			float led_pos = LED_PROGRESS(i);
+			float distance = fabsf(led_pos - position);
+			float brightness = expf(-(distance * distance) / (2.0f * 0.08f * 0.08f));
+			brightness = fmaxf(0.0f, fminf(1.0f, brightness));
+
+			// Use palette system directly from web UI selection
+			CRGBF color = color_from_palette(params.palette_id, led_pos, brightness * 0.5f);
+
+            beat_tunnel_variant_image[ch_idx][i].r += color.r * brightness;
+            beat_tunnel_variant_image[ch_idx][i].g += color.g * brightness;
+            beat_tunnel_variant_image[ch_idx][i].b += color.b * brightness;
+		}
+	} else {
+        float energy = fminf(1.0f, (AUDIO_VU * 0.7f) + (AUDIO_NOVELTY * 0.4f));
+        for (int i = 0; i < NUM_LEDS; i++) {
+            float led_pos = LED_PROGRESS(i);
+            float sample_pos = fabsf(led_pos - 0.5f) * 2.0f;
+            float spectrum = AUDIO_SPECTRUM_INTERP(sample_pos);
+            float brightness = powf(spectrum, 1.05f) * (0.25f + energy * 0.75f);
+            brightness = clip_float(brightness);
+
+            CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
+            beat_tunnel_variant_image[ch_idx][i].r += color.r * brightness;
+            beat_tunnel_variant_image[ch_idx][i].g += color.g * brightness;
+            beat_tunnel_variant_image[ch_idx][i].b += color.b * brightness;
+        }
+	}
+
+	// Clamp values to [0, 1]
+	for (int i = 0; i < NUM_LEDS; i++) {
+        beat_tunnel_variant_image[ch_idx][i].r = fmaxf(0.0f, fminf(1.0f, beat_tunnel_variant_image[ch_idx][i].r));
+        beat_tunnel_variant_image[ch_idx][i].g = fmaxf(0.0f, fminf(1.0f, beat_tunnel_variant_image[ch_idx][i].g));
+        beat_tunnel_variant_image[ch_idx][i].b = fmaxf(0.0f, fminf(1.0f, beat_tunnel_variant_image[ch_idx][i].b));
+	}
+
+	// Apply mirror mode
+    apply_mirror_mode(beat_tunnel_variant_image[ch_idx], true);
+
+	// Copy tunnel image to LED output and apply brightness
+	for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i].r = beat_tunnel_variant_image[ch_idx][i].r * params.brightness;
+        leds[i].g = beat_tunnel_variant_image[ch_idx][i].g * params.brightness;
+        leds[i].b = beat_tunnel_variant_image[ch_idx][i].b * params.brightness;
+	}
+
+    // Apply uniform background overlay
+    apply_background_overlay(context);
+
+	// Save current frame for next iteration's motion blur
+	for (int i = 0; i < NUM_LEDS; i++) {
+        beat_tunnel_variant_image_prev[ch_idx][i] = beat_tunnel_variant_image[ch_idx][i];
+    }
 }
 
 // ============================================================================
@@ -513,6 +1181,7 @@ void draw_startup_intro(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
     // Frame-rate independent delta time
     static float last_time_si = 0.0f;
     float dt_si = time - last_time_si;
@@ -636,6 +1305,7 @@ void draw_tunnel_glow(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
     #define AUDIO_IS_AVAILABLE() (audio.is_valid)
     #define AUDIO_VU (audio.vu_level)
@@ -790,8 +1460,70 @@ static inline float perlin_noise_simple_2d(float x, float y, uint32_t seed) {
 }
 
 void draw_perlin(const PatternRenderContext& context) {
-	// Use exact Emotiscope 2.0/SensoryBridge implementation
-	draw_perlin_emotiscope_exact(context);
+    const float time = context.time;
+    const PatternParameters& params = context.params;
+    CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
+    #define AUDIO_VU (audio.vu_level)
+
+    // Update Perlin noise position with time
+    beat_perlin_position_x = 0.0f;  // Fixed X
+    // Audio-driven momentum (Emotiscope-inspired): vu^4 controls flow speed
+    {
+        // Frame-rate independent delta time
+        static float last_time_perlin = 0.0f;
+        float dt_perlin = time - last_time_perlin;
+        if (dt_perlin < 0.0f) dt_perlin = 0.0f;
+        if (dt_perlin > 0.05f) dt_perlin = 0.05f;
+        last_time_perlin = time;
+
+        float vu = AUDIO_IS_AVAILABLE() ? AUDIO_VU : 0.3f;
+        // Convert previous per-frame constants to per-second rates (≈120 FPS baseline)
+        float momentum_per_sec = (0.0008f + 0.004f * params.speed) * 120.0f;
+        momentum_per_sec *= (0.2f + powf(vu, 4.0f) * 0.8f);
+        beat_perlin_position_y += momentum_per_sec * dt_perlin;
+    }
+
+	// Generate Perlin noise for downsampled positions (optimized)
+	const uint16_t downsample_count = NUM_LEDS >> 2;
+	const float inv_downsample_count = 1.0f / (float)downsample_count;
+	
+	for (uint16_t i = 0; i < downsample_count; i++) {
+		const float pos_progress = (float)i * inv_downsample_count;
+		const float noise_x = beat_perlin_position_x + pos_progress * 2.0f;
+		const float noise_y = beat_perlin_position_y;
+
+		// Simplified single-octave Perlin for better performance
+		// Multi-octave was expensive - single octave still looks good
+		const float value = perlin_noise_simple_2d(noise_x * 2.0f, noise_y * 2.0f, 0x578437adU);
+
+		// Normalize to [0, 1] with clamping
+		float normalized = (value + 1.0f) * 0.5f;
+		beat_perlin_noise_array[i] = (normalized < 0.0f) ? 0.0f : (normalized > 1.0f) ? 1.0f : normalized;
+	}
+
+	// Render Perlin noise field as LEDs
+	for (int i = 0; i < NUM_LEDS; i++) {
+		float noise_value = beat_perlin_noise_array[i >> 2];  // Sample from downsampled array
+
+		// Use noise as hue, fixed saturation and brightness
+		float hue = fmodf(noise_value * 0.66f + time * 0.1f * params.speed, 1.0f);
+		float brightness = 0.25f + noise_value * 0.5f;  // 25-75% brightness
+
+		CRGBF color = color_from_palette(params.palette_id, hue, brightness);
+
+		leds[i].r = color.r * params.brightness * params.saturation;
+		leds[i].g = color.g * params.brightness * params.saturation;
+		leds[i].b = color.b * params.brightness * params.saturation;
+	}
+
+	// Enforce center-origin symmetry
+	apply_mirror_mode(leds, true);
+
+    // Apply uniform background overlay
+    apply_background_overlay(context);
 }
 
 // ============================================================================
@@ -813,11 +1545,11 @@ void draw_analog(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
     #define AUDIO_IS_AVAILABLE() (audio.is_valid)
     #define AUDIO_VU (audio.vu_level)
-    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
-    #define AUDIO_IS_STALE() (AUDIO_AGE_MS() > 50)
+    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000)) > 50)
     
     // Clear LED buffer
     for (int i = 0; i < NUM_LEDS; i++) {
@@ -874,10 +1606,10 @@ void draw_metronome(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
     #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
-    #define AUDIO_IS_STALE() (AUDIO_AGE_MS() > 50)
+    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000)) > 50)
     
     // Clear LED buffer
     for (int i = 0; i < NUM_LEDS; i++) {
@@ -941,10 +1673,10 @@ void draw_hype(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
     #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
-    #define AUDIO_IS_STALE() (AUDIO_AGE_MS() > 50)
+    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000)) > 50)
     #define AUDIO_KICK() get_audio_band_energy(audio, KICK_START, KICK_END)
     #define AUDIO_SNARE() get_audio_band_energy(audio, SNARE_START, SNARE_END)
     #define AUDIO_HATS() get_audio_band_energy(audio, HATS_START, HATS_END)
@@ -1041,6 +1773,7 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
     #define AUDIO_VU (audio.vu_level)
     #define AUDIO_SPECTRUM (audio.spectrogram)
@@ -1166,6 +1899,7 @@ void draw_snapwave(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
     #define AUDIO_SPECTRUM (audio.spectrogram)
 
@@ -1290,6 +2024,7 @@ void draw_prism(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
     #define AUDIO_IS_AVAILABLE() (audio.is_valid)
     #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
@@ -1384,16 +2119,7 @@ void draw_prism(const PatternRenderContext& context) {
     apply_background_overlay(context);
 }
 
-// Fallback stub: Pitch visualization (placeholder to satisfy registry)
-void draw_pitch(const PatternRenderContext& context) {
-    const PatternParameters& params = context.params;
-    CRGBF* leds = context.leds;
-    for (int i = 0; i < NUM_LEDS; i++) {
-        float pos = (float)i / (float)NUM_LEDS;
-        leds[i] = color_from_palette(params.palette_id, pos, params.background * params.brightness);
-    }
-    apply_background_overlay(context);
-}
+void draw_pitch(float time, const PatternParameters& params);
 
 // ============================================================================
 // PATTERN REGISTRY
@@ -1542,13 +2268,6 @@ const PatternInfo g_pattern_registry[] = {
 		"snapwave",
 		"Snappy beat flashes with harmonic accents",
 		draw_snapwave,
-		true
-	},
-	{
-		"Pitch Scope",
-		"pitch_scope",
-		"Chromagram energy as persistent bands",
-		draw_pitch,
 		true
 	}
 };
