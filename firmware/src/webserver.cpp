@@ -25,7 +25,6 @@
 #include "diagnostics.h"                  // Runtime diagnostics control
 #include "beat_events.h"                  // Latency probe controls
 #include "audio/tempo.h"                   // Tempo telemetry
-#include "audio/validation/tempo_validation.h"  // PHASE 3: Tempo validation metrics
 #include "diagnostics/rmt_probe.h"        // RMT telemetry
 #include "led_driver.h"                    // Access LED raw frame buffer
 #include "frame_metrics.h"                // Frame-level profiling history
@@ -1048,24 +1047,12 @@ public:
             }
         }
 
-        StaticJsonDocument<768> resp;  // Increased from 512 for Phase 3 metrics
+        StaticJsonDocument<512> resp;
         resp["tempo_confidence"] = tempo_confidence;
         resp["tempi_power_sum"] = tempi_power_sum;
         resp["silence_detected"] = silence_detected;
         resp["silence_level"] = silence_level;
         resp["max_tempo_range"] = MAX_TEMPO_RANGE;
-
-        // PHASE 3: Multi-metric confidence breakdown
-        JsonObject confidence_metrics = resp.createNestedObject("confidence_metrics");
-        confidence_metrics["peak_ratio"] = tempo_confidence_metrics.peak_ratio;
-        confidence_metrics["entropy"] = tempo_confidence_metrics.entropy_confidence;
-        confidence_metrics["temporal_stability"] = tempo_confidence_metrics.temporal_stability;
-        confidence_metrics["combined"] = tempo_confidence_metrics.combined;
-
-        // PHASE 3: Tempo lock state
-        resp["tempo_lock_state"] = get_tempo_lock_state_string(tempo_lock_tracker.state);
-        resp["time_in_state_ms"] = t_now_ms - tempo_lock_tracker.state_entry_time_ms;
-        resp["locked_tempo_bpm"] = tempo_lock_tracker.locked_tempo_bpm;
 
         JsonArray top_bins = resp.createNestedArray("top_bins");
         for (uint8_t i = 0; i < K; ++i) {
