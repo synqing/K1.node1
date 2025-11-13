@@ -30,11 +30,6 @@
 #define BEAT_SHIFT_PERCENT (0.08)
 #define REFERENCE_FPS (100.0f)
 
-// Runtime tuning knob: minimum VU to allow tempo updates/beat emission
-#ifndef VU_LOCK_GATE
-#define VU_LOCK_GATE (0.08f)
-#endif
-
 // ============================================================================
 // GLOBAL DATA (stored in goertzel.h - only tempo-specific state here)
 // ============================================================================
