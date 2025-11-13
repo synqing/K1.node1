@@ -332,11 +332,18 @@ void update_tempi_phase(float delta) {
         sync_beat_phase(tempo_bin, delta);
     }
 
-    float max_contribution = 0.000001f;
-    for (uint16_t tempo_bin = 0; tempo_bin < NUM_TEMPI; tempo_bin++) {
-        float contribution = tempi_smooth[tempo_bin] / tempi_power_sum;
-        max_contribution = fmaxf(contribution, max_contribution);
+    // Calculate confidence only if we have meaningful signal
+    // Prevent division by near-zero from inflating confidence during silence
+    const float min_meaningful_power = 0.001f;
+    if (tempi_power_sum < min_meaningful_power) {
+        tempo_confidence = 0.0f;
+    } else {
+        float max_contribution = 0.000001f;
+        for (uint16_t tempo_bin = 0; tempo_bin < NUM_TEMPI; tempo_bin++) {
+            float contribution = tempi_smooth[tempo_bin] / tempi_power_sum;
+            max_contribution = fmaxf(contribution, max_contribution);
+        }
+        // Clamp to valid range [0.0, 1.0]
+        tempo_confidence = fminf(max_contribution, 1.0f);
     }
-
-    tempo_confidence = max_contribution;
 }

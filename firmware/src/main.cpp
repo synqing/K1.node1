@@ -295,25 +295,38 @@ void audio_task(void* param) {
         {
             uint32_t now_ms = millis();
             extern float tempo_confidence;  // From tempo.cpp
-            // Adaptive gating: threshold influenced by silence level and novelty
-            extern float silence_level;
-            float novelty_recent = novelty_curve_normalized[NOVELTY_HISTORY_LENGTH - 1];
-            const float base_threshold = get_params().beat_threshold;
-            float adaptive = base_threshold + (0.20f * (1.0f - silence_level)) + (0.10f * fminf(novelty_recent, 1.0f));
-            uint32_t min_spacing_ms = 120; // default spacing
-            if (silence_level < 0.5f) min_spacing_ms = 160;      // denser music → widen spacing
-            if (tempo_confidence > adaptive && (now_ms - g_last_beat_event_ms) >= min_spacing_ms) {
-                uint32_t ts_us = (uint32_t)esp_timer_get_time();
-                uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
-                bool ok = beat_events_push(ts_us, conf_u16);
-                if (!ok) {
-                    LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached)");
-                }
-                g_last_beat_event_ms = now_ms;
+            extern bool silence_detected;   // From tempo.cpp
+            extern float silence_level;     // From tempo.cpp
 
-                // Log BEAT_EVENT with detected BPM
-                float best_bpm = get_best_bpm();
-                LOG_INFO(TAG_BEAT, "BEAT detected @ %.1f BPM", best_bpm);
+            // Block beat detection entirely during silence
+            if (!silence_detected) {
+                // Adaptive gating: threshold influenced by silence level and novelty
+                float novelty_recent = novelty_curve_normalized[NOVELTY_HISTORY_LENGTH - 1];
+                const float base_threshold = get_params().beat_threshold;
+                // Fixed: raise threshold during silence (was inverted)
+                float adaptive = base_threshold + (0.20f * silence_level) + (0.10f * fminf(novelty_recent, 1.0f));
+                uint32_t min_spacing_ms = 120; // default spacing
+                // Fixed: denser music (low silence) → tighter spacing (was backwards)
+                if (silence_level > 0.5f) min_spacing_ms = 160;  // quieter → wider spacing
+
+                // Additional gate: require minimum VU level to prevent noise triggering
+                const float min_vu_for_beats = 0.10f;
+
+                if (tempo_confidence > adaptive &&
+                    audio_level > min_vu_for_beats &&
+                    (now_ms - g_last_beat_event_ms) >= min_spacing_ms) {
+                    uint32_t ts_us = (uint32_t)esp_timer_get_time();
+                    uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
+                    bool ok = beat_events_push(ts_us, conf_u16);
+                    if (!ok) {
+                        LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached)");
+                    }
+                    g_last_beat_event_ms = now_ms;
+
+                    // Log BEAT_EVENT with detected BPM
+                    float best_bpm = get_best_bpm();
+                    LOG_INFO(TAG_BEAT, "BEAT detected @ %.1f BPM", best_bpm);
+                }
             }
             // Always end probe; latency printing is internally rate-limited and disabled by default
             beat_events_probe_end("audio_step");
@@ -403,21 +416,34 @@ static inline void run_audio_pipeline_once() {
     {
         uint32_t now_ms = millis();
         extern float tempo_confidence;  // From tempo.cpp
-        extern float silence_level;
-        float novelty_recent = novelty_curve_normalized[NOVELTY_HISTORY_LENGTH - 1];
-        const float base_threshold = get_params().beat_threshold;
-        float adaptive = base_threshold + (0.20f * (1.0f - silence_level)) + (0.10f * fminf(novelty_recent, 1.0f));
-        uint32_t min_spacing_ms = 120;
-        if (silence_level < 0.5f) min_spacing_ms = 160;
-        if (tempo_confidence > adaptive && (now_ms - g_last_beat_event_ms) >= min_spacing_ms) {
-            uint32_t ts_us = (uint32_t)esp_timer_get_time();
-            uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
-            bool ok = beat_events_push(ts_us, conf_u16);
-            beat_events_probe_end("audio_to_event");
-            if (!ok) {
-                LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached)");
+        extern bool silence_detected;   // From tempo.cpp
+        extern float silence_level;     // From tempo.cpp
+
+        // Block beat detection entirely during silence
+        if (!silence_detected) {
+            float novelty_recent = novelty_curve_normalized[NOVELTY_HISTORY_LENGTH - 1];
+            const float base_threshold = get_params().beat_threshold;
+            // Fixed: raise threshold during silence (was inverted)
+            float adaptive = base_threshold + (0.20f * silence_level) + (0.10f * fminf(novelty_recent, 1.0f));
+            uint32_t min_spacing_ms = 120;
+            // Fixed: denser music (low silence) → tighter spacing (was backwards)
+            if (silence_level > 0.5f) min_spacing_ms = 160;  // quieter → wider spacing
+
+            // Additional gate: require minimum VU level to prevent noise triggering
+            const float min_vu_for_beats = 0.10f;
+
+            if (tempo_confidence > adaptive &&
+                audio_level > min_vu_for_beats &&
+                (now_ms - g_last_beat_event_ms) >= min_spacing_ms) {
+                uint32_t ts_us = (uint32_t)esp_timer_get_time();
+                uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
+                bool ok = beat_events_push(ts_us, conf_u16);
+                beat_events_probe_end("audio_to_event");
+                if (!ok) {
+                    LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached)");
+                }
+                g_last_beat_event_ms = now_ms;
             }
-            g_last_beat_event_ms = now_ms;
         }
     }
 
