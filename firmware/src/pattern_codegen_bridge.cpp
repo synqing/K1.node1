@@ -38,8 +38,9 @@ static void copy_output_to_leds(const PatternOutput& out, const PatternParameter
 }
 
 #ifdef USE_GENERATED_BLOOM_PATTERN
-static void draw_bloom_codegen(float /*time*/, const PatternParameters& params) {
-    PATTERN_AUDIO_START();
+static void draw_bloom_codegen(const PatternRenderContext& context) {
+    const PatternParameters& params = context.params;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
     static PatternState state;  // persistent across frames
     PatternOutput out{};
     uint32_t frame = FRAMES_COUNTED.load(std::memory_order_relaxed);
@@ -49,8 +50,9 @@ static void draw_bloom_codegen(float /*time*/, const PatternParameters& params) 
 #endif
 
 #ifdef USE_GENERATED_SPECTRUM_PATTERN
-static void draw_spectrum_codegen(float /*time*/, const PatternParameters& params) {
-    PATTERN_AUDIO_START();
+static void draw_spectrum_codegen(const PatternRenderContext& context) {
+    const PatternParameters& params = context.params;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
     static PatternState state;  // persistent across frames
     PatternOutput out{};
     uint32_t frame = FRAMES_COUNTED.load(std::memory_order_relaxed);
