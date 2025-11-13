@@ -570,9 +570,12 @@ void calculate_magnitudes() {
 
 			// PHASE 2: Tempo data sync for beat/tempo reactive patterns
 			// tempo.h will populate these arrays after calculating tempi[] and tempi_smooth[]
-			// For now, zero the arrays - patterns fall back to AUDIO_TEMPO_CONFIDENCE if needed
-			memset(audio_back.tempo_magnitude, 0, sizeof(float) * NUM_TEMPI);
-			memset(audio_back.tempo_phase, 0, sizeof(float) * NUM_TEMPI);
+			// CRITICAL FIX: Sync calculated tempo data to audio snapshot
+			// This was being zeroed out, preventing patterns from accessing beat information
+			for (uint16_t i = 0; i < NUM_TEMPI; i++) {
+				audio_back.tempo_magnitude[i] = tempi_smooth[i];  // Smoothed tempo energy
+				audio_back.tempo_phase[i] = tempi[i].phase;        // Beat phase for synchronization
+			}
 
 			// Update metadata
 			audio_back.update_counter++;
