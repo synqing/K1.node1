@@ -283,6 +283,10 @@ void draw_spectrum(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
+    // Avoid macro redefinition warnings by undefining first
+    #undef AUDIO_IS_AVAILABLE
+    #undef AUDIO_IS_FRESH
+    #undef AUDIO_AGE_MS
     #define AUDIO_IS_AVAILABLE() (audio.is_valid)
     #define AUDIO_IS_FRESH() (audio.update_counter > 0) // Simplified for context
     #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
@@ -870,6 +874,9 @@ void draw_tempiscope(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
+    // Avoid macro redefinition warnings by undefining first
+    #undef AUDIO_IS_AVAILABLE
+    #undef AUDIO_IS_STALE
     #define AUDIO_IS_AVAILABLE() (audio.is_valid)
     #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000)) > 50)
     #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
@@ -1468,6 +1475,19 @@ void draw_perlin(const PatternRenderContext& context) {
     #define AUDIO_IS_AVAILABLE() (audio.is_valid)
     #define AUDIO_VU (audio.vu_level)
 
+    // CRITICAL: Only proceed with audio-reactive rendering if audio is available
+    if (!AUDIO_IS_AVAILABLE()) {
+        // Fallback: gentle time-based flow without audio
+        for (int i = 0; i < num_leds; i++) {
+            float hue = fmodf((float)i / num_leds + time * 0.05f * params.speed, 1.0f);
+            CRGBF color = color_from_palette(params.palette_id, hue, 0.4f);
+            leds[i] = color * params.brightness * params.saturation;
+        }
+        apply_mirror_mode(leds, true);
+        apply_background_overlay(context);
+        return;
+    }
+
     // Update Perlin noise position with time
     beat_perlin_position_x = 0.0f;  // Fixed X
     // Audio-driven momentum (Emotiscope-inspired): vu^4 controls flow speed
@@ -1479,7 +1499,7 @@ void draw_perlin(const PatternRenderContext& context) {
         if (dt_perlin > 0.05f) dt_perlin = 0.05f;
         last_time_perlin = time;
 
-        float vu = AUDIO_IS_AVAILABLE() ? AUDIO_VU : 0.3f;
+        float vu = AUDIO_VU;
         // Convert previous per-frame constants to per-second rates (≈120 FPS baseline)
         float momentum_per_sec = (0.0008f + 0.004f * params.speed) * 120.0f;
         momentum_per_sec *= (0.2f + powf(vu, 4.0f) * 0.8f);
