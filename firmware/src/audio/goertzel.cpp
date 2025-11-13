@@ -132,8 +132,8 @@ bool get_audio_snapshot(AudioDataSnapshot* snapshot) {
 	// LOCK-FREE READ with sequence counter validation
 	// Retry if sequence changes during copy (torn read detection)
 	uint32_t seq1, seq2;
-    // Increase retry budget to reduce spurious warnings under temporary contention
-    int max_retries = 1000;  // Prevent infinite loop in extreme contention
+    // REDUCED from 1000 to 50 to prevent excessive stalls while still allowing retries
+    int max_retries = 50;  // Prevent infinite loop in extreme contention
 	int retry_count = 0;
 
 	do {
