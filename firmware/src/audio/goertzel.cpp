@@ -131,13 +131,10 @@ bool get_audio_snapshot(AudioDataSnapshot* snapshot) {
 
 	// LOCK-FREE READ with sequence counter validation
 	// Retry if sequence changes during copy (torn read detection)
-	// FIX: Add exponential backoff to prevent CPU waste and allow writer to complete
 	uint32_t seq1, seq2;
-    // REDUCED: max_retries from 1000 → 10 (prevents 50-150ms stalls)
-    // Most reads succeed in 1-3 retries; 10 is generous headroom
-    int max_retries = 10;
+    // Increase retry budget to reduce spurious warnings under temporary contention
+    int max_retries = 1000;  // Prevent infinite loop in extreme contention
 	int retry_count = 0;
-	uint32_t backoff_us = 1;  // Start with 1 microsecond backoff
 
 	do {
 		// Read sequence counter before copy (relaxed - explicit barriers handle synchronization)
@@ -160,24 +157,12 @@ bool get_audio_snapshot(AudioDataSnapshot* snapshot) {
 		// 1. Sequence changed during copy (torn read)
 		// 2. Sequence is odd (writer is in progress)
 		// 3. Start/end sequences don't match (partial write)
-		if (seq1 == seq2 && !(seq1 & 1) && seq1 == audio_front.sequence.load(std::memory_order_relaxed)) {
-			// SUCCESS: Got consistent snapshot
-			return audio_front.is_valid;
-		}
-
 		if (++retry_count > max_retries) {
 			// Extreme contention - return stale data rather than infinite loop
-			LOG_WARN(TAG_SYNC, "Max retries (%d) exceeded after contention, using stale data", max_retries);
+			LOG_WARN(TAG_SYNC, "Max retries exceeded, using potentially stale data");
 			return audio_front.is_valid;
 		}
-
-		// FIX: Exponential backoff (after 3 retries, start yielding)
-		// This prevents spin-loop waste and allows Core 0 to complete writes faster
-		if (retry_count >= 3) {
-			esp_rom_delay_us(backoff_us);  // 1, 2, 4, 8, 16µs backoff
-			backoff_us = (backoff_us < 64) ? (backoff_us * 2) : 64;
-		}
-	} while (true);
+	} while (seq1 != seq2 || (seq1 & 1) || seq1 != audio_front.sequence.load(std::memory_order_relaxed));
 
 	return audio_front.is_valid;
 }

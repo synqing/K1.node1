@@ -285,15 +285,10 @@ void update_tempo() {
 
 			uint16_t max_bin = (NUM_TEMPI - 1) * MAX_TEMPO_RANGE;
 
-			// FIX #3: Increase from 2 to 4 bins per frame
-			// Reduces full update cycle from 32 frames (640ms) to 16 frames (320ms)
-			// Faster beat detection and tempo locking
 			calculate_tempi_magnitudes(calc_bin+0);
 			calculate_tempi_magnitudes(calc_bin+1);
-			calculate_tempi_magnitudes(calc_bin+2);
-			calculate_tempi_magnitudes(calc_bin+3);
 
-			calc_bin+=4;  // Increment by 4 instead of 2
+			calc_bin+=2;
 			if (calc_bin >= max_bin) {
 				calc_bin = 0;
 			}
