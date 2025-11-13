@@ -340,13 +340,13 @@ void draw_spectrum(const PatternRenderContext& context) {
 		// Emphasize separation and apply age-based decay
 		magnitude = response_sqrt(magnitude) * age_factor;
 
-		// Get color from palette using progress (hue only, not brightness)
-		CRGBF color = color_from_palette(params.palette_id, progress, 1.0f);
+		// Get color from palette using progress and magnitude
+		CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
 
-		// Apply both magnitude and global brightness
-		color.r *= magnitude * params.brightness;
-		color.g *= magnitude * params.brightness;
-		color.b *= magnitude * params.brightness;
+		// Apply global brightness
+		color.r *= params.brightness;
+		color.g *= params.brightness;
+		color.b *= params.brightness;
 
 		// Mirror from center (centre-origin architecture)
 		int left_index = wrap_idx(((NUM_LEDS / 2) - 1 - i) + SPECTRUM_CENTER_OFFSET);
@@ -489,12 +489,10 @@ void draw_bloom(const PatternRenderContext& context) {
 	int half_leds = NUM_LEDS >> 1;
 	for (int i = 0; i < half_leds; ++i) {
 		float brightness = clip_float(bloom_trail[ch_idx][i]);
-		// Get color from palette using position (hue only, not brightness)
-		CRGBF color = color_from_palette(params.palette_id, static_cast<float>(i) / half_leds, 1.0f);
-		// Apply both bloom brightness and global brightness
-		color.r *= brightness * params.brightness;
-		color.g *= brightness * params.brightness;
-		color.b *= brightness * params.brightness;
+		CRGBF color = color_from_palette(params.palette_id, static_cast<float>(i) / half_leds, brightness);
+		color.r *= params.brightness;
+		color.g *= params.brightness;
+		color.b *= params.brightness;
 
 		int left_index = (half_leds - 1) - i;
 		int right_index = half_leds + i;
@@ -2112,8 +2110,8 @@ void draw_prism(const PatternRenderContext& context) {
         magnitude = response_sqrt(magnitude) * energy_boost * age_factor;
         magnitude = fmaxf(0.0f, fminf(1.0f, magnitude));
 
-        // COLOR FROM PALETTE (not raw HSV! - use 1.0 for brightness to avoid double multiplication)
-        CRGBF color = color_from_palette(params.palette_id, progress, 1.0f);
+        // COLOR FROM PALETTE (not raw HSV!)
+        CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
 
         // SATURATION MODULATION: colors intensify on peaks
         if (magnitude > 0.1f) {
@@ -2122,10 +2120,10 @@ void draw_prism(const PatternRenderContext& context) {
             color = hsv(hsv_color.h, hsv_color.s, hsv_color.v);
         }
 
-        // Apply both magnitude and global brightness
-        color.r *= magnitude * params.brightness;
-        color.g *= magnitude * params.brightness;
-        color.b *= magnitude * params.brightness;
+        // Apply brightness
+        color.r *= params.brightness;
+        color.g *= params.brightness;
+        color.b *= params.brightness;
 
         // Mirror from center
         int left_idx = half_leds - 1 - i;
