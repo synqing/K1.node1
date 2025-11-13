@@ -21,7 +21,7 @@
 // ============================================================================
 
 constexpr size_t STATEFUL_NODE_MAX_NODES = 64;      // Max nodes per pattern
-constexpr size_t STATEFUL_NODE_BUFFER_SIZE = 180;   // Standard buffer (NUM_LEDS)
+constexpr size_t STATEFUL_NODE_BUFFER_SIZE = 160;   // Standard buffer (NUM_LEDS)
 constexpr uint32_t STATEFUL_NODE_MAGIC = 0xDEADBEEF; // Integrity check
 
 // ============================================================================

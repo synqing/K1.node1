@@ -1,8 +1,13 @@
 #include "multi_scale_tempogram.h"
 #include <cstring>
 #include <algorithm>
+#include <cmath>
+#if __has_include(<esp_log.h>)
 #include <esp_log.h>
+#endif
+#if __has_include(<esp_heap_caps.h>)
 #include <esp_heap_caps.h>
+#endif
 #include <new>
 
 static const char* TAG = "TEMPOGRAM";

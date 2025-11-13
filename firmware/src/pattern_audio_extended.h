@@ -13,51 +13,51 @@
  * Access to chromagram (musical note energy)
  * 12 bins representing: C, C#, D, D#, E, F, F#, G, G#, A, A#, B
  * USAGE: float c_energy = AUDIO_CHROMAGRAM[0];  // C note
+ * NOTE: Already defined in pattern_audio_interface.h, just included for reference
  */
-#define AUDIO_CHROMAGRAM (audio.chromagram)
 
 /**
  * Access novelty curve (spectral flux for beat detection)
  * Single value updated every frame with spectral change
- * USAGE: float novelty = AUDIO_NOVELTY();
+ * Already defined in pattern_audio_interface.h as AUDIO_NOVELTY (object-like macro)
+ * USAGE: float novelty = AUDIO_NOVELTY;
  */
-#define AUDIO_NOVELTY() (audio.novelty_curve)
 
 /**
  * Access per-tempo-bin magnitudes (64 tempo bins from 32-192 BPM)
- * USAGE: float tempo_mag = AUDIO_TEMPO_MAGNITUDE(bin_index);
+ * Adds new function-like macro for easier bin access
+ * USAGE: float tempo_mag = AUDIO_TEMPO_MAGNITUDE_BIN(bin_index);
  */
-#define AUDIO_TEMPO_MAGNITUDE(bin) (audio.tempo_magnitude[bin])
+#define AUDIO_TEMPO_MAGNITUDE_BIN(bin) (audio.tempo_magnitude[bin])
 
 /**
  * Access per-tempo-bin phases
- * USAGE: float tempo_phase = AUDIO_TEMPO_PHASE(bin_index);
+ * Adds new function-like macro for easier bin access
+ * USAGE: float tempo_phase = AUDIO_TEMPO_PHASE_BIN(bin_index);
  */
-#define AUDIO_TEMPO_PHASE(bin) (audio.tempo_phase[bin])
+#define AUDIO_TEMPO_PHASE_BIN(bin) (audio.tempo_phase[bin])
 
 /**
  * Calculate beat value (sin of phase) for a tempo bin
  * Positive when beat is "on", negative when "off"
- * USAGE: float beat = AUDIO_BEAT(bin_index);
+ * USAGE: float beat = AUDIO_BEAT_BIN(bin_index);
  */
-#define AUDIO_BEAT(bin) (sinf(audio.tempo_phase[bin]))
+#define AUDIO_BEAT_BIN(bin) (sinf(audio.tempo_phase[bin]))
 
 /**
  * Access raw FFT bins (128 frequency bins across full spectrum)
  * More granular than spectrogram (64 bins)
+ * Already defined in pattern_audio_interface.h as AUDIO_FFT
  * USAGE: float fft_bin = AUDIO_FFT[bin_index];
  */
-#define AUDIO_FFT (audio.fft_smooth)
 
 /**
- * Access VU level metrics
+ * Access VU level metrics (already defined in pattern_audio_interface.h)
  * vu_level = smoothed RMS level (0..1)
  * vu_level_raw = unfiltered instantaneous level
- * USAGE: float smooth_level = AUDIO_VU_SMOOTH();
- *        float raw_level = AUDIO_VU_RAW();
+ * USAGE: float smooth_level = AUDIO_VU;  (already available)
+ *        float raw_level = AUDIO_VU_RAW;  (already available)
  */
-#define AUDIO_VU_SMOOTH() (audio.vu_level)
-#define AUDIO_VU_RAW() (audio.vu_level_raw)
 
 // ============================================================================
 // FRAME-PERSISTENT STATE FOR TEMPORAL SMOOTHING
@@ -184,7 +184,7 @@ struct PatternSmoothingState {
  * Used for bloom, pulse, and trail effects
  */
 struct PersistenceBuffer {
-    CRGBF leds[NUM_LEDS] = {0};
+    CRGBF leds[NUM_LEDS] = {};
 
     /**
      * Clear the buffer

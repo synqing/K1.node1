@@ -26,19 +26,19 @@
 void draw_spectrum_emotiscope_exact(const PatternRenderContext& context) {
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
-    const int NUM_LEDS = context.num_leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
 
     if (!audio.is_valid) {
         // Fallback: ambient color
         CRGBF ambient = color_from_palette(params.palette_id, 0.5f, 0.1f);
-        for (int i = 0; i < NUM_LEDS; i++) leds[i] = ambient;
+        for (int i = 0; i < num_leds; i++) leds[i] = ambient;
         return;
     }
 
     // Calculate first half (apply_split_mirror_mode handles mirroring)
-    for (int i = 0; i < (NUM_LEDS >> 1); i++) {
-        float progress = (float)i / (float)(NUM_LEDS >> 1);
+    for (int i = 0; i < (num_leds >> 1); i++) {
+        float progress = (float)i / (float)(num_leds >> 1);
         float mag = clip_float(interpolate(progress, audio.spectrogram_smooth, NUM_FREQS));
 
         CRGBF color = color_from_palette(params.palette_id, progress, mag);
@@ -46,9 +46,9 @@ void draw_spectrum_emotiscope_exact(const PatternRenderContext& context) {
     }
 
     // Apply split-mirror mode
-    int half = NUM_LEDS / 2;
+    int half = num_leds / 2;
     for (int i = 0; i < half; i++) {
-        leds[NUM_LEDS - 1 - i] = leds[i];
+        leds[num_leds - 1 - i] = leds[i];
     }
 }
 
@@ -64,20 +64,20 @@ void draw_spectrum_emotiscope_exact(const PatternRenderContext& context) {
 void draw_octave_emotiscope_exact(const PatternRenderContext& context) {
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
-    const int NUM_LEDS = context.num_leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
 
     if (!audio.is_valid) {
         // Fallback: time-based animation
-        for (int i = 0; i < NUM_LEDS; i++) {
+        for (int i = 0; i < num_leds; i++) {
             leds[i] = color_from_palette(params.palette_id, 0.5f, 0.1f);
         }
         return;
     }
 
     // Calculate first half
-    for (int i = 0; i < (NUM_LEDS >> 1); i++) {
-        float progress = (float)i / (float)(NUM_LEDS >> 1);
+    for (int i = 0; i < (num_leds >> 1); i++) {
+        float progress = (float)i / (float)(num_leds >> 1);
         // Interpolate across 12 chromagram bins for smooth response
         float mag = interpolate(progress, audio.chromagram, 12);
         mag = clip_float(mag);
@@ -87,9 +87,9 @@ void draw_octave_emotiscope_exact(const PatternRenderContext& context) {
     }
 
     // Apply split-mirror mode
-    int half = NUM_LEDS / 2;
+    int half = num_leds / 2;
     for (int i = 0; i < half; i++) {
-        leds[NUM_LEDS - 1 - i] = leds[i];
+        leds[num_leds - 1 - i] = leds[i];
     }
 }
 
@@ -110,13 +110,13 @@ static float bloom_persist_prev[NUM_LEDS] = {0};
 void draw_bloom_emotiscope_exact(const PatternRenderContext& context) {
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
-    const int NUM_LEDS = context.num_leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
 
     if (!audio.is_valid) {
-        memset(leds, 0, sizeof(CRGBF) * NUM_LEDS);
-        memset(bloom_persist_image, 0, sizeof(float) * NUM_LEDS);
-        memset(bloom_persist_prev, 0, sizeof(float) * NUM_LEDS);
+        memset(leds, 0, sizeof(CRGBF) * num_leds);
+        memset(bloom_persist_image, 0, sizeof(float) * num_leds);
+        memset(bloom_persist_prev, 0, sizeof(float) * num_leds);
         return;
     }
 
@@ -124,7 +124,7 @@ void draw_bloom_emotiscope_exact(const PatternRenderContext& context) {
     float spread_speed = 0.125f + 0.875f * clip_float(params.speed);
 
     // Apply draw_sprite effect: spread persistence buffer
-    draw_sprite_float(bloom_persist_image, bloom_persist_prev, NUM_LEDS, NUM_LEDS,
+    draw_sprite_float(bloom_persist_image, bloom_persist_prev, num_leds, num_leds,
                      spread_speed, 0.99f);  // 0.99 = 1% decay per frame
 
     // Inject VU level at center
@@ -132,8 +132,8 @@ void draw_bloom_emotiscope_exact(const PatternRenderContext& context) {
     bloom_persist_image[0] = fminf(1.0f, bloom_persist_image[0]);
 
     // Render to LEDs (first half)
-    for (int i = 0; i < (NUM_LEDS >> 1); i++) {
-        float progress = (float)i / (float)(NUM_LEDS >> 1);
+    for (int i = 0; i < (num_leds >> 1); i++) {
+        float progress = (float)i / (float)(num_leds >> 1);
         float novelty_pixel = clip_float(bloom_persist_image[i] * 2.0f);
 
         CRGBF color = color_from_palette(params.palette_id, progress, novelty_pixel);
@@ -141,12 +141,12 @@ void draw_bloom_emotiscope_exact(const PatternRenderContext& context) {
     }
 
     // Copy for next frame
-    memcpy(bloom_persist_prev, bloom_persist_image, sizeof(float) * NUM_LEDS);
+    memcpy(bloom_persist_prev, bloom_persist_image, sizeof(float) * num_leds);
 
     // Apply split-mirror mode
-    int half = NUM_LEDS / 2;
+    int half = num_leds / 2;
     for (int i = 0; i < half; i++) {
-        leds[NUM_LEDS - 1 - i] = leds[i];
+        leds[num_leds - 1 - i] = leds[i];
     }
 }
 
@@ -160,18 +160,18 @@ void draw_bloom_emotiscope_exact(const PatternRenderContext& context) {
  * - Mirrors for symmetrical effect
  */
 
-static CRGBF bloom_mirror_buffer[NUM_LEDS] = {0};
-static CRGBF bloom_mirror_prev[NUM_LEDS] = {0};
+static CRGBF bloom_mirror_buffer[NUM_LEDS] = {};
+static CRGBF bloom_mirror_prev[NUM_LEDS] = {};
 
 void draw_bloom_mirror_emotiscope_exact(const PatternRenderContext& context) {
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
-    const int NUM_LEDS = context.num_leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
 
     if (!audio.is_valid) {
-        memset(leds, 0, sizeof(CRGBF) * NUM_LEDS);
-        memset(bloom_mirror_buffer, 0, sizeof(CRGBF) * NUM_LEDS);
+        memset(leds, 0, sizeof(CRGBF) * num_leds);
+        memset(bloom_mirror_buffer, 0, sizeof(CRGBF) * num_leds);
         return;
     }
 
@@ -179,8 +179,8 @@ void draw_bloom_mirror_emotiscope_exact(const PatternRenderContext& context) {
     float scroll_speed = 0.25f + 1.75f * clip_float(params.speed);
 
     // Clear and apply spray effect
-    memset(bloom_mirror_buffer, 0, sizeof(CRGBF) * NUM_LEDS);
-    draw_sprite(bloom_mirror_buffer, bloom_mirror_prev, NUM_LEDS, NUM_LEDS,
+    memset(bloom_mirror_buffer, 0, sizeof(CRGBF) * num_leds);
+    draw_sprite(bloom_mirror_buffer, bloom_mirror_prev, num_leds, num_leds,
                scroll_speed, 0.92f);  // 0.92 = 8% decay per frame
 
     // Build chromagram-driven color blend
@@ -206,7 +206,7 @@ void draw_bloom_mirror_emotiscope_exact(const PatternRenderContext& context) {
     wave_color.b = fminf(1.0f, wave_color.b);
 
     // Inject wave color at center
-    int center = NUM_LEDS >> 1;
+    int center = num_leds >> 1;
     float conf_inject = audio.vu_level;  // Use VU level for injection strength
 
     bloom_mirror_buffer[center - 1].r += wave_color.r * conf_inject;
@@ -218,14 +218,14 @@ void draw_bloom_mirror_emotiscope_exact(const PatternRenderContext& context) {
 
     // Mirror right half onto left for symmetry
     for (int i = 0; i < center; i++) {
-        bloom_mirror_buffer[i] = bloom_mirror_buffer[(NUM_LEDS - 1) - i];
+        bloom_mirror_buffer[i] = bloom_mirror_buffer[(num_leds - 1) - i];
     }
 
     // Copy to previous for next frame
-    memcpy(bloom_mirror_prev, bloom_mirror_buffer, sizeof(CRGBF) * NUM_LEDS);
+    memcpy(bloom_mirror_prev, bloom_mirror_buffer, sizeof(CRGBF) * num_leds);
 
     // Output to LEDs
-    for (int i = 0; i < NUM_LEDS; i++) {
+    for (int i = 0; i < num_leds; i++) {
         leds[i] = bloom_mirror_buffer[i];
     }
 }
@@ -243,16 +243,16 @@ void draw_bloom_mirror_emotiscope_exact(const PatternRenderContext& context) {
 void draw_tempiscope_emotiscope_exact(const PatternRenderContext& context) {
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
-    const int NUM_LEDS = context.num_leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
 
     if (!audio.is_valid) {
-        memset(leds, 0, sizeof(CRGBF) * NUM_LEDS);
+        memset(leds, 0, sizeof(CRGBF) * num_leds);
         return;
     }
 
     // Draw the current frame - map each tempo bin to LED
-    for (int i = 0; i < NUM_TEMPI && i < NUM_LEDS; i++) {
+    for (int i = 0; i < NUM_TEMPI && i < num_leds; i++) {
         float progress = (float)i / (float)NUM_TEMPI;
 
         // Phase-modulate magnitude: sin of phase creates beat pulsing
@@ -282,24 +282,24 @@ void draw_tempiscope_emotiscope_exact(const PatternRenderContext& context) {
  * - Applies mirror mode for symmetry
  */
 
-static CRGBF tunnel_persist[NUM_LEDS] = {0};
-static CRGBF tunnel_persist_prev[NUM_LEDS] = {0};
+static CRGBF tunnel_persist[NUM_LEDS] = {};
+static CRGBF tunnel_persist_prev[NUM_LEDS] = {};
 static float tunnel_angle = 0.0f;
 
 void draw_beat_tunnel_emotiscope_exact(const PatternRenderContext& context) {
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
-    const int NUM_LEDS = context.num_leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
 
     if (!audio.is_valid) {
-        memset(tunnel_persist, 0, sizeof(CRGBF) * NUM_LEDS);
-        memset(leds, 0, sizeof(CRGBF) * NUM_LEDS);
+        memset(tunnel_persist, 0, sizeof(CRGBF) * num_leds);
+        memset(leds, 0, sizeof(CRGBF) * num_leds);
         return;
     }
 
     // Clear tunnel image
-    memset(tunnel_persist, 0, sizeof(CRGBF) * NUM_LEDS);
+    memset(tunnel_persist, 0, sizeof(CRGBF) * num_leds);
 
     // Animate angle for position modulation
     tunnel_angle += 0.001f;
@@ -308,11 +308,11 @@ void draw_beat_tunnel_emotiscope_exact(const PatternRenderContext& context) {
     float position = (0.125f + 0.875f * clip_float(params.speed)) * sinf(tunnel_angle) * 0.5f;
 
     // Apply draw_sprite to create scrolling effect
-    draw_sprite(tunnel_persist, tunnel_persist_prev, NUM_LEDS, NUM_LEDS, position, 0.965f);
+    draw_sprite(tunnel_persist, tunnel_persist_prev, num_leds, num_leds, position, 0.965f);
 
     // Add tempo data to tunnel image
     // Only light tempo bins that are near phase = 0.65
-    for (int i = 0; i < NUM_TEMPI && i < NUM_LEDS; i++) {
+    for (int i = 0; i < NUM_TEMPI && i < num_leds; i++) {
         float phase = 1.0f - ((audio.tempo_phase[i] + static_cast<float>(M_PI)) / (2.0f * static_cast<float>(M_PI)));
 
         float mag = 0.0f;
@@ -331,16 +331,16 @@ void draw_beat_tunnel_emotiscope_exact(const PatternRenderContext& context) {
     }
 
     // Apply mirror mode
-    int half = NUM_LEDS >> 1;
+    int half = num_leds >> 1;
     for (int i = 0; i < half; i++) {
         tunnel_persist[half + i] = tunnel_persist[(half - 1) - i];
     }
 
     // Copy to output
-    memcpy(leds, tunnel_persist, sizeof(CRGBF) * NUM_LEDS);
+    memcpy(leds, tunnel_persist, sizeof(CRGBF) * num_leds);
 
     // Copy for next frame
-    memcpy(tunnel_persist_prev, tunnel_persist, sizeof(CRGBF) * NUM_LEDS);
+    memcpy(tunnel_persist_prev, tunnel_persist, sizeof(CRGBF) * num_leds);
 }
 
 // ============================================================================
@@ -355,24 +355,24 @@ void draw_beat_tunnel_emotiscope_exact(const PatternRenderContext& context) {
 void draw_beat_tunnel_variant_emotiscope_exact(const PatternRenderContext& context) {
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
-    const int NUM_LEDS = context.num_leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
 
     if (!audio.is_valid) {
-        memset(leds, 0, sizeof(CRGBF) * NUM_LEDS);
+        memset(leds, 0, sizeof(CRGBF) * num_leds);
         return;
     }
 
     // Clear
-    memset(tunnel_persist, 0, sizeof(CRGBF) * NUM_LEDS);
+    memset(tunnel_persist, 0, sizeof(CRGBF) * num_leds);
 
     tunnel_angle += 0.002f;  // Faster rotation
     float position = (0.125f + 0.875f * clip_float(params.speed)) * sinf(tunnel_angle * 2.0f) * 0.4f;
 
-    draw_sprite(tunnel_persist, tunnel_persist_prev, NUM_LEDS, NUM_LEDS, position, 0.95f);
+    draw_sprite(tunnel_persist, tunnel_persist_prev, num_leds, num_leds, position, 0.95f);
 
     // Variant: show wider band with phase-dependent width
-    for (int i = 0; i < NUM_TEMPI && i < NUM_LEDS; i++) {
+    for (int i = 0; i < NUM_TEMPI && i < num_leds; i++) {
         float phase = 1.0f - ((audio.tempo_phase[i] + static_cast<float>(M_PI)) / (2.0f * static_cast<float>(M_PI)));
 
         // Wider window that changes with phase
@@ -392,13 +392,13 @@ void draw_beat_tunnel_variant_emotiscope_exact(const PatternRenderContext& conte
     }
 
     // Mirror
-    int half = NUM_LEDS >> 1;
+    int half = num_leds >> 1;
     for (int i = 0; i < half; i++) {
         tunnel_persist[half + i] = tunnel_persist[(half - 1) - i];
     }
 
-    memcpy(leds, tunnel_persist, sizeof(CRGBF) * NUM_LEDS);
-    memcpy(tunnel_persist_prev, tunnel_persist, sizeof(CRGBF) * NUM_LEDS);
+    memcpy(leds, tunnel_persist, sizeof(CRGBF) * num_leds);
+    memcpy(tunnel_persist_prev, tunnel_persist, sizeof(CRGBF) * num_leds);
 }
 
 // ============================================================================
@@ -412,18 +412,8 @@ void draw_beat_tunnel_variant_emotiscope_exact(const PatternRenderContext& conte
  * - Additive blending for overlapping waves
  */
 
-#define MAX_PULSE_WAVES 6
-
-struct PulseWave {
-    float position;      // 0.0-1.0 from center
-    float speed;         // Expansion rate
-    float hue;           // Color from chromagram
-    float brightness;    // Initial amplitude
-    uint16_t age;        // Frames since spawn
-    bool active;         // Is this wave active?
-};
-
-static PulseWave pulse_waves[MAX_PULSE_WAVES] = {};
+// NOTE: pulse_wave struct and MAX_PULSE_WAVES are defined in generated_patterns.h
+// pulse_waves static array is declared before this header is included
 
 float get_dominant_chroma_hue_from_audio(const AudioDataSnapshot& audio) {
     float max_chroma = 0.0f;
@@ -443,11 +433,11 @@ float get_dominant_chroma_hue_from_audio(const AudioDataSnapshot& audio) {
 void draw_pulse_emotiscope_exact(const PatternRenderContext& context) {
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
-    const int NUM_LEDS = context.num_leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
 
     if (!audio.is_valid) {
-        memset(leds, 0, sizeof(CRGBF) * NUM_LEDS);
+        memset(leds, 0, sizeof(CRGBF) * num_leds);
         return;
     }
 
@@ -468,7 +458,7 @@ void draw_pulse_emotiscope_exact(const PatternRenderContext& context) {
     }
 
     // Clear LED buffer
-    memset(leds, 0, sizeof(CRGBF) * NUM_LEDS);
+    memset(leds, 0, sizeof(CRGBF) * num_leds);
 
     // Update and render all active waves
     for (int w = 0; w < MAX_PULSE_WAVES; w++) {
@@ -492,8 +482,8 @@ void draw_pulse_emotiscope_exact(const PatternRenderContext& context) {
         float wave_width = base_width + width_growth * pulse_waves[w].age;
 
         // Render to first half
-        for (int i = 0; i < (NUM_LEDS >> 1); i++) {
-            float progress = (float)i / (float)(NUM_LEDS >> 1);
+        for (int i = 0; i < (num_leds >> 1); i++) {
+            float progress = (float)i / (float)(num_leds >> 1);
 
             // Gaussian bell curve centered at wave position
             float distance = fabsf(progress - pulse_waves[w].position);
@@ -514,9 +504,9 @@ void draw_pulse_emotiscope_exact(const PatternRenderContext& context) {
     }
 
     // Apply mirror for symmetry
-    int half = NUM_LEDS / 2;
+    int half = num_leds / 2;
     for (int i = 0; i < half; i++) {
-        leds[NUM_LEDS - 1 - i] = leds[i];
+        leds[num_leds - 1 - i] = leds[i];
     }
 }
 
@@ -539,11 +529,11 @@ void draw_perlin_emotiscope_exact(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
-    const int NUM_LEDS = context.num_leds;
+    int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
 
     if (!audio.is_valid) {
-        memset(leds, 0, sizeof(CRGBF) * NUM_LEDS);
+        memset(leds, 0, sizeof(CRGBF) * num_leds);
         return;
     }
 
@@ -566,19 +556,19 @@ void draw_perlin_emotiscope_exact(const PatternRenderContext& context) {
     static float perlin_hue[NUM_LEDS] = {0};
     static float perlin_lum[NUM_LEDS] = {0};
 
-    fill_array_with_perlin(perlin_hue, NUM_LEDS, (float)perlin_x, (float)perlin_y, 0.025f);
-    fill_array_with_perlin(perlin_lum, NUM_LEDS, (float)perlin_x + 100.0f, (float)perlin_y + 50.0f, 0.0125f);
+    fill_array_with_perlin(perlin_hue, num_leds, (float)perlin_x, (float)perlin_y, 0.025f);
+    fill_array_with_perlin(perlin_lum, num_leds, (float)perlin_x + 100.0f, (float)perlin_y + 50.0f, 0.0125f);
 
     // Scale luminance from [0,1] to [0.1, 1.0] using DSPS
     // For now, manual scaling (DSPS would be dsps_mulc_f32 and dsps_addc_f32)
-    for (int i = 0; i < NUM_LEDS; i++) {
+    for (int i = 0; i < num_leds; i++) {
         perlin_lum[i] = perlin_lum[i] * 0.98f + 0.02f;  // Scale to [0.02, 1.0]
         perlin_lum[i] = perlin_lum[i] * perlin_lum[i];  // Square for emphasis
     }
 
     // Render
     if (params.custom_param_1 < 0.5f) {  // Non-mirror mode
-        for (int i = 0; i < NUM_LEDS; i++) {
+        for (int i = 0; i < num_leds; i++) {
             CRGBF color = hsv(
                 fmodf(get_color_range_hue(perlin_hue[i]), 1.0f),
                 params.saturation,
@@ -587,14 +577,14 @@ void draw_perlin_emotiscope_exact(const PatternRenderContext& context) {
             leds[i] = color;
         }
     } else {  // Mirror mode
-        for (int i = 0; i < (NUM_LEDS >> 1); i++) {
+        for (int i = 0; i < (num_leds >> 1); i++) {
             CRGBF color = hsv(
                 fmodf(get_color_range_hue(perlin_hue[i << 1]), 1.0f),
                 params.saturation,
                 perlin_lum[i << 1] * perlin_lum[i << 1]
             );
             leds[i] = color;
-            leds[NUM_LEDS - 1 - i] = color;
+            leds[num_leds - 1 - i] = color;
         }
     }
 }

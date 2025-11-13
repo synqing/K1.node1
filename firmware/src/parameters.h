@@ -2,7 +2,12 @@
 // Prevents race conditions between web handler (Core 0) and LED loop (Core 1)
 
 #pragma once
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include <stdint.h>
+#include <stddef.h>
+#endif
 #include <atomic>
 
 // Runtime parameters for pattern control

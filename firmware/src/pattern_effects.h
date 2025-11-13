@@ -2,6 +2,7 @@
 #define PATTERN_EFFECTS_H
 
 #include "types.h"
+#include "pattern_helpers.h"
 #include <cmath>
 
 // ============================================================================
@@ -130,9 +131,9 @@ inline void gaussian_blur_1d(const float* values, float* result, uint16_t count,
  * @param hsv - Input HSV color
  * @param amount - Saturation boost (0.0=no change, 1.0=full saturation, >1.0=oversaturate)
  */
-inline CHSV increase_saturation(CHSV hsv, float amount) {
+inline HSVF increase_saturation(HSVF hsv, float amount) {
     amount = fmaxf(0.0f, amount);
-    hsv.sat = clip_uint8(static_cast<uint16_t>(hsv.sat) + static_cast<uint16_t>(amount * 255));
+    hsv.s = clip_float(hsv.s + amount);  // Clamp to 0.0-1.0
     return hsv;
 }
 
@@ -188,12 +189,12 @@ inline float mirror_position(float position, float max_position) {
  * @param brightness - Brightness of dot (0..1)
  * @param color - HSV color
  */
-inline void draw_dot(CRGBF* leds, uint16_t num_leds, float position, float brightness, CHSV color) {
+inline void draw_dot(CRGBF* leds, uint16_t num_leds, float position, float brightness, HSVF color) {
     if (position < 0 || position >= num_leds) return;
 
     uint16_t idx = static_cast<uint16_t>(position);
     if (idx < num_leds) {
-        CRGBF hsv_rgb = CRGBF(color);
+        CRGBF hsv_rgb = hsv(color.h, color.s, color.v);
         leds[idx] += CRGBF(
             hsv_rgb.r * brightness,
             hsv_rgb.g * brightness,
@@ -213,11 +214,11 @@ inline void draw_dot(CRGBF* leds, uint16_t num_leds, float position, float brigh
  * @param color - HSV color
  */
 inline void draw_sprite_float(CRGBF* leds, uint16_t num_leds, float center,
-                             float brightness, float spread, CHSV color) {
+                             float brightness, float spread, HSVF color) {
     brightness = clip_float(brightness);
     spread = fmaxf(0.5f, spread);
 
-    CRGBF hsv_rgb = CRGBF(color);
+    CRGBF hsv_rgb = hsv(color.h, color.s, color.v);
     int16_t center_int = static_cast<int16_t>(center);
 
     // Gaussian falloff: exp(-(distance/spread)^2)
@@ -248,7 +249,7 @@ inline void clear_leds(CRGBF* leds, uint16_t num_leds, uint16_t start, uint16_t 
     start = fmaxf(0, start);
     end = fminf(end, static_cast<uint16_t>(num_leds));
     for (uint16_t i = start; i < end; i++) {
-        leds[i] = CRGBF(0, 0, 0);
+        leds[i] = CRGBF(0.0f, 0.0f, 0.0f);
     }
 }
 

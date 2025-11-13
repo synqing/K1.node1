@@ -44,6 +44,7 @@ void init_rmt_driver();
 #include "profiler.h"
 #include "audio/goertzel.h"  // Audio system globals, struct definitions, initialization, DFT computation
 #include "audio/tempo.h"     // Beat detection and tempo tracking pipeline
+#include "audio/tempo_enhanced.h"
 #include "audio/microphone.h"  // REAL SPH0645 I2S MICROPHONE INPUT
 #include "audio/vu.h"
 #include "palettes.h"
@@ -54,7 +55,7 @@ void init_rmt_driver();
 #include "pattern_codegen_bridge.h"
 #include "generated_patterns.h"
 #include "pattern_helpers.h"
-#include "pattern_optimizations.h"
+// #include "pattern_optimizations.h"  // Disabled: legacy optimization header with mismatched signatures
 #include "webserver.h"
 #include "cpu_monitor.h"
 #include "connection_state.h"
@@ -95,6 +96,19 @@ static inline void run_audio_pipeline_once();
 
 static bool network_services_started = false;
 static bool s_audio_task_running = false;
+static bool s_enhanced_tempo_active = true;
+static EnhancedTempoDetector* s_etd = nullptr;
+
+static inline void reset_classic_tempo_bins() {
+    extern tempo tempi[NUM_TEMPI];
+    extern float tempi_smooth[NUM_TEMPI];
+    for (uint16_t i = 0; i < NUM_TEMPI; ++i) {
+        tempi[i].magnitude = 0.0f;
+        tempi[i].magnitude_full_scale = 0.0f;
+        tempi_smooth[i] = 0.0f;
+    }
+    tempi_power_sum = 0.0f;
+}
 
 // Calculate best BPM estimate from highest tempo bin magnitude
 float get_best_bpm() {
@@ -260,24 +274,69 @@ void audio_task(void* param) {
         // Log novelty at fixed cadence and update silence state
         update_novelty();
 
-        // Update tempo magnitudes (interlaced) and advance phases
-        beat_events_probe_start();      // Start latency probe for audio→event
-        update_tempo();
+        bool input_active = audio_input_is_active();
+        bool silence_frame = (!input_active);
+        static bool prev_silence_frame = true;
+        bool resumed_from_silence = (prev_silence_frame && !silence_frame);
+        prev_silence_frame = silence_frame;
+        if (silence_frame) {
+            tempo_confidence = 0.0f;
+            reset_classic_tempo_bins();
+            if (s_enhanced_tempo_active && s_etd) {
+                s_etd->handle_silence_frame();
+            }
+        } else if (resumed_from_silence) {
+            tempo_confidence = 0.0f;
+            reset_classic_tempo_bins();
+            if (s_enhanced_tempo_active && s_etd) {
+                s_etd->reset();
+            }
+        }
+
+        // Update tempo (enhanced preferred) and advance phases
+        bool probe_started = false;
         static uint32_t last_phase_us = 0;
-        if (last_phase_us == 0) last_phase_us = t_now_us;
-        uint32_t dt_us = t_now_us - last_phase_us;
-        last_phase_us = t_now_us;
-        const float ideal_us_per_frame = 1000000.0f / REFERENCE_FPS;
-        float delta = dt_us / ideal_us_per_frame;
-        if (delta < 0.0f) delta = 0.0f;
-        if (delta > 5.0f) delta = 5.0f; // clamp extreme pauses
-        update_tempi_phase(delta);
+        if (!silence_frame) {
+            beat_events_probe_start();
+            probe_started = true;
+            if (s_enhanced_tempo_active && s_etd) {
+                TempoResult tr = s_etd->process_spectrum(spectrogram_smooth, NUM_FREQS);
+
+                // Prefer locked, smoothed BPM for mapping to reduce jitter
+                float map_bpm = s_etd->is_locked() ? s_etd->current_bpm() : tr.bpm;
+                uint16_t best_bin = find_closest_tempo_bin(map_bpm);
+
+                for (uint16_t i = 0; i < NUM_TEMPI; ++i) {
+                    tempi[i].magnitude *= 0.90f;
+                    tempi_smooth[i] *= 0.92f;
+                }
+                float conf = s_etd->current_confidence();
+                if (!s_etd->is_locked()) conf *= 0.5f; // down-weight pre-lock to avoid whiplash
+                tempi[best_bin].magnitude = fmaxf(tempi[best_bin].magnitude, conf);
+                tempi_smooth[best_bin] = fmaxf(tempi_smooth[best_bin], conf);
+                tempo_confidence = conf;
+            } else {
+                update_tempo();
+            }
+
+            if (last_phase_us == 0) last_phase_us = t_now_us;
+            uint32_t dt_us = t_now_us - last_phase_us;
+            last_phase_us = t_now_us;
+            const float ideal_us_per_frame = 1000000.0f / REFERENCE_FPS;
+            float delta = dt_us / ideal_us_per_frame;
+            if (delta < 0.0f) delta = 0.0f;
+            if (delta > 5.0f) delta = 5.0f; // clamp extreme pauses
+            update_tempi_phase(delta);
+        } else {
+            last_phase_us = t_now_us;
+        }
 
         // SYNC TEMPO CONFIDENCE TO AUDIO SNAPSHOT (guarded)
         extern float tempo_confidence;  // From tempo.cpp
         static portMUX_TYPE audio_spinlock = portMUX_INITIALIZER_UNLOCKED;
         portENTER_CRITICAL(&audio_spinlock);
         audio_back.tempo_confidence = tempo_confidence;
+        audio_back.is_valid = !silence_frame;
         portEXIT_CRITICAL(&audio_spinlock);
 
         // SYNC TEMPO MAGNITUDE AND PHASE ARRAYS
@@ -291,8 +350,10 @@ void audio_task(void* param) {
         }
         portEXIT_CRITICAL(&audio_spinlock);
 
-        // Beat event stub: push to ring buffer when confidence passes threshold
-        {
+        // Beat event emission (enhanced preferred):
+        // - If enhanced locked: emit on phase zero-crossing with period guard
+        // - Else: fallback to confidence + refractory gating
+        if (!silence_frame) {
             uint32_t now_ms = millis();
             extern float tempo_confidence;  // From tempo.cpp
             // Adaptive gating: threshold influenced by silence level and novelty
@@ -300,23 +361,64 @@ void audio_task(void* param) {
             float novelty_recent = novelty_curve_normalized[NOVELTY_HISTORY_LENGTH - 1];
             const float base_threshold = get_params().beat_threshold;
             float adaptive = base_threshold + (0.20f * (1.0f - silence_level)) + (0.10f * fminf(novelty_recent, 1.0f));
-            uint32_t min_spacing_ms = 120; // default spacing
-            if (silence_level < 0.5f) min_spacing_ms = 160;      // denser music → widen spacing
-            if (tempo_confidence > adaptive && (now_ms - g_last_beat_event_ms) >= min_spacing_ms) {
-                uint32_t ts_us = (uint32_t)esp_timer_get_time();
-                uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
-                bool ok = beat_events_push(ts_us, conf_u16);
-                if (!ok) {
-                    LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached)");
+            // Hard VU gate: do not emit beats under low energy (tempo.h constant)
+            // audio_level is updated by run_vu(); use it directly for gating
+            bool vu_ok = (audio_level >= VU_LOCK_GATE);
+            bool emitted = false;
+            if (vu_ok && s_enhanced_tempo_active && s_etd && s_etd->is_locked()) {
+                // Phase-based beat: detect negative→positive zero-crossing
+                static float prev_phase = 0.0f;
+                float phase = s_etd->current_phase();
+                // Expected period from locked BPM
+                float bpm_for_period = fmaxf(30.0f, fminf(200.0f, s_etd->current_bpm()));
+                uint32_t expected_period_ms = (uint32_t)(60000.0f / bpm_for_period);
+                uint32_t refractory_ms = (uint32_t)(expected_period_ms * 0.6f);
+                if (refractory_ms < 200) refractory_ms = 200;
+                bool zero_cross = (prev_phase < 0.0f && phase >= 0.0f);
+                if (zero_cross && input_active && (now_ms - g_last_beat_event_ms) >= refractory_ms && tempo_confidence > adaptive) {
+                    uint32_t ts_us = (uint32_t)esp_timer_get_time();
+                    uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
+                    bool ok = beat_events_push(ts_us, conf_u16);
+                    if (!ok) {
+                        LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached)");
+                    }
+                    g_last_beat_event_ms = now_ms;
+                    float best_bpm = get_best_bpm();
+                    LOG_INFO(TAG_BEAT, "BEAT detected @ %.1f BPM", best_bpm);
+                    emitted = true;
                 }
-                g_last_beat_event_ms = now_ms;
+                prev_phase = phase;
+            }
+            if (vu_ok && !emitted) {
+                // Fallback: confidence + refractory gating
+                float bpm_for_period = get_best_bpm();
+                bpm_for_period = fmaxf(30.0f, fminf(200.0f, bpm_for_period));
+                uint32_t expected_period_ms = (uint32_t)(60000.0f / bpm_for_period);
+                uint32_t refractory_ms = (uint32_t)(expected_period_ms * 0.6f);
+                if (refractory_ms < 200) refractory_ms = 200;
+                if (input_active && tempo_confidence > adaptive && (now_ms - g_last_beat_event_ms) >= refractory_ms) {
+                    uint32_t ts_us = (uint32_t)esp_timer_get_time();
+                    uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
+                    bool ok = beat_events_push(ts_us, conf_u16);
+                    if (!ok) {
+                        LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached)");
+                    }
+                    g_last_beat_event_ms = now_ms;
 
-                // Log BEAT_EVENT with detected BPM
-                float best_bpm = get_best_bpm();
-                LOG_INFO(TAG_BEAT, "BEAT detected @ %.1f BPM", best_bpm);
+                    // Log BEAT_EVENT with detected BPM
+                    float best_bpm = get_best_bpm();
+                    LOG_INFO(TAG_BEAT, "BEAT detected @ %.1f BPM", best_bpm);
+                }
             }
             // Always end probe; latency printing is internally rate-limited and disabled by default
-            beat_events_probe_end("audio_step");
+            if (probe_started) beat_events_probe_end("audio_step");
+            if (!vu_ok) {
+                static uint32_t last_lowvu_ms = 0;
+                if ((now_ms - last_lowvu_ms) >= 3000) {
+                    LOG_DEBUG(TAG_AUDIO, "Beat gated by VU (%.2f < gate)", audio_level);
+                    last_lowvu_ms = now_ms;
+                }
+            }
             // Diagnostic output: BPM + VU every 3 seconds
             static uint32_t last_diag_ms = 0;
             uint32_t diag_interval = 3000;  // 3 second interval
@@ -330,6 +432,11 @@ void audio_task(void* param) {
                 LOG_DEBUG(TAG_AUDIO, "tempo_conf=%.3f silence=%.3f novelty_sum=%.3f",
                           tempo_confidence, silence_level, tempi_power_sum);
             }
+            if (probe_started) {
+                beat_events_probe_end("audio_step");
+            }
+        } else if (probe_started) {
+            beat_events_probe_end("audio_step");
         }
 
         // Lock-free buffer synchronization with Core 1
@@ -399,17 +506,28 @@ static inline void run_audio_pipeline_once() {
     }
     portEXIT_CRITICAL(&audio_spinlock);
 
-    // Beat event stub: push to ring buffer when confidence high
+    // Beat event: gate by confidence AND expected period (derived from BPM)
     {
         uint32_t now_ms = millis();
         extern float tempo_confidence;  // From tempo.cpp
         extern float silence_level;
+        // Hard VU gate in single-shot mode as well
+        if (audio_level < VU_LOCK_GATE) {
+            if (beat_events_probe_active()) beat_events_probe_end("audio_to_event");
+            return;
+        }
         float novelty_recent = novelty_curve_normalized[NOVELTY_HISTORY_LENGTH - 1];
         const float base_threshold = get_params().beat_threshold;
         float adaptive = base_threshold + (0.20f * (1.0f - silence_level)) + (0.10f * fminf(novelty_recent, 1.0f));
-        uint32_t min_spacing_ms = 120;
-        if (silence_level < 0.5f) min_spacing_ms = 160;
-        if (tempo_confidence > adaptive && (now_ms - g_last_beat_event_ms) >= min_spacing_ms) {
+        float bpm_for_period = get_best_bpm();
+        if (s_enhanced_tempo_active && s_etd && s_etd->is_locked()) {
+            bpm_for_period = s_etd->current_bpm();
+        }
+        bpm_for_period = fmaxf(30.0f, fminf(200.0f, bpm_for_period));
+        uint32_t expected_period_ms = (uint32_t)(60000.0f / bpm_for_period);
+        uint32_t refractory_ms = (uint32_t)(expected_period_ms * 0.6f);
+        if (refractory_ms < 200) refractory_ms = 200;
+        if (tempo_confidence > adaptive && (now_ms - g_last_beat_event_ms) >= refractory_ms) {
             uint32_t ts_us = (uint32_t)esp_timer_get_time();
             uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
             bool ok = beat_events_push(ts_us, conf_u16);
@@ -618,6 +736,15 @@ void setup() {
     // Initialize tempo detection (beat detection pipeline)
     LOG_INFO(TAG_TEMPO, "Initializing tempo detection...");
     init_tempo_goertzel_constants();
+    // Enhanced detector
+    s_etd = new EnhancedTempoDetector();
+    if (s_etd && s_etd->init()) {
+        LOG_INFO(TAG_TEMPO, "Enhanced tempo detector ENABLED (%d bins)", ENHANCED_NUM_TEMPI);
+        s_enhanced_tempo_active = true;
+    } else {
+        LOG_WARN(TAG_TEMPO, "Enhanced tempo detector unavailable; falling back to classic Goertzel");
+        s_enhanced_tempo_active = false;
+    }
 
     // Initialize beat event ring buffer and latency probes
     // Capacity 53 ≈ 10s history at ~5.3 beats/sec (p99 combined)
@@ -632,12 +759,12 @@ void setup() {
     // Initialize pattern registry
     LOG_INFO(TAG_CORE0, "Initializing pattern registry...");
     init_pattern_registry();
-    init_hue_wheel_lut();
+    // init_hue_wheel_lut();  // Disabled: hue wheel LUT not required; hsv() uses direct math fallback
     LOG_INFO(TAG_CORE0, "Loaded %d patterns", g_num_patterns);
 
     // Apply performance optimizations to underperforming patterns
-    apply_pattern_optimizations();
-    LOG_INFO(TAG_CORE0, "Applied pattern optimizations");
+    // apply_pattern_optimizations();
+    // LOG_INFO(TAG_CORE0, "Applied pattern optimizations");
 
     // If codegen flags are enabled, override selected patterns to use generated implementations
     apply_codegen_overrides();

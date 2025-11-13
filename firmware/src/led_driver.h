@@ -85,14 +85,15 @@
 #endif
 
 // It won't void any kind of stupid warranty, but things will *definitely* break at this point if you change this number.
-#define NUM_LEDS ( 180 )
+// Hardware LED count correction
+#define NUM_LEDS ( 160 )
 
 // CENTER-ORIGIN ARCHITECTURE (Mandatory for all patterns)
 // All effects MUST radiate from center point, never edge-to-edge
 // NO rainbows, NO linear gradients - only radial/symmetric effects
-#define STRIP_CENTER_POINT ( 89 )   // Physical LED at center (NUM_LEDS/2 - 1)
-#define STRIP_HALF_LENGTH ( 90 )    // Distance from center to each edge
-#define STRIP_LENGTH ( 180 )        // Total span (must equal NUM_LEDS)
+#define STRIP_CENTER_POINT ( 79 )   // Physical LED at center (NUM_LEDS/2 - 1)
+#define STRIP_HALF_LENGTH ( 80 )    // Distance from center to each edge
+#define STRIP_LENGTH ( 160 )        // Total span (must equal NUM_LEDS)
 
 static_assert(STRIP_LENGTH == NUM_LEDS, "STRIP_LENGTH must equal NUM_LEDS");
 static_assert(STRIP_CENTER_POINT == (NUM_LEDS/2 - 1), "STRIP_CENTER_POINT must be center index (NUM_LEDS/2 - 1)");

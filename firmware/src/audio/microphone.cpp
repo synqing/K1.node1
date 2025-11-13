@@ -9,6 +9,11 @@
 // Synchronization flags for microphone I2S ISR coordination
 std::atomic<bool> waveform_locked{false};
 std::atomic<bool> waveform_sync_flag{false};
+static std::atomic<bool> g_audio_input_active{false};
+
+bool audio_input_is_active() {
+    return g_audio_input_active.load(std::memory_order_relaxed);
+}
 
 // ============================================================================
 // I2S TIMEOUT PROTECTION & RECOVERY STATE (Phase 0)
@@ -115,6 +120,7 @@ void acquire_sample_chunk() {
         // ====================================================================
         bool use_silence_fallback = false;
         uint32_t now_ms = millis();
+        g_audio_input_active.store(false, std::memory_order_relaxed);
 
         if (EMOTISCOPE_ACTIVE) {
             size_t bytes_read = 0;
@@ -193,6 +199,7 @@ void acquire_sample_chunk() {
             // Audio reactivity disabled: use silence
             memset(new_samples_raw, 0, sizeof(new_samples_raw));
             i2s_timeout_state.last_error_code = ERR_OK;
+            g_audio_input_active.store(false, std::memory_order_relaxed);
         }
 
         // Convert raw samples to float with silence fallback support
@@ -220,6 +227,13 @@ void acquire_sample_chunk() {
             chunk_vu += fabsf(new_samples[i]);
         }
         chunk_vu /= static_cast<float>(CHUNK_SIZE);
+
+        // If audio reactivity is active and we have a non-silent chunk, mark input as active
+        // Heuristic value based on observed silence VU of 1-5
+        const float silence_threshold = 10.0f;
+        if (EMOTISCOPE_ACTIVE && chunk_vu > silence_threshold) {
+            g_audio_input_active.store(true, std::memory_order_relaxed);
+        }
 
         // Apply audio_responsiveness parameter (0=smooth, 1=instant)
         // Static variable persists between calls for smoothing

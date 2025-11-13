@@ -1,4 +1,7 @@
 #include "tempo_enhanced.h"
+#include "tempo.h"                    // NOVELTY_HISTORY_LENGTH
+#include "goertzel.h"                 // NUM_FREQS
+#include "multi_scale_tempogram.h"    // MultiScaleTemplogram API
 
 #include <esp_timer.h>
 #include <esp_log.h>
@@ -14,6 +17,12 @@
 #endif
 
 static const char* TAG = "TEMPO_ENHANCED";
+
+static inline float wrap_phase_enhanced(float p) {
+    while (p > M_PI) p -= 2.0f * M_PI;
+    while (p < -M_PI) p += 2.0f * M_PI;
+    return p;
+}
 
 // Global instance
 EnhancedTempoDetector* g_enhanced_tempo_detector = nullptr;
@@ -33,7 +42,8 @@ EnhancedTempoDetector::EnhancedTempoDetector()
     , tempo_bins(nullptr)
     , smoothed_bins(nullptr)
     , adaptive_mode_enabled(true)
-    , user_confidence_threshold(0.7f) {
+    , user_confidence_threshold(0.7f)
+    , silence_frame_counter_(0) {
     
     // Initialize state
     memset(&state, 0, sizeof(TempoState));
@@ -144,6 +154,7 @@ void EnhancedTempoDetector::reset() {
 TempoResult EnhancedTempoDetector::process(float* audio_samples, uint32_t num_samples) {
     uint32_t start_time = esp_timer_get_time();
     TempoResult result = {};
+    silence_frame_counter_ = 0;
     
     // Check for timeout recovery
     if (timeout_config.in_timeout_recovery) {
@@ -167,8 +178,7 @@ TempoResult EnhancedTempoDetector::process(float* audio_samples, uint32_t num_sa
     float novelty = odf_processor->calculate_from_samples(audio_samples, num_samples);
     
     // Update novelty buffer (shift and add new value)
-    memmove(novelty_buffer, novelty_buffer + 1, 
-            (NOVELTY_HISTORY_LENGTH - 1) * sizeof(float));
+    memmove(novelty_buffer, novelty_buffer + 1, (NOVELTY_HISTORY_LENGTH - 1) * sizeof(float));
     novelty_buffer[NOVELTY_HISTORY_LENGTH - 1] = novelty;
     
     // Step 3: Process with multi-scale tempogram
@@ -191,7 +201,7 @@ TempoResult EnhancedTempoDetector::process(float* audio_samples, uint32_t num_sa
         state.confidence_history, TempoState::HISTORY_SIZE
     );
     
-    // Step 6: Find primary tempo hypothesis
+    // Step 6: Find primary tempo hypothesis (with harmonic/range bias)
     int peak_bin = 0;
     float peak_value = 0.0f;
     for (int i = 0; i < ENHANCED_NUM_TEMPI; i++) {
@@ -200,16 +210,50 @@ TempoResult EnhancedTempoDetector::process(float* audio_samples, uint32_t num_sa
             peak_bin = i;
         }
     }
+    // Bias selection: prefer bins near locked BPM, else prefer musical mid-range (90–140 BPM)
+    int chosen_bin = peak_bin;
+    float chosen_val = peak_value;
+    auto pick_best_in_range = [&](float bpm_min, float bpm_max, float min_frac){
+        float best_v = chosen_val;
+        int best_b = chosen_bin;
+        for (int i = 0; i < ENHANCED_NUM_TEMPI; ++i) {
+            float bpm = tempo_bin_to_bpm(i, ENHANCED_NUM_TEMPI);
+            if (bpm >= bpm_min && bpm <= bpm_max) {
+                float v = smoothed_bins[i];
+                if (v >= peak_value * min_frac && v > best_v) {
+                    best_v = v; best_b = i;
+                }
+            }
+        }
+        chosen_bin = best_b; chosen_val = best_v;
+    };
+    if (state.is_locked) {
+        // Stick near previous locked BPM
+        float target = state.smoothed_bpm;
+        float best_dist = 1e9f;
+        int best = chosen_bin;
+        for (int i = 0; i < ENHANCED_NUM_TEMPI; ++i) {
+            float bpm = tempo_bin_to_bpm(i, ENHANCED_NUM_TEMPI);
+            float dist = fabsf(bpm - target);
+            if (dist < best_dist && smoothed_bins[i] >= peak_value * 0.6f) {
+                best_dist = dist; best = i;
+            }
+        }
+        chosen_bin = best; chosen_val = smoothed_bins[best];
+    } else {
+        // Mid-range bias before lock
+        pick_best_in_range(90.0f, 140.0f, 0.6f);
+    }
     
     // Convert bin to BPM
-    float detected_bpm = tempo_bin_to_bpm(peak_bin, ENHANCED_NUM_TEMPI);
+    float detected_bpm = tempo_bin_to_bpm(chosen_bin, ENHANCED_NUM_TEMPI);
     
     // Step 7: Find secondary tempo (for polyrhythm detection)
     int secondary_bin = -1;
     float secondary_value = 0.0f;
     for (int i = 0; i < ENHANCED_NUM_TEMPI; i++) {
         // Skip bins near primary peak
-        if (abs(i - peak_bin) < 5) continue;
+        if (abs(i - chosen_bin) < 5) continue;
         
         if (smoothed_bins[i] > secondary_value) {
             secondary_value = smoothed_bins[i];
@@ -218,13 +262,32 @@ TempoResult EnhancedTempoDetector::process(float* audio_samples, uint32_t num_sa
     }
     
     // Step 8: Calculate phase information
-    float phase = tempogram->get_phase_at_tempo(peak_bin);
+    float phase = tempogram ? tempogram->get_phase_at_tempo(chosen_bin) : 0.0f;
+
+    auto promote_secondary_if_harmonic = [&]() {
+        if (secondary_bin < 0) {
+            return;
+        }
+        float secondary_bpm = tempo_bin_to_bpm(secondary_bin, ENHANCED_NUM_TEMPI);
+        float ratio = (detected_bpm > 1e-3f) ? (secondary_bpm / detected_bpm) : 0.0f;
+        bool harmonic = (ratio > 1.8f && ratio < 2.2f) ||
+                        (ratio > 2.8f && ratio < 3.2f) ||
+                        (ratio > 1.3f && ratio < 1.7f);
+        if (detected_bpm < 80.0f && secondary_bpm >= 90.0f && secondary_bpm <= 190.0f &&
+            harmonic && secondary_value >= chosen_val * 0.55f) {
+            chosen_bin = secondary_bin;
+            chosen_val = secondary_value;
+            detected_bpm = secondary_bpm;
+            phase = tempogram ? tempogram->get_phase_at_tempo(chosen_bin) : phase;
+        }
+    };
+    promote_secondary_if_harmonic();
     
     // Step 9: Apply hysteresis and validation
     result.bpm = detected_bpm;
     result.confidence = confidence_metrics.combined;
     result.phase = phase;
-    result.strength = peak_value;
+    result.strength = chosen_val;
     
     if (secondary_bin >= 0) {
         result.secondary_bpm = tempo_bin_to_bpm(secondary_bin, ENHANCED_NUM_TEMPI);
@@ -281,6 +344,7 @@ TempoResult EnhancedTempoDetector::process(float* audio_samples, uint32_t num_sa
 TempoResult EnhancedTempoDetector::process_spectrum(float* spectrum, uint32_t num_bins) {
     uint32_t start_time = esp_timer_get_time();
     TempoResult result = {};
+    silence_frame_counter_ = 0;
     
     // Apply amplitude gating to spectrum
     for (uint32_t i = 0; i < num_bins && i < NUM_FREQS; i++) {
@@ -291,13 +355,17 @@ TempoResult EnhancedTempoDetector::process_spectrum(float* spectrum, uint32_t nu
     float novelty = odf_processor->calculate_from_spectrum(gated_spectrum, num_bins);
     
     // Update novelty buffer
-    memmove(novelty_buffer, novelty_buffer + 1, 
-            (NOVELTY_HISTORY_LENGTH - 1) * sizeof(float));
+    memmove(novelty_buffer, novelty_buffer + 1, (NOVELTY_HISTORY_LENGTH - 1) * sizeof(float));
     novelty_buffer[NOVELTY_HISTORY_LENGTH - 1] = novelty;
     
     // Continue with same processing as process()
-    tempogram->process_novelty_curve(novelty_buffer, NOVELTY_HISTORY_LENGTH);
-    tempogram->get_combined_tempogram(tempo_bins);
+    if (tempogram) {
+        tempogram->process_novelty_curve(novelty_buffer, NOVELTY_HISTORY_LENGTH);
+        tempogram->get_combined_tempogram(tempo_bins);
+    } else {
+        compute_autocorrelation_tempogram(novelty_buffer, NOVELTY_HISTORY_LENGTH, tempo_bins,
+                                          ENHANCED_NUM_TEMPI, ENHANCED_TEMPO_LOW, ENHANCED_TEMPO_HIGH, 50.0f);
+    }
     
     // Apply smoothing and continue...
     // (Same logic as process() from Step 4 onwards)
@@ -311,22 +379,55 @@ TempoResult EnhancedTempoDetector::process_spectrum(float* spectrum, uint32_t nu
         state.confidence_history, TempoState::HISTORY_SIZE
     );
     
-    int peak_bin = 0;
-    float peak_value = 0.0f;
+    int peak_bin2 = 0;
+    float peak_value2 = 0.0f;
     for (int i = 0; i < ENHANCED_NUM_TEMPI; i++) {
-        if (smoothed_bins[i] > peak_value) {
-            peak_value = smoothed_bins[i];
-            peak_bin = i;
+        if (smoothed_bins[i] > peak_value2) {
+            peak_value2 = smoothed_bins[i];
+            peak_bin2 = i;
         }
     }
-    
-    float detected_bpm = tempo_bin_to_bpm(peak_bin, ENHANCED_NUM_TEMPI);
-    float phase = tempogram->get_phase_at_tempo(peak_bin);
+    // Apply same mid-range bias for spectrum path
+    int chosen_bin2 = peak_bin2;
+    float chosen_val2 = peak_value2;
+    for (int i = 0; i < ENHANCED_NUM_TEMPI; ++i) {
+        float bpm = tempo_bin_to_bpm(i, ENHANCED_NUM_TEMPI);
+        if (bpm >= 90.0f && bpm <= 140.0f) {
+            float v = smoothed_bins[i];
+            if (v >= peak_value2 * 0.6f && v > chosen_val2) { chosen_val2 = v; chosen_bin2 = i; }
+        }
+    }
+    float detected_bpm = tempo_bin_to_bpm(chosen_bin2, ENHANCED_NUM_TEMPI);
+    // Secondary for spectrum branch
+    int secondary_bin2 = -1;
+    float secondary_value2 = 0.0f;
+    for (int i = 0; i < ENHANCED_NUM_TEMPI; ++i) {
+        if (abs(i - chosen_bin2) < 5) continue;
+        if (smoothed_bins[i] > secondary_value2) {
+            secondary_value2 = smoothed_bins[i];
+            secondary_bin2 = i;
+        }
+    }
+    float phase = tempogram ? tempogram->get_phase_at_tempo(chosen_bin2) : 0.0f;
+    if (secondary_bin2 >= 0) {
+        float secondary_bpm = tempo_bin_to_bpm(secondary_bin2, ENHANCED_NUM_TEMPI);
+        float ratio = (detected_bpm > 1e-3f) ? (secondary_bpm / detected_bpm) : 0.0f;
+        bool harmonic = (ratio > 1.8f && ratio < 2.2f) ||
+                        (ratio > 2.8f && ratio < 3.2f) ||
+                        (ratio > 1.3f && ratio < 1.7f);
+        if (detected_bpm < 80.0f && secondary_bpm >= 90.0f && secondary_bpm <= 190.0f &&
+            harmonic && secondary_value2 >= chosen_val2 * 0.55f) {
+            chosen_bin2 = secondary_bin2;
+            chosen_val2 = secondary_value2;
+            detected_bpm = secondary_bpm;
+            phase = tempogram ? tempogram->get_phase_at_tempo(chosen_bin2) : phase;
+        }
+    }
     
     result.bpm = detected_bpm;
     result.confidence = confidence_metrics.combined;
     result.phase = phase;
-    result.strength = peak_value;
+    result.strength = chosen_val2;
     result.entropy = confidence_metrics.entropy;
     result.periodicity = confidence_metrics.periodicity;
     result.stability = confidence_metrics.stability;
@@ -535,105 +636,20 @@ void EnhancedTempoDetector::load_config(const char* yaml_path) {
 #endif
 }
 
-void EnhancedTempoDetector::set_timeout_config(const TempoTimeoutConfig& config) {
-    timeout_config.initial_detection_ms = config.initial_detection_ms;
-    timeout_config.lock_stabilization_ms = config.lock_stabilization_ms;
-    timeout_config.continuous_validation_ms = config.continuous_validation_ms;
-    timeout_config.recovery_delay_ms = config.recovery_delay_ms;
-    
-    ESP_LOGI(TAG, "Timeout config updated - Initial: %lums, Stabilization: %lums, "
-             "Validation: %lums, Recovery: %lums",
-             timeout_config.initial_detection_ms,
-             timeout_config.lock_stabilization_ms,
-             timeout_config.continuous_validation_ms,
-             timeout_config.recovery_delay_ms);
-}
-
-float EnhancedTempoDetector::get_confidence() const {
-    if (state.history_index == 0) return 0.0f;
-    
-    int idx = (state.history_index - 1 + TempoState::HISTORY_SIZE) % 
-              TempoState::HISTORY_SIZE;
-    return state.confidence_history[idx];
-}
-
-// ============================================================================
-// Diagnostics
-// ============================================================================
-
-void EnhancedTempoDetector::dump_diagnostics(char* json_buffer, size_t buffer_size) {
-    snprintf(json_buffer, buffer_size,
-        "{"
-        "\"current_bpm\":%.1f,"
-        "\"smoothed_bpm\":%.1f,"
-        "\"confidence\":%.3f,"
-        "\"is_locked\":%s,"
-        "\"lock_duration_ms\":%lu,"
-        "\"phase\":%.3f,"
-        "\"timeout_count\":%lu,"
-        "\"in_recovery\":%s,"
-        "\"frames_processed\":%lu,"
-        "\"success_rate\":%.1f,"
-        "\"avg_latency_us\":%.1f"
-        "}",
-        state.current_bpm,
-        state.smoothed_bpm,
-        get_confidence(),
-        state.is_locked ? "true" : "false",
-        state.lock_duration_ms,
-        state.phase_accumulator,
-        timeout_config.timeout_count,
-        timeout_config.in_timeout_recovery ? "true" : "false",
-        total_frames_processed.load(),
-        (float)successful_detections.load() / (float)total_frames_processed.load() * 100.0f,
-        average_latency_us.load()
-    );
-}
-
-void EnhancedTempoDetector::get_performance_metrics(float& accuracy, 
-                                                    float& latency_ms, 
-                                                    float& cpu_usage) {
-    uint32_t total = total_frames_processed.load();
-    uint32_t successful = successful_detections.load();
-    
-    accuracy = (total > 0) ? ((float)successful / (float)total) : 0.0f;
-    latency_ms = average_latency_us.load() / 1000.0f;
-    
-    // Estimate CPU usage based on processing time vs frame time
-    float frame_time_us = 10000.0f;  // Assuming 100Hz processing
-    cpu_usage = (average_latency_us.load() / frame_time_us) * 100.0f;
-}
-
-// ============================================================================
-// Global Functions
-// ============================================================================
-
-void init_enhanced_tempo_detection() {
-    if (!g_enhanced_tempo_detector) {
-        g_enhanced_tempo_detector = new EnhancedTempoDetector();
-        g_enhanced_tempo_detector->init();
+void EnhancedTempoDetector::handle_silence_frame() {
+    const uint32_t reset_frames = 30;  // ~240ms at 125 FPS
+    if (silence_frame_counter_ < reset_frames) {
+        silence_frame_counter_++;
+        return;
     }
+    silence_frame_counter_ = reset_frames;
+    state.is_locked = false;
+    state.lock_duration_ms = 0;
+    state.current_bpm = 120.0f;
+    state.smoothed_bpm = 120.0f;
+    state.phase_accumulator = 0.0f;
+    memset(state.bpm_history, 0, sizeof(state.bpm_history));
+    memset(state.confidence_history, 0, sizeof(state.confidence_history));
 }
 
-void cleanup_enhanced_tempo_detection() {
-    if (g_enhanced_tempo_detector) {
-        delete g_enhanced_tempo_detector;
-        g_enhanced_tempo_detector = nullptr;
-    }
-}
-
-TempoResult get_current_tempo() {
-    if (g_enhanced_tempo_detector) {
-        // Get current state as result
-        TempoResult result = {};
-        result.bpm = g_enhanced_tempo_detector->get_current_bpm();
-        result.confidence = g_enhanced_tempo_detector->get_confidence();
-        result.phase = g_enhanced_tempo_detector->get_state().phase_accumulator;
-        return result;
-    }
-    
-    // Return default result
-    TempoResult result = {};
-    result.bpm = 120.0f;
-    return result;
-}
+// Diagnostics and extra APIs omitted in this integration.

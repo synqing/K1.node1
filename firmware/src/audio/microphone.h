@@ -87,3 +87,4 @@ extern i2s_chan_handle_t rx_handle;
 void init_i2s_microphone();
 void acquire_sample_chunk();
 const I2STimeoutState& get_i2s_timeout_state();  // Read-only access to timeout stats
+bool audio_input_is_active();

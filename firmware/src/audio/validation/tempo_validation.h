@@ -24,6 +24,7 @@
 #define TEMPO_VALIDATION_H
 
 #include <stdint.h>
+#include <cmath>
 
 // ============================================================================
 // CONFIGURATION & CONSTANTS
