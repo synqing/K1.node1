@@ -1,0 +1,18 @@
+CompileFlags:
+  # Extra flags to help clangd parse ESP32/Arduino headers more like the real toolchain
+  Add:
+    - --target=xtensa
+    - -D__XTENSA__
+    - -DESP_PLATFORM
+    - -DARDUINO
+    - -DARDUINO_ARCH_ESP32
+    # Avoid pulling xtensa ../hal.h that isn’t present in some SDK layouts
+    - -DXCHAL_HAVE_HAL=0
+    # Common framework includes to improve header resolution
+    - -I.pio/libdeps/esp32-s3-devkitc-1-codegen/ArduinoJson/src
+    - -I.pio/packages/framework-arduinoespressif32/cores/esp32
+    - -I.pio/packages/framework-arduinoespressif32/libraries/WiFi/src
+    - -I.pio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include
+    - -I.pio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include/xtensa
+
+# clangd will still read compile_commands.json when present. These flags are appended.
