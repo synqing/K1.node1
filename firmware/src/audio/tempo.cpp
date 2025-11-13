@@ -6,7 +6,6 @@
 
 #include "goertzel.h"
 #include "vu.h"
-// #include "validation/tempo_validation.h"  // DISABLED for testing
 
 // ============================================================================ 
 // GLOBAL STATE (Emotiscope parity)
@@ -125,11 +124,6 @@ void init_tempo_goertzel_constants() {
         tempi[i].magnitude_full_scale = 0.0f;
         tempi[i].magnitude_smooth = 0.0f;
     }
-}
-
-void init_tempo_validation_system() {
-    // DISABLED for testing - validation layer removed
-    Serial.println("[Tempo] Validation DISABLED - using original Emotiscope tempo detection");
 }
 
 static float calculate_magnitude_of_tempo(uint16_t tempo_bin) {
