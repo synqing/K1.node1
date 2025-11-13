@@ -1775,6 +1775,7 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
     #define AUDIO_VU (audio.vu_level)
     #define AUDIO_SPECTRUM (audio.spectrogram)
 
@@ -1792,66 +1793,71 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
         spectrum_buffer[i].r *= DECAY_FACTOR;
         spectrum_buffer[i].g *= DECAY_FACTOR;
         spectrum_buffer[i].b *= DECAY_FACTOR;
+        waveform_history[i] *= 0.99f;  // Also fade history when no audio
     }
 
-    // --- Phase 2: Calculate Waveform Envelope (Overall VU with spatial variation) ---
-    // Legacy code averaged 4 frames of per-LED waveform history.
-    // K1 exposes AUDIO_VU (overall amplitude). We create spatial variation by:
-    // - Using VU as base amplitude
-    // - Modulating across LEDs based on distance-from-center (creates visual flow)
-    // - Applying non-linear curve (legacy: bright^CONFIG.SQUARE_ITER)
+    // --- CRITICAL: Only update from audio if available ---
+    // Without this check, pattern produces garbage waveforms even with no audio
+    if (AUDIO_IS_AVAILABLE()) {
+        // --- Phase 2: Calculate Waveform Envelope (Overall VU with spatial variation) ---
+        // Legacy code averaged 4 frames of per-LED waveform history.
+        // K1 exposes AUDIO_VU (overall amplitude). We create spatial variation by:
+        // - Using VU as base amplitude
+        // - Modulating across LEDs based on distance-from-center (creates visual flow)
+        // - Applying non-linear curve (legacy: bright^CONFIG.SQUARE_ITER)
 
-    float vu_envelope = clip_float(AUDIO_VU * 1.5f);  // Legacy scale factor
+        float vu_envelope = clip_float(AUDIO_VU * 1.5f);  // Legacy scale factor
 
-    for (int i = 0; i < half_leds; i++) {
-        // Calculate distance-based modulation (stronger at edges, softer at center)
-        // This creates the illusion of per-LED waveform data using spatial position
-        float position_progress = i / float(half_leds);  // 0.0 at center, 1.0 at edge
+        for (int i = 0; i < half_leds; i++) {
+            // Calculate distance-based modulation (stronger at edges, softer at center)
+            // This creates the illusion of per-LED waveform data using spatial position
+            float position_progress = i / float(half_leds);  // 0.0 at center, 1.0 at edge
 
-        // Spatial variation: modulate envelope based on position
-        // Creates dynamic ripples/waves across the strip
-        float spatial_modulation = 0.5f + 0.5f * sinf(position_progress * 3.14159f);
+            // Spatial variation: modulate envelope based on position
+            // Creates dynamic ripples/waves across the strip
+            float spatial_modulation = 0.5f + 0.5f * sinf(position_progress * 3.14159f);
 
-        // Combine VU envelope with spatial modulation
-        float waveform_brightness = vu_envelope * spatial_modulation;
+            // Combine VU envelope with spatial modulation
+            float waveform_brightness = vu_envelope * spatial_modulation;
 
-        // Apply non-linear curve (cubic approximates legacy bright^2 multiple times)
-        waveform_brightness = waveform_brightness * waveform_brightness * waveform_brightness;
-        waveform_brightness = fminf(1.0f, waveform_brightness);
+            // Apply non-linear curve (cubic approximates legacy bright^2 multiple times)
+            waveform_brightness = waveform_brightness * waveform_brightness * waveform_brightness;
+            waveform_brightness = fminf(1.0f, waveform_brightness);
 
-        // Temporal smoothing of waveform (legacy: 5% new + 95% history)
-        waveform_history[i] = waveform_brightness * smoothing + waveform_history[i] * (1.0f - smoothing);
-    }
+            // Temporal smoothing of waveform (legacy: 5% new + 95% history)
+            waveform_history[i] = waveform_brightness * smoothing + waveform_history[i] * (1.0f - smoothing);
+        }
 
-    // --- Phase 3: Map Chromagram Bins to Frequency-Based Colors ---
-    // 12 frequency bins each control a specific radial position
-    // Bass (0-3) stays center, Treble (8-11) spreads outward
-    for (uint8_t bin = 0; bin < 12; bin++) {
-        // Map frequency bin to radial position in half-array
-        float freq_progress = bin / 12.0f;  // 0.0 = bass, 1.0 = treble
-        float position_in_half_array = freq_progress * 0.9f;
-        int buffer_idx = (int)(position_in_half_array * (half_leds - 1));
-        buffer_idx = fmaxf(0, fminf(half_leds - 1, buffer_idx));
+        // --- Phase 3: Map Chromagram Bins to Frequency-Based Colors ---
+        // 12 frequency bins each control a specific radial position
+        // Bass (0-3) stays center, Treble (8-11) spreads outward
+        for (uint8_t bin = 0; bin < 12; bin++) {
+            // Map frequency bin to radial position in half-array
+            float freq_progress = bin / 12.0f;  // 0.0 = bass, 1.0 = treble
+            float position_in_half_array = freq_progress * 0.9f;
+            int buffer_idx = (int)(position_in_half_array * (half_leds - 1));
+            buffer_idx = fmaxf(0, fminf(half_leds - 1, buffer_idx));
 
-        // Get chromagram bin value and apply non-linear brightness curve
-        float chromagram_value = AUDIO_SPECTRUM[bin];
-        float chromagram_brightness = chromagram_value * chromagram_value * chromagram_value;  // Cubic
-        chromagram_brightness *= 1.5f;  // Legacy scale
-        chromagram_brightness = fminf(1.0f, chromagram_brightness);
+            // Get chromagram bin value and apply non-linear brightness curve
+            float chromagram_value = AUDIO_SPECTRUM[bin];
+            float chromagram_brightness = chromagram_value * chromagram_value * chromagram_value;  // Cubic
+            chromagram_brightness *= 1.5f;  // Legacy scale
+            chromagram_brightness = fminf(1.0f, chromagram_brightness);
 
-        // --- Phase 4: BLEND waveform brightness with frequency color ---
-        // This is the multiplicative combination: (frequency_color) × (waveform_amplitude)
-        float blended_brightness = chromagram_brightness * waveform_history[buffer_idx];
+            // --- Phase 4: BLEND waveform brightness with frequency color ---
+            // This is the multiplicative combination: (frequency_color) × (waveform_amplitude)
+            float blended_brightness = chromagram_brightness * waveform_history[buffer_idx];
 
-        // Map frequency to palette color with modulation
-        float palette_progress = clip_float(params.color + (freq_progress * 0.5f));
-        CRGBF freq_color = color_from_palette(
-            params.palette_id,
-            palette_progress,
-            blended_brightness  // Brightness = chromagram × waveform envelope
-        );
+            // Map frequency to palette color with modulation
+            float palette_progress = clip_float(params.color + (freq_progress * 0.5f));
+            CRGBF freq_color = color_from_palette(
+                params.palette_id,
+                palette_progress,
+                blended_brightness  // Brightness = chromagram × waveform envelope
+            );
 
-        spectrum_buffer[buffer_idx] = freq_color;
+            spectrum_buffer[buffer_idx] = freq_color;
+        }
     }
 
     // --- Phase 5: MANDATORY Mirroring (CENTER-ORIGIN SYMMETRY) ---
@@ -1901,6 +1907,7 @@ void draw_snapwave(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
     #define AUDIO_SPECTRUM (audio.spectrogram)
 
     // --- SETUP: Half-array buffer (index 0 = center, increases away from center) ---
@@ -1929,56 +1936,67 @@ void draw_snapwave(const PatternRenderContext& context) {
         snapwave_buffer[i].b = snapwave_buffer[i - 1].b * 0.99f + snapwave_buffer[i].b * 0.01f;
     }
 
-    // --- Phase 3: Time-Based Pulse & Center Flash (INJECT AT CENTER ONLY) ---
-    // Replaced tempo-based beat detection with time-based pulse
-    // Beat frequency = speed parameter (1.0 = ~1 beat per second)
-    float beat_phase = fmodf(time * params.speed * 2.0f, 1.0f);
-    bool beat_detected = (beat_phase < 0.15f);  // Quick pulse (first 15% of cycle)
-
-    if (beat_detected) {
-        // Get beat color from palette using params.color slider
-        float beat_brightness = fminf(1.0f, (0.15f - beat_phase) / 0.15f);  // Fade over pulse duration
-        CRGBF beat_color = color_from_palette(
-            params.palette_id,
-            clip_float(params.color),
-            beat_brightness
-        );
-
-        // CRITICAL: Place beat ONLY at snapwave_buffer[0] (the center)
-        // This is the energy injection point for center-origin patterns
-        snapwave_buffer[0] = beat_color;
-    }
-
-    // --- Phase 4: Dominant Frequency Accent (GEOMETRIC POSITION) ---
-    // Find the single dominant frequency bin to place accent color
-    uint8_t dominant_bin = 0;
-    float max_magnitude = 0.0f;
-
-    for (uint8_t i = 0; i < 12; i++) {
-        float bin_value = AUDIO_SPECTRUM[i];
-        if (bin_value > max_magnitude) {
-            max_magnitude = bin_value;
-            dominant_bin = i;
+    // --- CRITICAL: Only inject beats if audio is available ---
+    // Without this check, Snapwave generates beats even with no audio
+    if (AUDIO_IS_AVAILABLE()) {
+        // --- Phase 3: Audio-Driven Beat Injection (INJECT AT CENTER ONLY) ---
+        // Find strongest tempo bin and use its beat phase
+        uint8_t dominant_tempo_bin = 0;
+        float max_tempo_mag = 0.0f;
+        for (uint8_t i = 0; i < NUM_TEMPI; i++) {
+            if (audio.tempo_magnitude[i] > max_tempo_mag) {
+                max_tempo_mag = audio.tempo_magnitude[i];
+                dominant_tempo_bin = i;
+            }
         }
-    }
 
-    // Only place accent if dominant frequency is strong enough
-    if (max_magnitude > 0.1f) {
-        // Convert bin number (0-11) to geometric position in half-array
-        // Map to 0.0-0.8 range (80% of strip) to avoid edge clipping
-        float position_in_half_array = clip_float((dominant_bin / 12.0f) * 0.8f);
-        int accent_idx = (int)(position_in_half_array * (half_leds - 1));
+        // Beat appears when sin(phase) is positive and confidence is high
+        float beat_phase = audio.tempo_phase[dominant_tempo_bin];
+        float beat_strength = sinf(beat_phase);  // -1.0 to 1.0
+        float beat_confidence = audio.tempo_magnitude[dominant_tempo_bin];
 
-        // Get accent color from palette
-        // Frequency modulates palette position for color variation
-        CRGBF accent_color = color_from_palette(
-            params.palette_id,
-            clip_float(params.color + (dominant_bin / 12.0f) * 0.4f),
-            max_magnitude * 0.6f  // Brightness follows frequency strength
-        );
+        if (beat_strength > 0.3f && beat_confidence > 0.1f) {
+            float beat_brightness = beat_strength * beat_confidence * clip_float(params.speed + 0.5f);
+            beat_brightness = fminf(1.0f, beat_brightness);
+            CRGBF beat_color = color_from_palette(
+                params.palette_id,
+                clip_float(params.color),
+                beat_brightness
+            );
+            snapwave_buffer[0] = beat_color;
+        }
 
-        // Place the accent at the calculated geometric position
-        snapwave_buffer[accent_idx] = accent_color;
+        // --- Phase 4: Dominant Frequency Accent (GEOMETRIC POSITION) ---
+        // Find the single dominant frequency bin to place accent color
+        uint8_t dominant_bin = 0;
+        float max_magnitude = 0.0f;
+
+        for (uint8_t i = 0; i < 12; i++) {
+            float bin_value = AUDIO_SPECTRUM[i];
+            if (bin_value > max_magnitude) {
+                max_magnitude = bin_value;
+                dominant_bin = i;
+            }
+        }
+
+        // Only place accent if dominant frequency is strong enough
+        if (max_magnitude > 0.1f) {
+            // Convert bin number (0-11) to geometric position in half-array
+            // Map to 0.0-0.8 range (80% of strip) to avoid edge clipping
+            float position_in_half_array = clip_float((dominant_bin / 12.0f) * 0.8f);
+            int accent_idx = (int)(position_in_half_array * (half_leds - 1));
+
+            // Get accent color from palette
+            // Frequency modulates palette position for color variation
+            CRGBF accent_color = color_from_palette(
+                params.palette_id,
+                clip_float(params.color + (dominant_bin / 12.0f) * 0.4f),
+                max_magnitude * 0.6f  // Brightness follows frequency strength
+            );
+
+            // Place the accent at the calculated geometric position
+            snapwave_buffer[accent_idx] = accent_color;
+        }
     }
 
     // --- Phase 5: MANDATORY Mirroring (ALWAYS APPLIED) ---
