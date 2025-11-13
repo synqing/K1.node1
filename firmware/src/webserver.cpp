@@ -1034,16 +1034,25 @@ class GetAudioTempoHandler : public K1RequestHandler {
 public:
     GetAudioTempoHandler() : K1RequestHandler(ROUTE_AUDIO_TEMPO, ROUTE_GET) {}
     void handle(RequestContext& ctx) override {
+        // CRITICAL FIX: Read from synchronized audio_front buffer instead of raw global arrays
+        // This ensures tempo data flows through the double-buffered synchronization model
+        AudioDataSnapshot snapshot;
+        bool audio_valid = get_audio_snapshot(&snapshot);
+
         const uint8_t K = 5;
         struct Bin { uint16_t idx; float mag; } top[K];
         for (uint8_t i = 0; i < K; ++i) { top[i] = {0, 0.0f}; }
-        for (uint16_t i = 0; i < NUM_TEMPI; ++i) {
-            float mag = tempi_smooth[i];
-            for (uint8_t k = 0; k < K; ++k) {
-                if (mag > top[k].mag) {
-                    for (int j = K-1; j > k; --j) top[j] = top[j-1];
-                    top[k] = {i, mag};
-                    break;
+
+        // Find top 5 tempo bins from SYNCHRONIZED snapshot data
+        if (audio_valid) {
+            for (uint16_t i = 0; i < NUM_TEMPI; ++i) {
+                float mag = snapshot.tempo_magnitude[i];  // READ FROM SNAPSHOT, not tempi_smooth
+                for (uint8_t k = 0; k < K; ++k) {
+                    if (mag > top[k].mag) {
+                        for (int j = K-1; j > k; --j) top[j] = top[j-1];
+                        top[k] = {i, mag};
+                        break;
+                    }
                 }
             }
         }
@@ -1054,6 +1063,7 @@ public:
         resp["silence_detected"] = silence_detected;
         resp["silence_level"] = silence_level;
         resp["max_tempo_range"] = MAX_TEMPO_RANGE;
+        resp["snapshot_valid"] = audio_valid;  // Diagnostic flag showing if snapshot is valid
 
         // PHASE 3: Multi-metric confidence breakdown
         JsonObject confidence_metrics = resp.createNestedObject("confidence_metrics");
@@ -1073,9 +1083,9 @@ public:
             JsonObject b = top_bins.createNestedObject();
             b["idx"] = idx;
             b["bpm"] = tempi_bpm_values_hz[idx] * 60.0f;
-            b["magnitude"] = tempi_smooth[idx];
-            b["phase"] = tempi[idx].phase;
-            b["beat"] = tempi[idx].beat;
+            b["magnitude"] = audio_valid ? snapshot.tempo_magnitude[idx] : 0.0f;  // READ FROM SNAPSHOT
+            b["phase"] = audio_valid ? snapshot.tempo_phase[idx] : 0.0f;           // READ FROM SNAPSHOT
+            b["beat"] = audio_valid ? sinf(snapshot.tempo_phase[idx]) : 0.0f;       // Compute beat from phase
         }
         String output;
         serializeJson(resp, output);
