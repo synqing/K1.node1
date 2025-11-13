@@ -5,7 +5,7 @@ set -euo pipefail
 # Select behavior via RUN_TARGET env var; defaults to web dev.
 #
 # Supported:
-#   RUN_TARGET=web:dev        → run dev server (PORT=$CONDUCTOR_PORT)
+#   RUN_TARGET=web:dev        → run dev server (honors Vite config; set CONDUCTOR_PORT to override)
 #   RUN_TARGET=web:test       → run unit tests
 #   RUN_TARGET=web:e2e        → run Playwright tests
 #   RUN_TARGET=fw:monitor     → serial monitor (115200)
@@ -16,7 +16,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT_DIR}"
 
 TARGET="${RUN_TARGET:-web:dev}"
-PORT="${CONDUCTOR_PORT:-5173}"   # Conductor provides CONDUCTOR_PORT for parallel servers
+# Do not force a dev port; only use CONDUCTOR_PORT if explicitly provided
+PORT="${CONDUCTOR_PORT:-}"
 LOCK_FILE=".conductor-run.lock"
 
 # simple nonconcurrent guard (Conductor can also run in nonconcurrent mode)
@@ -33,10 +34,13 @@ case "${TARGET}" in
   web:dev)
     if [[ ! -d "webapp" ]]; then echo "[RUN] webapp/ missing"; exit 1; fi
     pushd webapp >/dev/null
-    export PORT="${PORT}"
-    # Pass common dev port flag for Vite-like scripts; harmless if ignored
+    # If CONDUCTOR_PORT is set, pass it; otherwise honor Vite config (e.g., 3003)
     if npm run | grep -q "dev"; then
-      npm run dev -- --port "${PORT}"
+      if [[ -n "${PORT}" ]]; then
+        npm run dev -- --port "${PORT}"
+      else
+        npm run dev
+      fi
     else
       echo "[RUN] No 'dev' script in webapp/package.json"; exit 1
     fi

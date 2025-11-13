@@ -190,10 +190,14 @@ static void send_wifi_keepalive(uint32_t now_ms) {
         if (gateway != IPAddress(0, 0, 0, 0)) {
             // Use a simple UDP packet to keep the connection active
             WiFiUDP udp;
-            udp.beginPacket(gateway, 53);  // DNS port - most routers respond
-            const char* keepalive_msg = "keepalive";
-            udp.write((const uint8_t*)keepalive_msg, strlen(keepalive_msg));
-            udp.endPacket();
+            int ok = udp.beginPacket(gateway, 53);  // DNS port - most routers respond
+            if (ok == 1) {
+                static const char keepalive_msg[] = "keepalive";
+                udp.write(reinterpret_cast<const uint8_t*>(keepalive_msg), sizeof(keepalive_msg) - 1);
+                udp.endPacket();
+            } else {
+                connection_logf("WARN", "WiFi keepalive: beginPacket failed (%d)", ok);
+            }
             udp.stop();
             
             connection_logf("DEBUG", "WiFi keepalive sent to gateway %s", gateway.toString().c_str());

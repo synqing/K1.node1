@@ -64,6 +64,7 @@ void init_rmt_driver();
 #include "beat_events.h"
 #include "diagnostics.h"
 #include "diagnostics/heartbeat_logger.h"
+#include "audio/validation/tempo_validation.h"
 // (removed duplicate include of audio/goertzel.h)
 #include "udp_echo.h"      // UDP echo server for RTT measurements
 #include "led_tx_events.h"  // Rolling buffer of LED transmit timestamps
@@ -337,6 +338,8 @@ void audio_task(void* param) {
         portENTER_CRITICAL(&audio_spinlock);
         audio_back.tempo_confidence = tempo_confidence;
         audio_back.is_valid = !silence_frame;
+        audio_back.locked_tempo_bpm = tempo_lock_tracker.locked_tempo_bpm;
+        audio_back.tempo_lock_state = tempo_lock_tracker.state;
         portEXIT_CRITICAL(&audio_spinlock);
 
         // SYNC TEMPO MAGNITUDE AND PHASE ARRAYS

@@ -1,8 +1,19 @@
 // Simple config helpers for environment-driven defaults
 export function getDefaultDeviceIp(): string {
-  const ip = (import.meta?.env?.VITE_DEVICE_IP as string) || '';
-  const trimmed = ip.trim();
-  return trimmed || '192.168.1.104';
+  const env = import.meta?.env ?? {};
+  const candidates = [
+    env.VITE_DEVICE_IP,
+    env.VITE_TARGET_DEVICE_IP,
+    env.VITE_DEVICE_API_URL,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return '192.168.1.104';
 }
 
 export function shouldAutoConnect(): boolean {

@@ -1,5 +1,11 @@
 #include "palettes.h"
 #include <Arduino.h>
+#include "logging/logger.h"
+
+#define TAG_PALETTE 'P'
+
+// Define the prism_trail array, which is declared as extern in another file.
+float prism_trail[160] = {0.0f};
 
 // ============================================================================
 // PALETTE DATA - 33 gradient palettes from cpt-city collection
@@ -499,5 +505,6 @@ CRGBF color_from_palette(uint8_t palette_index, float progress, float brightness
 	float b = (b1 * (1.0f - blend) + b2 * blend) / 255.0f;
 
 	// Apply brightness
+	LOG_DEBUG(TAG_PALETTE, "color_from_palette: palette_index=%d, progress=%.2f, brightness=%.2f", palette_index, progress, brightness);
 	return {r * brightness, g * brightness, b * brightness};
 }

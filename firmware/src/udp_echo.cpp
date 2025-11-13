@@ -17,20 +17,30 @@ static void udp_echo_task(void* param) {
     LOG_INFO(TAG_WIFI, "UDP Echo: Listening on UDP port %u", (unsigned)port);
 
     // Simple loop: poll for packets, echo back payload
-    char buf[1024];
+    // Keep buffer modest to avoid large pbuf allocations
+    char buf[768];
     for (;;) {
         int packetSize = udp.parsePacket();
         if (packetSize > 0) {
             int len = udp.read(buf, sizeof(buf));
-            if (len > 0) {
-                buf[len] = '\0';
+            if (len < 0) {
+                // read failed; skip this packet
+                vTaskDelay(pdMS_TO_TICKS(1));
+                continue;
             }
             IPAddress remoteIp = udp.remoteIP();
             uint16_t remotePort = udp.remotePort();
             // Echo back the same payload (JSON recommended)
-            udp.beginPacket(remoteIp, remotePort);
-            udp.write((const uint8_t*)buf, len);
-            udp.endPacket();
+            int ok = udp.beginPacket(remoteIp, remotePort);
+            if (ok == 1) {
+                // clamp write to actual buffer size
+                size_t to_write = (size_t)len;
+                if (to_write > sizeof(buf)) to_write = sizeof(buf);
+                udp.write(reinterpret_cast<const uint8_t*>(buf), to_write);
+                udp.endPacket();
+            } else {
+                LOG_WARN(TAG_WIFI, "UDP Echo: beginPacket failed (%d)", ok);
+            }
         }
         // Yield briefly to avoid CPU starvation
         vTaskDelay(pdMS_TO_TICKS(1));

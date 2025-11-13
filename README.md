@@ -75,7 +75,7 @@ conductor run fw:monitor
 ### All Available Tasks
 
 **Webapp**
-- `conductor run web:dev` — Start React dev server (port 5173)
+- `conductor run web:dev` — Start React dev server (uses Vite config; set CONDUCTOR_PORT to override)
 - `conductor run web:typecheck` — TypeScript validation (tsc --noEmit)
 - `conductor run web:lint` — ESLint (if configured)
 - `conductor run web:test` — Jest tests (--runInBand)

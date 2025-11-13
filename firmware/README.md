@@ -118,6 +118,16 @@ See `docs/06-reference/firmware-api.md` for full details and rate‑limit window
 - `test_phase_a_snapshot_bounds` — default initialization + spectral bounds.
 - Hardware stress/long-running tests are excluded by default; run `pio test -e esp32-s3-devkitc-1 --filter test_stress_suite --project-option \"build_flags=-DSTRESS_TEST_DURATION_SCALE=0.2f\"` for a shortened burn-in.
 
+## Troubleshooting
+
+### AsyncTCP.cpp:1557 begin(): failed to start task
+If you see this during boot, the AsyncTCP worker task could not be created because the ESP32-S3 ran out of internal RAM. We now cap `CONFIG_ASYNC_TCP_STACK_SIZE` at 6144 bytes in `platformio.ini`, which drops the stack requirement enough for xTaskCreate to succeed while keeping plenty of headroom for AsyncWebServer. If you use a custom environment, ensure the flag is carried across (or lower it further to 4096 if you run additional tasks). After modifying `platformio.ini`, clean + rebuild (`pio run -t clean && pio run`) to push the new stack size into the firmware.
+
+- Build signature missing: ensure `platformio.ini` pins and compile flags are intact; verify `/api/health`.
+- Timing or RMT gaps spike: reduce debug logging; confirm bounded waits and no busy-waits in hot paths.
+- Mutex warnings: replace with seqlock + atomic sequence counters for shared buffers.
+- Large repository clones/pushes: ensure `firmware/.platformio/**` and `*.DS_Store` are ignored (already configured).
+
 ## Benchmarking & Hardware Suites
 
 - Automated profiling run: `tools/run_benchmark.sh 192.168.1.104`
@@ -151,12 +161,6 @@ See `docs/06-reference/firmware-api.md` for full details and rate‑limit window
 - Canary: flash single device with `DEBUG_TELEMETRY=1`; monitor `/api/health`, `/api/rmt`, `/api/device/performance` for 10–15 minutes.
 - Promote: disable debug telemetry if needed; record rollback image reference.
 - Rollback: `/api/rollback` or re‑flash prior image; confirm `/api/health` hash.
-
-## Troubleshooting
-- Build signature missing: ensure `platformio.ini` pins and compile flags are intact; verify `/api/health`.
-- Timing or RMT gaps spike: reduce debug logging; confirm bounded waits and no busy‑waits in hot paths.
-- Mutex warnings: replace with seqlock + atomic sequence counters for shared buffers.
-- Large repository clones/pushes: ensure `firmware/.platformio/**` and `*.DS_Store` are ignored (already configured).
 
 ## Notes
 - PlatformIO caches and SDK/toolchain packages are intentionally ignored (`firmware/.platformio/**`); they are re‑hydrated by the build.

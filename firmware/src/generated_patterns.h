@@ -1425,6 +1425,7 @@ void draw_tunnel_glow(const PatternRenderContext& context) {
 static float beat_perlin_noise_array[NUM_LEDS >> 2];  // 32 floats for 128 LEDs
 static float beat_perlin_position_x = 0.0f;
 static float beat_perlin_position_y = 0.0f;
+extern float prism_trail[NUM_LEDS];
 
 // Simple hash function for Perlin-like noise
 static inline uint32_t hash_ui(uint32_t x, uint32_t seed) {
@@ -2043,21 +2044,6 @@ void draw_snapwave(const PatternRenderContext& context) {
     apply_background_overlay(context);
 }
 
-/**
- * Pattern: PRISM - Correct Hero Demo Pattern
- *
- * Spectrum visualization with beat-synchronized energy response.
- * Uses palette-based coloring + saturation modulation + integrated trail.
- *
- * Based on Emotiscope design principles:
- * - Palette system for vibrant color mapping
- * - Perceptual sqrt response curve
- * - Saturation modulation (0.6-1.0 range based on magnitude)
- * - Colored trail glow (integrated, not bolted-on white)
- * - Energy gating for beat synchronization
- */
-static float prism_trail[NUM_LEDS] = {0.0f};
-
 void draw_prism(const PatternRenderContext& context) {
     const float time = context.time;
     const PatternParameters& params = context.params;
@@ -2113,13 +2099,6 @@ void draw_prism(const PatternRenderContext& context) {
         // COLOR FROM PALETTE (not raw HSV!)
         CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
 
-        // SATURATION MODULATION: colors intensify on peaks
-        if (magnitude > 0.1f) {
-            HSVF hsv_color = rgb_to_hsv(color);
-            hsv_color.s = 0.7f + (magnitude * 0.3f);  // 0.7-1.0 range
-            color = hsv(hsv_color.h, hsv_color.s, hsv_color.v);
-        }
-
         // Apply brightness
         color.r *= params.brightness;
         color.g *= params.brightness;
@@ -2135,23 +2114,6 @@ void draw_prism(const PatternRenderContext& context) {
         // Update trail with current magnitude
         prism_trail[left_idx] = fmaxf(prism_trail[left_idx], magnitude);
         prism_trail[right_idx] = fmaxf(prism_trail[right_idx], magnitude);
-    }
-
-    // STEP 3: Apply colored trail glow (integrated, not white)
-    float trail_strength = 0.1f + 0.15f * clip_float(params.custom_param_2);  // 0.1-0.25 range
-    for (int i = 0; i < NUM_LEDS; i++) {
-        if (prism_trail[i] > 0.05f) {
-            // Get HSV of current color
-            HSVF hsv_current = rgb_to_hsv(leds[i]);
-
-            // Create colored trail (preserve hue, reduce saturation & brightness for subtle glow)
-            CRGBF trail_color = hsv(hsv_current.h, hsv_current.s * 0.6f, prism_trail[i] * trail_strength);
-
-            // Blend trail with current LED
-            leds[i].r = fminf(1.0f, leds[i].r + trail_color.r);
-            leds[i].g = fminf(1.0f, leds[i].g + trail_color.g);
-            leds[i].b = fminf(1.0f, leds[i].b + trail_color.b);
-        }
     }
 
     apply_background_overlay(context);

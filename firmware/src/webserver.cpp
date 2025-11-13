@@ -1990,6 +1990,14 @@ void broadcast_realtime_data() {
     performance["memory_percent"] = (float)(ESP.getHeapSize() - ESP.getFreeHeap()) / ESP.getHeapSize() * 100.0f;
     performance["memory_free_kb"] = ESP.getFreeHeap() / 1024;
     
+    // Audio data
+    JsonObject audio = doc.createNestedObject("audio");
+    audio["vu_level"] = audio_back.vu_level;
+    audio["vu_level_raw"] = audio_back.vu_level_raw;
+    audio["tempo_confidence"] = audio_back.tempo_confidence;
+    audio["locked_tempo_bpm"] = audio_back.locked_tempo_bpm;
+    audio["tempo_lock_state"] = get_tempo_lock_state_string(audio_back.tempo_lock_state);
+    
     // Current parameters (full set for real-time updates)
     const PatternParameters& params = get_params();
     JsonObject parameters = doc.createNestedObject("parameters");

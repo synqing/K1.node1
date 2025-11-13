@@ -23,6 +23,7 @@
 #include <cstring>
 #include <cmath>
 #include <atomic>
+#include "validation/tempo_validation.h"
 
 // Profiling macro - simplified for now (just execute lambda)
 #define profile_function(lambda, name) lambda()
@@ -114,6 +115,8 @@ typedef struct {
 	float tempo_confidence;                 // Beat detection confidence (0.0-1.0)
 	float tempo_magnitude[NUM_TEMPI];       // Tempo bin magnitudes (64 bins)
 	float tempo_phase[NUM_TEMPI];           // Tempo bin phases (64 bins)
+	float locked_tempo_bpm;                 // BPM when tempo is locked and stable
+	TempoLockState tempo_lock_state;        // Current state of the tempo lock tracker
 
 	// FFT data (reserved for future full-spectrum analysis)
 	// Currently using Goertzel for musical note detection (more efficient)

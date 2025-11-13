@@ -1,0 +1,328 @@
+================================================================================
+                    K1.node1 AUDIO PIPELINE - DATA FLOW DIAGRAM
+================================================================================
+
+CORE 0 (Audio Processing @ ~100 Hz)               CORE 1 (Rendering @ ~100+ FPS)
+════════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────┐
+│  SPH0645 Microphone     │
+│  (16 kHz, I2S)          │
+│  BCLK=GPIO14            │
+│  LRCLK=GPIO12           │
+│  DIN=GPIO13             │
+└───────────┬─────────────┘
+            │
+            ├─────── 8ms chunks (128 samples)
+            │
+            v
+    ┌───────────────────┐
+    │ acquire_sample_   │  BLOCKING I2S read
+    │ chunk()           │  100ms timeout + fallback
+    │                   │
+    │ Lines 113-252     │
+    └─────────┬─────────┘
+              │
+              v
+    ┌──────────────────────────┐
+    │ sample_history[4096]     │  256ms ring buffer
+    │ (Goertzel input)         │  Newest @ end
+    └─────────┬────────────────┘
+              │
+              ├─── shift_and_copy_arrays()
+              │    (8ms cadence)
+              │
+              v
+    ┌──────────────────────────────────┐
+    │ calculate_magnitudes()           │  Goertzel FFT
+    │ Lines 403-591                    │
+    │                                  │  FOR each bin 0-63:
+    │ FOR i = 0 to 63:                 │    - calculate_magnitude_of_bin()
+    │   magnitude[i] = Goertzel(       │    - collect_and_filter_noise()
+    │     sample_history[], freq[i]    │    - 6-sample moving average
+    │   )                              │    - Track max_val for auto-range
+    │   Apply 6-sample avg             │
+    │   Apply microphone_gain          │
+    │                                  │
+    │ Duration: 15-25ms (CPU)          │
+    │ Note: 2 bins/frame interlaced    │
+    └─────────┬──────────────────────────┘
+              │
+              v
+    ┌──────────────────────┐
+    │ spectrogram[64]      │  Auto-ranged (0.0-1.0)
+    │ spectrogram_smooth[] │  8-frame average
+    │ spectrogram_absolute│  Pre-normalized
+    │ chromagram[12]       │  12 pitch classes
+    └─────────┬────────────┘
+              │
+              v
+    ┌──────────────────────────────┐
+    │ get_chromagram()             │  Simple aggregation
+    │ Lines 600-620                │  ~1ms
+    └─────────┬────────────────────┘
+              │
+              v
+    ┌──────────────────────────────┐
+    │ update_novelty()             │  Spectral flux
+    │ Lines 345-374                │  50 Hz cadence
+    │                              │  Onset detection
+    │ FOR each freq bin:           │
+    │   novelty += (new - old)     │
+    │ log(novelty) → log for tempo │
+    │ Duration: ~1ms               │
+    └─────────┬────────────────────┘
+              │
+              v
+    ┌──────────────────────────────┐
+    │ novelty_curve[1024]          │  20.48s @ 50 Hz
+    │ (Goertzel input for tempo)   │  Ring buffer
+    └─────────┬────────────────────┘
+              │
+              v
+    ┌──────────────────────────────┐
+    │ update_tempo()               │  Tempo detection
+    │ Lines 276-297                │  Goertzel on novelty
+    │                              │
+    │ FOR each tempo bin (2/frame):│  32 bins → 2 bins/frame
+    │   magnitude[tempo] = Goertzel│  Duration: 5-10ms
+    │     (novelty_curve[])        │
+    │                              │
+    │ Interlaced calculation       │
+    │ (Full 64 bins every 32 frames)
+    └─────────┬────────────────────┘
+              │
+              v
+    ┌──────────────────────────────┐
+    │ tempi[64] state              │  BPM 32-192
+    │ tempi_smooth[64]             │  (64 tempo hypotheses)
+    │ (Goertzel state + magnitude) │
+    └─────────┬────────────────────┘
+              │
+              v
+    ┌──────────────────────────────┐
+    │ update_tempi_phase(delta)    │  Beat phase tracking
+    │ Lines 402-430                │  ~1ms (64 sin/cos)
+    │                              │
+    │ FOR each tempo bin:          │
+    │   phase += phase_rate * delta│  Phase advance per frame
+    │   beat = sin(phase)          │  (-π to +π)
+    │   Accumulate power_sum       │
+    │                              │
+    │ tempo_confidence = power_sum │  Overall beat confidence
+    └─────────┬────────────────────┘
+              │
+              v
+    ┌──────────────────────────────┐
+    │ audio_back buffer            │  Private snapshot (1,300+ bytes)
+    │                              │  Copy from globals (spinlock-protected)
+    │ ├─ spectrogram[64]           │
+    │ ├─ spectrogram_smooth[64]    │
+    │ ├─ spectrogram_absolute[64]  │
+    │ ├─ chromagram[12]            │
+    │ ├─ vu_level                  │
+    │ ├─ tempo_confidence          │
+    │ ├─ tempo_magnitude[64]       │
+    │ ├─ tempo_phase[64]           │
+    │ ├─ update_counter            │  Increments each frame
+    │ ├─ timestamp_us              │  esp_timer_get_time()
+    │ └─ is_valid                  │  First-write flag
+    │                              │
+    │ Filled by:                   │
+    │ - calculate_magnitudes()     │
+    │ - get_chromagram()           │
+    │ - update_tempo() + tempo[]   │
+    │ - Spinlock for tempo arrays  │
+    └─────────┬────────────────────┘
+              │
+              v
+    ┌──────────────────────────────┐
+    │ BEAT EVENT DETECTION         │  Optional, gated by:
+    │ Lines 356-441                │  - Phase or confidence
+    │                              │  - Refractory period
+    │ IF beat detected:            │  - VU floor gate
+    │   beat_events_push()         │
+    │   LOG_INFO("BEAT @ %.1f BPM")│
+    └─────────┬────────────────────┘
+              │
+              v
+    ┌──────────────────────────────┐
+    │ finish_audio_frame()         │
+    │ Lines 627-634                │
+    │                              │  CRITICAL SECTION:
+    │ commit_audio_data():         │
+    │   Lines 184-222              │
+    │                              │  STEP 1: seq++ (mark writing)
+    │   STEP 1: seq = odd          │  STEP 2: memcpy (~1-2ms)
+    │   STEP 2: memcpy()           │  STEP 3: Restore seq
+    │           (audio_back →      │  STEP 4: seq++ (mark valid)
+    │            audio_front)      │
+    │   STEP 3: seq = even         │  Memory barriers between steps
+    │   STEP 4: is_valid = true    │  (__sync_synchronize)
+    │                              │
+    │ Duration: ~1-2ms + memcpy    │
+    └──────────┬───────────────────┘
+               │
+               │    Lock-free atomic exchange
+               │    (sequence counter validation)
+               │
+               ├─ Readers: retry if odd seq
+               ├─ Writers: Wait for even seq
+               │
+               v
+            ┌────────────────────────┐
+            │ audio_front (shared)    │  ← Core 1 reads this!
+            │ (VALID snapshot)        │
+            │ ├─ spectrogram[64]      │
+            │ ├─ tempo_phase[64]      │
+            │ ├─ vu_level             │
+            │ └─ update_counter       │
+            └──────────┬──────────────┘
+                       │
+                       │
+                       │ (Can be read anytime, even while
+                       │  Core 0 is computing next frame)
+                       │
+                       └──────────────────────────┐
+                                                 │
+                                                 v
+                                        ┌──────────────────────┐
+                                        │ get_audio_snapshot() │  Non-blocking
+                                        │ Lines 127-168        │
+                                        │                      │
+                                        │ Retry loop:          │
+                                        │ read seq, copy data, │
+                                        │ read seq_end, validate
+                                        │ if seq != seq_end OR │
+                                        │    seq is odd:       │
+                                        │   retry (max 1000x)  │
+                                        │                      │
+                                        │ Duration: <0.1ms    │
+                                        │ (copy + validation)  │
+                                        └──────────┬───────────┘
+                                                   │
+                                                   v
+                                        ┌──────────────────────┐
+                                        │ Pattern Snapshot     │  Local copy
+                                        │ (per-pattern)        │  in pattern stack
+                                        │                      │
+                                        │ PATTERN_AUDIO_START()│
+                                        │ ├─ snapshot = copy   │
+                                        │ ├─ is_fresh? check   │
+                                        │ ├─ age = time_now - timestamp
+                                        │ └─ track update_counter
+                                        └──────────┬───────────┘
+                                                   │
+                                                   v
+                                        ┌──────────────────────┐
+                                        │ Pattern Macros       │  Safe access
+                                        │                      │
+                                        │ AUDIO_SPECTRUM[i]    │
+                                        │ AUDIO_TEMPO_PHASE()  │
+                                        │ AUDIO_BASS()         │
+                                        │ AUDIO_IS_FRESH()     │
+                                        │ AUDIO_IS_STALE()     │
+                                        │                      │
+                                        │ Returns local copy   │
+                                        │ data (no race)       │
+                                        └──────────┬───────────┘
+                                                   │
+                                                   v
+                                        ┌──────────────────────┐
+                                        │ draw_current_        │  LED rendering
+                                        │ pattern()            │
+                                        │                      │
+                                        │ FOR each LED:        │
+                                        │   leds[i] =          │
+                                        │    reactive(audio)   │
+                                        │                      │
+                                        │ Duration: 2-10ms     │
+                                        │ (pattern-dependent)  │
+                                        └──────────┬───────────┘
+                                                   │
+                                                   v
+                                        ┌──────────────────────┐
+                                        │ transmit_leds()      │  RMT via DMA
+                                        │                      │
+                                        │ For each LED strip:  │
+                                        │  rmt_transmit()      │
+                                        │  (non-blocking DMA)  │
+                                        │                      │
+                                        │ Duration: <1ms       │
+                                        │ (DMA queued)         │
+                                        └──────────┬───────────┘
+                                                   │
+                                                   v
+                                        ┌──────────────────────┐
+                                        │ WS2812 LED Output    │
+                                        │ (~160 LEDs)          │
+                                        │                      │
+                                        │ Physically driven by │
+                                        │ ESP32 RMT peripheral│
+                                        │ (not CPU)            │
+                                        └──────────────────────┘
+
+
+TIMING SUMMARY (Per Frame)
+════════════════════════════
+
+Time  Event                         Duration    Notes
+────────────────────────────────────────────────────────────────
+0ms   I2S read starts (blocking)
+8ms   → I2S completes + Goertzel begins
+25ms  → Goertzel completes + Tempo/phase
+35ms  → Novelty/phase/sync complete
+35ms  → finish_audio_frame() calls commit_audio_data()
+      → audio_front updated (memcpy + barriers)
+35ms  → Core 1 reads snapshot (non-blocking retry loop)
+37ms  → Pattern rendering begins
+40ms  → LED transmit begins (RMT queued)
+45ms  → next audio frame starts (while LEDs transmitting)
+
+Total latency (mic → LED): 40-50ms one-way
+
+
+SYNCHRONIZATION GUARANTEES
+═════════════════════════════
+
+Reader (Core 1) never blocks:
+  ✓ Snapshot copy is local (no shared mutable state)
+  ✓ Retry loop has max 1000 attempts (prevents infinite waits)
+  ✓ Returns stale data on extreme contention (rather than block)
+
+Writer (Core 0) never blocks:
+  ✓ Memcpy is non-blocking (just CPU work)
+  ✓ No mutexes on hot path (only atomic stores)
+  ✓ Spinlock only for tempo array copy (microseconds)
+
+No deadlock possible:
+  ✓ Only one writer (Core 0)
+  ✓ Only one active reader at a time (pattern + render on Core 1)
+  ✓ Memory barriers guarantee order, not locks
+
+
+KEY INVARIANTS MAINTAINED
+════════════════════════════
+
+1. Sequence counter properties:
+   - Even = valid data (either reading or written)
+   - Odd = writing in progress (readers retry)
+   - Only written by Core 0
+   - Readers check both at start and end of copy
+
+2. Update counter (audio_front.update_counter):
+   - Increments every frame in Core 0
+   - Patterns use this to detect fresh data
+   - AUDIO_IS_FRESH() returns true if changed since last read
+
+3. Timestamp (audio_front.timestamp_us):
+   - Set at end of each audio frame
+   - Patterns can calculate AUDIO_AGE_MS()
+   - Used to detect stale audio (silence or lag)
+
+4. Data consistency:
+   - All audio data (64 spectrum bins + 64 tempo phases) updated atomically
+   - No torn reads (sequence counter ensures atomic copy)
+   - No partial updates visible to readers
+
+================================================================================
