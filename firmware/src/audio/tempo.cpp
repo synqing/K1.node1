@@ -366,7 +366,7 @@ void update_tempi_phase(float delta) {
     }
 
     // ========================================================================
-    // EMOTISCOPE VERBATIM: Simple max contribution confidence
+    // EMOTISCOPE BASELINE: Simple max contribution confidence
     // ========================================================================
 
     // Calculate confidence as max contribution (Emotiscope algorithm)
@@ -378,33 +378,32 @@ void update_tempi_phase(float delta) {
         );
     }
 
-    tempo_confidence = max_contribution;  // Direct assignment (Emotiscope)
+    // ========================================================================
+    // PHASE 1: ENTROPY LAYER - Ambiguity detection
+    // ========================================================================
+    // Calculate entropy confidence (1.0 = clear peak, 0.0 = ambiguous/uniform)
+    float entropy_confidence = calculate_tempo_entropy(tempi_smooth, NUM_TEMPI, tempi_power_sum);
+    
+    // PHASE 1: Blend peak ratio (legacy) with entropy (ambiguity detection)
+    // 60% weight on peak ratio (trust Emotiscope), 40% on entropy (detect ambiguity)
+    float phase1_confidence = 0.60f * max_contribution + 0.40f * entropy_confidence;
+    
+    tempo_confidence = phase1_confidence;
 
     // ========================================================================
-    // PHASE 3 DISABLED: All Phase 3 validation commented out to save ~4KB RAM
-    // ========================================================================
+    // PHASE 3 DEFERRED: All other Phase 3 validation commented out
+    // Re-enable in subsequent phases
     /*
-    // PHASE 3: Apply 3-point median filter for outlier rejection
-    float filtered_magnitude = apply_median_filter(&tempo_median_filter, tempi_magnitude);
-
-    // PHASE 3: Adaptive smoothing based on confidence
-    float confidence = tempo_confidence_metrics.combined;
-    float alpha = calculate_adaptive_alpha(filtered_magnitude, tempi_smooth[tempo_bin], confidence);
-
-    // PHASE 3: Multi-metric confidence calculation
-    update_confidence_metrics(tempi_smooth, NUM_TEMPI, tempi_power_sum);
-
-    // Update temporal stability with current dominant tempo
+    // PHASE 2: Temporal stability tracking
     uint16_t dominant_bin = find_dominant_tempo_bin(tempi_smooth, NUM_TEMPI);
     float current_tempo_bpm = tempi_bpm_values_hz[dominant_bin] * 60.0f;
     update_tempo_history(current_tempo_bpm);
 
-    // Store locked tempo for state machine
-    tempo_lock_tracker.locked_tempo_bpm = current_tempo_bpm;
-
-    // PHASE 3: Update tempo lock state machine
+    // PHASE 3: Octave detection + state machine
+    OctaveRelationship octave_rel = check_octave_ambiguity(tempi_smooth, tempi_bpm_values_hz, NUM_TEMPI);
     update_tempo_lock_state(t_now_ms);
 
-    tempo_confidence = tempo_confidence_metrics.combined;
+    // PHASE 4: Adaptive smoothing
+    float alpha = calculate_adaptive_alpha(filtered_magnitude, tempi_smooth[tempo_bin], tempo_confidence_metrics.combined);
     */
 }
