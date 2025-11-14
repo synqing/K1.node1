@@ -8,6 +8,8 @@
 #include "vu.h"
 #include "validation/tempo_validation.h"
 
+static const char* TAG = "TEMPO";
+
 // ============================================================================ 
 // GLOBAL STATE (Emotiscope parity)
 // ============================================================================
@@ -75,11 +77,24 @@ uint16_t find_closest_tempo_bin(float target_bpm) {
 }
 
 void init_tempo_goertzel_constants() {
+    // Validate array bounds and initialization
+    if (!tempi_bpm_values_hz) {
+        ESP_LOGE(TAG, "tempi_bpm_values_hz array not allocated");
+        return;
+    }
+    
+    // Initialize tempo frequency values with bounds checking
     for (uint16_t i = 0; i < NUM_TEMPI; i++) {
         float progress = static_cast<float>(i) / static_cast<float>(NUM_TEMPI);
         float tempi_range = TEMPO_HIGH - TEMPO_LOW;
         float tempo = tempi_range * progress + TEMPO_LOW;
 
+        // Validate tempo calculation to prevent invalid values
+        if (tempo < TEMPO_LOW || tempo > TEMPO_HIGH) {
+            ESP_LOGW(TAG, "Invalid tempo calculation at index %d: %f", i, tempo);
+            tempo = TEMPO_LOW + (TEMPO_HIGH - TEMPO_LOW) * 0.5f; // Use middle value
+        }
+        
         tempi_bpm_values_hz[i] = tempo / 60.0f;
     }
 
@@ -127,10 +142,13 @@ void init_tempo_goertzel_constants() {
     }
 }
 
+// PHASE 3 DISABLED: Commented out to save ~4KB RAM
+/*
 void init_tempo_validation_system() {
     init_tempo_validation();
     Serial.println("[Tempo] Phase 3 validation system initialized");
 }
+*/
 
 static float calculate_magnitude_of_tempo(uint16_t tempo_bin) {
     float normalized_magnitude = 0.0f;
@@ -198,8 +216,9 @@ static void calculate_tempi_magnitudes(int16_t single_bin = -1) {
                 scaled_magnitude = 1.0f;
             }
 
-            float squared = scaled_magnitude * scaled_magnitude;  // Reduced from cubic (x^3) to quadratic (x^2) for better sensitivity at low levels
-            tempi[i].magnitude = squared;
+            // EMOTISCOPE VERBATIM: Cubic scaling (x³) for proper dynamic range compression
+            float cubed = scaled_magnitude * scaled_magnitude * scaled_magnitude;
+            tempi[i].magnitude = cubed;
         }
     }, __func__);
 }
@@ -230,13 +249,16 @@ void update_tempo() {
         normalize_novelty_curve();
 
         uint16_t max_bin = static_cast<uint16_t>((NUM_TEMPI - 1) * MAX_TEMPO_RANGE);
-        calculate_tempi_magnitudes(calc_bin);
-        calculate_tempi_magnitudes(calc_bin + 1);
-
-        calc_bin += 2;
-        if (calc_bin >= max_bin) {
-            calc_bin = 0;
+        // Process multiple bins per call to keep visuals responsive
+        const uint16_t stride = 8;  // bins per frame
+        for (uint16_t k = 0; k < stride; ++k) {
+            uint16_t bin = calc_bin + k;
+            if (bin >= max_bin) break;
+            calculate_tempi_magnitudes((int16_t)bin);
         }
+
+        calc_bin = (uint16_t)(calc_bin + stride);
+        if (calc_bin >= max_bin) calc_bin = 0;
     }, __func__);
 }
 
@@ -330,31 +352,46 @@ void update_tempi_phase(float delta) {
     tempi_power_sum = 0.00000001f;
 
     // ========================================================================
-    // PHASE 3: Enhanced tempo processing with validation
+    // EMOTISCOPE VERBATIM: Simple smoothing + max contribution confidence
     // ========================================================================
 
     for (uint16_t tempo_bin = 0; tempo_bin < NUM_TEMPI; tempo_bin++) {
         float tempi_magnitude = tempi[tempo_bin].magnitude;
 
-        // PHASE 3: Apply 3-point median filter for outlier rejection
-        float filtered_magnitude = apply_median_filter(&tempo_median_filter, tempi_magnitude);
-
-        // PHASE 3: Adaptive smoothing based on confidence
-        float confidence = tempo_confidence_metrics.combined;
-        float alpha = calculate_adaptive_alpha(filtered_magnitude, tempi_smooth[tempo_bin], confidence);
-
-        // Apply adaptive exponential smoothing
-        tempi_smooth[tempo_bin] = tempi_smooth[tempo_bin] * (1.0f - alpha) + filtered_magnitude * alpha;
+        // Fixed smoothing alpha (Emotiscope: 0.025)
+        tempi_smooth[tempo_bin] = tempi_smooth[tempo_bin] * 0.975f + tempi_magnitude * 0.025f;
         tempi_power_sum += tempi_smooth[tempo_bin];
 
         sync_beat_phase(tempo_bin, delta);
     }
 
     // ========================================================================
-    // PHASE 3: Multi-metric confidence calculation
+    // EMOTISCOPE VERBATIM: Simple max contribution confidence
     // ========================================================================
 
-    // Calculate all confidence metrics (peak ratio, entropy, temporal stability)
+    // Calculate confidence as max contribution (Emotiscope algorithm)
+    float max_contribution = 0.000001f;
+    for (uint16_t tempo_bin = 0; tempo_bin < NUM_TEMPI; tempo_bin++) {
+        max_contribution = fmaxf(
+            tempi_smooth[tempo_bin] / tempi_power_sum,
+            max_contribution
+        );
+    }
+
+    tempo_confidence = max_contribution;  // Direct assignment (Emotiscope)
+
+    // ========================================================================
+    // PHASE 3 DISABLED: All Phase 3 validation commented out to save ~4KB RAM
+    // ========================================================================
+    /*
+    // PHASE 3: Apply 3-point median filter for outlier rejection
+    float filtered_magnitude = apply_median_filter(&tempo_median_filter, tempi_magnitude);
+
+    // PHASE 3: Adaptive smoothing based on confidence
+    float confidence = tempo_confidence_metrics.combined;
+    float alpha = calculate_adaptive_alpha(filtered_magnitude, tempi_smooth[tempo_bin], confidence);
+
+    // PHASE 3: Multi-metric confidence calculation
     update_confidence_metrics(tempi_smooth, NUM_TEMPI, tempi_power_sum);
 
     // Update temporal stability with current dominant tempo
@@ -368,6 +405,6 @@ void update_tempi_phase(float delta) {
     // PHASE 3: Update tempo lock state machine
     update_tempo_lock_state(t_now_ms);
 
-    // Maintain backward compatibility with existing code
     tempo_confidence = tempo_confidence_metrics.combined;
+    */
 }

@@ -49,8 +49,8 @@
 #define BOTTOM_NOTE 24	// THESE ARE IN QUARTER-STEPS, NOT HALF-STEPS! That's 24 notes to an octave
 #define NOTE_STEP 2 // Use half-steps anyways
 
-// Tempo detection configuration
-#define NUM_TEMPI 64
+// Tempo detection configuration (50-150 BPM range, 0.78 BPM/bin resolution)
+#define NUM_TEMPI 128
 
 // Goertzel processing
 #define MAX_AUDIO_RECORDING_SAMPLES 1024
@@ -113,8 +113,8 @@ typedef struct {
 	// Tempo/beat detection
 	float novelty_curve;                    // Spectral flux (onset detection)
 	float tempo_confidence;                 // Beat detection confidence (0.0-1.0)
-	float tempo_magnitude[NUM_TEMPI];       // Tempo bin magnitudes (64 bins)
-	float tempo_phase[NUM_TEMPI];           // Tempo bin phases (64 bins)
+	float tempo_magnitude[NUM_TEMPI];       // Tempo bin magnitudes (96 bins)
+	float tempo_phase[NUM_TEMPI];           // Tempo bin phases (96 bins)
 	float locked_tempo_bpm;                 // BPM when tempo is locked and stable
 	TempoLockState tempo_lock_state;        // Current state of the tempo lock tracker
 
@@ -178,11 +178,11 @@ extern int16_t audio_debug_recording[MAX_AUDIO_RECORDING_SAMPLES];
 extern float spectrogram_average[NUM_SPECTROGRAM_AVERAGE_SAMPLES][NUM_FREQS];
 extern uint8_t spectrogram_average_index;
 
-// Tempo history ring buffer
-#define NUM_TEMPO_HISTORY_FRAMES 64
-extern float tempo_history[NUM_TEMPO_HISTORY_FRAMES][NUM_TEMPI];
-extern uint8_t tempo_history_index;
-extern uint32_t tempo_history_wraps;
+// Tempo history ring buffer - REMOVED for memory optimization
+// #define NUM_TEMPO_HISTORY_FRAMES 64
+// extern float tempo_history[NUM_TEMPO_HISTORY_FRAMES][NUM_TEMPI];
+// extern uint8_t tempo_history_index;
+// extern uint32_t tempo_history_wraps;
 
 // Double-buffering for thread-safe audio sync
 extern AudioDataSnapshot audio_front;

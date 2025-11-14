@@ -45,12 +45,12 @@ void watch_cpu_fps() {
 void print_fps() {
     static uint32_t last_print = 0;
     uint32_t now = millis();
-    // Default interval 3000ms; if diagnostics are enabled, honor its interval
-    uint32_t interval_ms = 3000;
+    // Default interval 15000ms (detailed metrics available via REST API)
+    uint32_t interval_ms = 15000;
 #if DIAG_AVAILABLE
     if (diag_is_enabled()) {
         uint32_t diag_interval = diag_get_interval_ms();
-        interval_ms = diag_interval ? diag_interval : 3000;  // safety fallback
+        interval_ms = diag_interval ? diag_interval : 15000;  // safety fallback
     }
 #endif
 

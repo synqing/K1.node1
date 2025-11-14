@@ -3,9 +3,11 @@
 #include <ArduinoOTA.h>
 #include <SPIFFS.h>
 #include <math.h>
+#include <atomic>
 // Ensure LED driver interface is visible before any usage
 #include "led_driver.h"  // declares init_rmt_driver(), transmit_leds(), NUM_LEDS
 #include "frame_metrics.h"
+#include "color_pipeline.h"
 #ifdef DYNAMIC_LED_CHANNELS
 #include "render_channel.h"
 extern "C" void visual_scheduler(void* param);
@@ -55,6 +57,7 @@ void init_rmt_driver();
 #include "pattern_codegen_bridge.h"
 #include "generated_patterns.h"
 #include "pattern_helpers.h"
+#include "shared_pattern_buffers.h"
 // #include "pattern_optimizations.h"  // Disabled: legacy optimization header with mismatched signatures
 #include "webserver.h"
 #include "cpu_monitor.h"
@@ -97,8 +100,18 @@ static inline void run_audio_pipeline_once();
 
 static bool network_services_started = false;
 static bool s_audio_task_running = false;
-static bool s_enhanced_tempo_active = true;
+static bool s_enhanced_tempo_active = false;  // DISABLED: Use classic Emotiscope tempo only
 static EnhancedTempoDetector* s_etd = nullptr;
+static TempoResult s_last_enhanced_result{};
+static bool s_last_enhanced_valid = false;
+
+static inline bool enhanced_locked_trustworthy() {
+    return s_enhanced_tempo_active &&
+           s_etd &&
+           s_etd->is_locked() &&
+           s_last_enhanced_valid &&
+           (s_last_enhanced_result.confidence >= 0.4f);
+}
 
 static inline void reset_classic_tempo_bins() {
     extern tempo tempi[NUM_TEMPI];
@@ -113,14 +126,27 @@ static inline void reset_classic_tempo_bins() {
 
 // Calculate best BPM estimate from highest tempo bin magnitude
 float get_best_bpm() {
+    extern float tempi_smooth[NUM_TEMPI];
+    extern float tempi_bpm_values_hz[NUM_TEMPI];
+    
+    // Safety checks to prevent crashes
+    if (!tempi_smooth || !tempi_bpm_values_hz) {
+        return 120.0f; // Safe default BPM
+    }
+    
     float max_magnitude = 0.0f;
     uint16_t best_bin = 0;
 
     for (uint16_t i = 0; i < NUM_TEMPI; i++) {
-        if (tempi[i].magnitude > max_magnitude) {
-            max_magnitude = tempi[i].magnitude;
+        if (tempi_smooth[i] > max_magnitude) {
+            max_magnitude = tempi_smooth[i];
             best_bin = i;
         }
+    }
+
+    // Bounds check to prevent array overflow
+    if (best_bin >= NUM_TEMPI) {
+        best_bin = NUM_TEMPI - 1;
     }
 
     // Convert bin index to BPM (32-192 BPM range across NUM_TEMPI bins)
@@ -302,6 +328,8 @@ void audio_task(void* param) {
             probe_started = true;
             if (s_enhanced_tempo_active && s_etd) {
                 TempoResult tr = s_etd->process_spectrum(spectrogram_smooth, NUM_FREQS);
+                s_last_enhanced_result = tr;
+                s_last_enhanced_valid = true;
 
                 // Prefer locked, smoothed BPM for mapping to reduce jitter
                 float map_bpm = s_etd->is_locked() ? s_etd->current_bpm() : tr.bpm;
@@ -316,6 +344,10 @@ void audio_task(void* param) {
                 tempi[best_bin].magnitude = fmaxf(tempi[best_bin].magnitude, conf);
                 tempi_smooth[best_bin] = fmaxf(tempi_smooth[best_bin], conf);
                 tempo_confidence = conf;
+
+                // Also update classic distribution to populate all bins for visuals
+                // This provides a full-band magnitude profile for patterns (legacy parity)
+                update_tempo();
             } else {
                 update_tempo();
             }
@@ -345,18 +377,56 @@ void audio_task(void* param) {
         // SYNC TEMPO MAGNITUDE AND PHASE ARRAYS
         // Copy per-tempo-bin magnitude and phase data from tempo calculation to audio snapshot
         // This enables Tempiscope and Beat_Tunnel patterns to access individual tempo bin data
-        extern tempo tempi[NUM_TEMPI];  // From tempo.cpp (64 tempo hypotheses)
+        extern tempo tempi[NUM_TEMPI];  // From tempo.cpp (96 tempo hypotheses)
         portENTER_CRITICAL(&audio_spinlock);
         for (uint16_t i = 0; i < NUM_TEMPI; i++) {
-            audio_back.tempo_magnitude[i] = tempi[i].magnitude;  // 0.0-1.0 per bin
+            // Use smoothed magnitudes for visual stability
+            audio_back.tempo_magnitude[i] = tempi_smooth[i];  // 0.0-1.0 per bin (smoothed)
             audio_back.tempo_phase[i] = tempi[i].phase;          // -π to +π per bin
         }
         portEXIT_CRITICAL(&audio_spinlock);
+
+        // Lightweight tempo diagnostics (0.1 Hz / 10s interval)
+        static uint32_t last_tempo_log_ms = 0;
+        uint32_t now_ms_log = millis();
+        if (now_ms_log - last_tempo_log_ms > 10000) {
+            last_tempo_log_ms = now_ms_log;
+            uint16_t dom = find_dominant_tempo_bin(tempi_smooth, NUM_TEMPI);
+            
+            // Critical safety check to prevent array bounds violation
+            if (dom >= NUM_TEMPI) {
+                dom = NUM_TEMPI - 1; // Clamp to valid range
+            }
+            
+            float bpm_now = tempi_bpm_values_hz[dom] * 60.0f;
+            const char* lock_state = get_tempo_lock_state_string(tempo_lock_tracker.state);
+            float enh_bpm = s_last_enhanced_valid ? s_last_enhanced_result.bpm : 0.0f;
+            float enh_conf = s_last_enhanced_valid ? s_last_enhanced_result.confidence : 0.0f;
+            bool enh_locked = enhanced_locked_trustworthy();
+            
+            // Validate enhanced tempo detector state before logging
+            if (s_etd && s_enhanced_tempo_active) {
+                LOG_INFO(TAG_TEMPO, "tempo classic bpm=%.1f conf=%.2f lock=%s power_sum=%.3f dom_bin=%u | enh bpm=%.1f conf=%.2f lock=%d",
+                         bpm_now, tempo_confidence, lock_state, tempi_power_sum, (unsigned)dom,
+                         enh_bpm, enh_conf, (int)enh_locked);
+            } else {
+                LOG_INFO(TAG_TEMPO, "tempo classic bpm=%.1f conf=%.2f lock=%s power_sum=%.3f dom_bin=%u | enh DISABLED",
+                         bpm_now, tempo_confidence, lock_state, tempi_power_sum, (unsigned)dom);
+            }
+        }
 
         // Beat event emission (enhanced preferred):
         // - If enhanced locked: emit on phase zero-crossing with period guard
         // - Else: fallback to confidence + refractory gating
         if (!silence_frame) {
+            // Safety check: ensure tempo arrays are initialized
+            extern float tempi_smooth[NUM_TEMPI];
+            extern float tempi_bpm_values_hz[NUM_TEMPI];
+            if (!tempi_smooth || !tempi_bpm_values_hz) {
+                LOG_WARN(TAG_AUDIO, "Tempo arrays not initialized, skipping beat detection");
+                return;
+            }
+            
             uint32_t now_ms = millis();
             extern float tempo_confidence;  // From tempo.cpp
             // Adaptive gating: threshold influenced by silence level and novelty
@@ -368,26 +438,54 @@ void audio_task(void* param) {
             // audio_level is updated by run_vu(); use it directly for gating
             bool vu_ok = (audio_level >= VU_LOCK_GATE);
             bool emitted = false;
-            if (vu_ok && s_enhanced_tempo_active && s_etd && s_etd->is_locked()) {
+            bool enh_locked = enhanced_locked_trustworthy();
+            if (vu_ok && enh_locked) {
                 // Phase-based beat: detect negative→positive zero-crossing
                 static float prev_phase = 0.0f;
                 float phase = s_etd->current_phase();
                 // Expected period from locked BPM
                 float bpm_for_period = fmaxf(30.0f, fminf(200.0f, s_etd->current_bpm()));
                 uint32_t expected_period_ms = (uint32_t)(60000.0f / bpm_for_period);
-                uint32_t refractory_ms = (uint32_t)(expected_period_ms * 0.6f);
+                
+                // Smart refractory calculation - check for octave ambiguity
+                extern OctaveRelationship get_current_octave_relationship();
+                OctaveRelationship octave_rel = get_current_octave_relationship();
+                float refractory_multiplier = 0.6f;
+                
+                // If we detected 2x octave ambiguity (half-tempo bias), use shorter refractory
+                if (octave_rel.relationship >= 1.8f && octave_rel.relationship <= 2.2f) {
+                    refractory_multiplier = 0.3f; // Use faster tempo for refractory
+                    LOG_DEBUG(TAG_AUDIO, "Octave ambiguity detected (%.1fx), using faster tempo for refractory", octave_rel.relationship);
+                }
+                
+                uint32_t refractory_ms = (uint32_t)(expected_period_ms * refractory_multiplier);
                 if (refractory_ms < 200) refractory_ms = 200;
                 bool zero_cross = (prev_phase < 0.0f && phase >= 0.0f);
                 if (zero_cross && input_active && (now_ms - g_last_beat_event_ms) >= refractory_ms && tempo_confidence > adaptive) {
                     uint32_t ts_us = (uint32_t)esp_timer_get_time();
-                    uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
-                    bool ok = beat_events_push(ts_us, conf_u16);
-                    if (!ok) {
-                        LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached)");
+                    // Validate timestamp to prevent zero values
+                    if (ts_us == 0) {
+                        LOG_WARN(TAG_AUDIO, "Invalid timestamp from esp_timer_get_time() in phase detection");
+                        ts_us = 1; // Use minimum valid timestamp
                     }
-                    g_last_beat_event_ms = now_ms;
+                    uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
+                    // Ensure confidence is not zero to prevent invalid events
+                    if (conf_u16 == 0) conf_u16 = 1;
+                    bool ok = beat_events_push(ts_us, conf_u16);
+                    if (ok) {
+                        g_last_beat_event_ms = now_ms;
+                    } else {
+                        LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached) - suppressing beat");
+                    }
                     float best_bpm = get_best_bpm();
-                    LOG_INFO(TAG_BEAT, "BEAT detected @ %.1f BPM", best_bpm);
+                    // Rate limit beat detection logging to prevent flooding (thread-safe)
+                    static std::atomic<uint32_t> last_beat_log_ms{0};
+                    uint32_t now_log_ms = millis();
+                    uint32_t last_ms = last_beat_log_ms.load(std::memory_order_acquire);
+                    if (now_log_ms - last_ms >= 1000) {  // Max 1 log per second
+                        LOG_INFO(TAG_BEAT, "BEAT detected @ %.1f BPM", best_bpm);
+                        last_beat_log_ms.store(now_log_ms, std::memory_order_release);
+                    }
                     emitted = true;
                 }
                 prev_phase = phase;
@@ -397,20 +495,46 @@ void audio_task(void* param) {
                 float bpm_for_period = get_best_bpm();
                 bpm_for_period = fmaxf(30.0f, fminf(200.0f, bpm_for_period));
                 uint32_t expected_period_ms = (uint32_t)(60000.0f / bpm_for_period);
-                uint32_t refractory_ms = (uint32_t)(expected_period_ms * 0.6f);
+                
+                // Smart refractory calculation - check for octave ambiguity
+                extern OctaveRelationship get_current_octave_relationship();
+                OctaveRelationship octave_rel = get_current_octave_relationship();
+                float refractory_multiplier = 0.6f;
+                
+                // If we detected 2x octave ambiguity (half-tempo bias), use shorter refractory
+                if (octave_rel.relationship >= 1.8f && octave_rel.relationship <= 2.2f) {
+                    refractory_multiplier = 0.3f; // Use faster tempo for refractory
+                    LOG_DEBUG(TAG_AUDIO, "Fallback: Octave ambiguity detected (%.1fx), using faster tempo for refractory", octave_rel.relationship);
+                }
+                
+                uint32_t refractory_ms = (uint32_t)(expected_period_ms * refractory_multiplier);
                 if (refractory_ms < 200) refractory_ms = 200;
                 if (input_active && tempo_confidence > adaptive && (now_ms - g_last_beat_event_ms) >= refractory_ms) {
                     uint32_t ts_us = (uint32_t)esp_timer_get_time();
-                    uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
-                    bool ok = beat_events_push(ts_us, conf_u16);
-                    if (!ok) {
-                        LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached)");
+                    // Validate timestamp to prevent zero values
+                    if (ts_us == 0) {
+                        LOG_WARN(TAG_AUDIO, "Invalid timestamp from esp_timer_get_time()");
+                        ts_us = 1; // Use minimum valid timestamp
                     }
-                    g_last_beat_event_ms = now_ms;
+                    uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
+                    // Ensure confidence is not zero to prevent invalid events
+                    if (conf_u16 == 0) conf_u16 = 1;
+                    bool ok = beat_events_push(ts_us, conf_u16);
+                    if (ok) {
+                        g_last_beat_event_ms = now_ms;
+                    } else {
+                        LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached) - suppressing beat");
+                    }
 
-                    // Log BEAT_EVENT with detected BPM
+                    // Log BEAT_EVENT with detected BPM (rate limited to avoid flooding, thread-safe)
                     float best_bpm = get_best_bpm();
-                    LOG_INFO(TAG_BEAT, "BEAT detected @ %.1f BPM", best_bpm);
+                    static std::atomic<uint32_t> last_beat_log_ms{0};
+                    uint32_t now_log_ms = millis();
+                    uint32_t last_ms = last_beat_log_ms.load(std::memory_order_acquire);
+                    if (now_log_ms - last_ms >= 1000) {  // Rate limit: max 1 log per second
+                        LOG_INFO(TAG_BEAT, "BEAT detected @ %.1f BPM", best_bpm);
+                        last_beat_log_ms.store(now_log_ms, std::memory_order_release);
+                    }
                 }
             }
             // Always end probe; latency printing is internally rate-limited and disabled by default
@@ -501,7 +625,7 @@ static inline void run_audio_pipeline_once() {
     portEXIT_CRITICAL(&audio_spinlock);
 
     // SYNC TEMPO MAGNITUDE AND PHASE ARRAYS
-    extern tempo tempi[NUM_TEMPI];  // From tempo.cpp (64 tempo hypotheses)
+    extern tempo tempi[NUM_TEMPI];  // From tempo.cpp (96 tempo hypotheses)
     portENTER_CRITICAL(&audio_spinlock);
     for (uint16_t i = 0; i < NUM_TEMPI; i++) {
         audio_back.tempo_magnitude[i] = tempi[i].magnitude;
@@ -528,17 +652,30 @@ static inline void run_audio_pipeline_once() {
         }
         bpm_for_period = fmaxf(30.0f, fminf(200.0f, bpm_for_period));
         uint32_t expected_period_ms = (uint32_t)(60000.0f / bpm_for_period);
-        uint32_t refractory_ms = (uint32_t)(expected_period_ms * 0.6f);
+        
+        // Smart refractory calculation - check for octave ambiguity
+        extern OctaveRelationship get_current_octave_relationship();
+        OctaveRelationship octave_rel = get_current_octave_relationship();
+        float refractory_multiplier = 0.6f;
+        
+        // If we detected 2x octave ambiguity (half-tempo bias), use shorter refractory
+        if (octave_rel.relationship >= 1.8f && octave_rel.relationship <= 2.2f) {
+            refractory_multiplier = 0.3f; // Use faster tempo for refractory
+            LOG_DEBUG(TAG_AUDIO, "Single-shot: Octave ambiguity detected (%.1fx), using faster tempo for refractory", octave_rel.relationship);
+        }
+        
+        uint32_t refractory_ms = (uint32_t)(expected_period_ms * refractory_multiplier);
         if (refractory_ms < 200) refractory_ms = 200;
         if (tempo_confidence > adaptive && (now_ms - g_last_beat_event_ms) >= refractory_ms) {
             uint32_t ts_us = (uint32_t)esp_timer_get_time();
             uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
             bool ok = beat_events_push(ts_us, conf_u16);
             beat_events_probe_end("audio_to_event");
-            if (!ok) {
-                LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached)");
+            if (ok) {
+                g_last_beat_event_ms = now_ms;
+            } else {
+                LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached) - suppressing beat");
             }
-            g_last_beat_event_ms = now_ms;
         }
     }
 
@@ -577,9 +714,9 @@ void loop_gpu(void* param) {
         extern uint8_t g_pattern_channel_index;
         g_pattern_channel_index = 0;
 
-        // BRIGHTNESS BINDING: Synchronize global_brightness with params.brightness
+        // Use pattern-level brightness only; keep transport scale at 1.0 to avoid double-scaling
         extern float global_brightness;
-        global_brightness = params.brightness;
+        global_brightness = 1.0f;
 
         // Draw current pattern with audio-reactive data (lock-free read from audio_front)
         uint32_t t_render = micros();
@@ -590,6 +727,9 @@ void loop_gpu(void* param) {
         PatternRenderContext context(leds, NUM_LEDS, time, params, audio_snapshot);
 
         draw_current_pattern(context);
+
+        // Apply legacy color post-processing (warmth, white balance, gamma)
+        apply_color_pipeline(params);
         uint32_t t_post_render = micros();
 
         uint32_t render_us = t_post_render - t_frame_start;
@@ -739,21 +879,29 @@ void setup() {
     // Initialize tempo detection (beat detection pipeline)
     LOG_INFO(TAG_TEMPO, "Initializing tempo detection...");
     init_tempo_goertzel_constants();
-    // Enhanced detector
-    s_etd = new EnhancedTempoDetector();
-    if (s_etd && s_etd->init()) {
-        LOG_INFO(TAG_TEMPO, "Enhanced tempo detector ENABLED (%d bins)", ENHANCED_NUM_TEMPI);
-        s_enhanced_tempo_active = true;
-    } else {
-        LOG_WARN(TAG_TEMPO, "Enhanced tempo detector unavailable; falling back to classic Goertzel");
-        s_enhanced_tempo_active = false;
-    }
+    // Enhanced detector DISABLED - using pure Emotiscope tempo only
+    // s_etd = new EnhancedTempoDetector();
+    // if (s_etd && s_etd->init()) {
+    //     LOG_INFO(TAG_TEMPO, "Enhanced tempo detector ENABLED (%d bins)", ENHANCED_NUM_TEMPI);
+    //     s_enhanced_tempo_active = true;
+    // } else {
+    //     LOG_WARN(TAG_TEMPO, "Enhanced tempo detector unavailable; falling back to classic Goertzel");
+    //     s_enhanced_tempo_active = false;
+    // }
+    LOG_INFO(TAG_TEMPO, "Using classic Emotiscope tempo detector only (96 bins)");
 
     // Initialize beat event ring buffer and latency probes
-    // Capacity 53 ≈ 10s history at ~5.3 beats/sec (p99 combined)
-    beat_events_init(53);
+    // Capacity 128 ≈ 25s history at ~5.3 beats/sec, ~10s at 12Hz (high-frequency content)
+    beat_events_init(128);
     // Tone down latency probe logging: print at most every 5 seconds
     beat_events_set_probe_interval_ms(5000);
+    
+    // Validate beat events initialization
+    if (beat_events_capacity() != 128) {
+        LOG_WARN(TAG_CORE0, "Beat events buffer initialization failed, capacity=%u", beat_events_capacity());
+    } else {
+        LOG_INFO(TAG_CORE0, "Beat events buffer initialized successfully");
+    }
 
     // Initialize parameter system
     LOG_INFO(TAG_CORE0, "Initializing parameters...");
@@ -764,6 +912,10 @@ void setup() {
     init_pattern_registry();
     // init_hue_wheel_lut();  // Disabled: hue wheel LUT not required; hsv() uses direct math fallback
     LOG_INFO(TAG_CORE0, "Loaded %d patterns", g_num_patterns);
+
+    // Initialize shared pattern buffers to reduce memory usage
+    LOG_INFO(TAG_CORE0, "Initializing shared pattern buffers...");
+    init_shared_pattern_buffers();
 
     // Apply performance optimizations to underperforming patterns
     // apply_pattern_optimizations();
@@ -994,14 +1146,27 @@ void loop() {
     }
 
     // Drain beat event ring buffer and forward over Serial (USB)
-    // Limit per-loop drain to avoid starving other services
-    for (int drained = 0; drained < 20 && beat_events_count() > 0; ++drained) {
-        BeatEvent ev;
-        if (beat_events_pop(&ev)) {
-            LOG_INFO(TAG_BEAT, "BEAT_EVENT ts_us=%lu conf=%u", (unsigned long)ev.timestamp_us, (unsigned)ev.confidence);
-        } else {
-            break;
-        }
+            // Limit per-loop drain to avoid starving other services
+            for (int drained = 0; drained < 20 && beat_events_count() > 0; ++drained) {
+                BeatEvent ev;
+                if (beat_events_pop(&ev)) {
+                    // Validate beat event data to prevent crashes
+                    if (ev.timestamp_us == 0 || ev.confidence == 0) {
+                        LOG_WARN(TAG_BEAT, "Invalid beat event data, skipping");
+                        continue;
+                    }
+                    
+                    // Rate limit BEAT_EVENT logging to prevent serial flooding (thread-safe)
+                    static std::atomic<uint32_t> last_event_log_ms{0};
+                    uint32_t now_event_ms = millis();
+                    uint32_t last_ms = last_event_log_ms.load(std::memory_order_acquire);
+                    if (now_event_ms - last_ms >= 1000) {  // Max 1 log per second
+                        LOG_INFO(TAG_BEAT, "BEAT_EVENT ts_us=%lu conf=%u", (unsigned long)ev.timestamp_us, (unsigned)ev.confidence);
+                        last_event_log_ms.store(now_event_ms, std::memory_order_release);
+                    }
+                } else {
+                    break;
+                }
     }
 
     // LED rendering is handled exclusively by loop_gpu task on Core 1

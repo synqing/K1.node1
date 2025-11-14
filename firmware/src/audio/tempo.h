@@ -24,8 +24,8 @@
 #define NOVELTY_HISTORY_LENGTH (1024)  // 50 FPS for 20.48 seconds
 #define NOVELTY_LOG_HZ (50)
 
-#define TEMPO_LOW (64 - 32)            // BPM range: 32-192 BPM
-#define TEMPO_HIGH (192 - 32)
+#define TEMPO_LOW (50)             // BPM range: 50-150 BPM (realistic music range)
+#define TEMPO_HIGH (150)
 
 #define BEAT_SHIFT_PERCENT (0.08)
 #define REFERENCE_FPS (100.0f)
@@ -63,8 +63,8 @@ extern uint32_t t_now_ms;
 // Initialize tempo Goertzel constants and tracking state
 void init_tempo_goertzel_constants();
 
-// PHASE 3: Initialize validation components (call after init_tempo_goertzel_constants)
-void init_tempo_validation_system();
+// PHASE 3 DISABLED: Commented out to save ~4KB RAM
+// void init_tempo_validation_system();
 
 // ============================================================================
 // PUBLIC API - TEMPO PROCESSING (called by audio task on Core 1)
