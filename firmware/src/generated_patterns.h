@@ -279,11 +279,11 @@ void draw_spectrum(const PatternRenderContext& context) {
     #undef AUDIO_IS_AVAILABLE
     #undef AUDIO_IS_FRESH
     #undef AUDIO_AGE_MS
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_IS_FRESH() (audio.update_counter > 0) // Simplified for context
-    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
-    #define AUDIO_SPECTRUM (audio.spectrogram)
-    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_IS_FRESH() (audio.payload.update_counter > 0) // Simplified for context
+    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.payload.timestamp_us) / 1000))
+    #define AUDIO_SPECTRUM (audio.payload.spectrogram)
+    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.payload.spectrogram_smooth, NUM_FREQS)
 
 	#ifndef SPECTRUM_CENTER_OFFSET
 	#define SPECTRUM_CENTER_OFFSET 0
@@ -363,11 +363,11 @@ void draw_octave(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
-    #define AUDIO_VU (audio.vu_level)
-    #define AUDIO_NOVELTY (audio.novelty_curve)
-    #define AUDIO_CHROMAGRAM (audio.chromagram)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.payload.timestamp_us) / 1000))
+    #define AUDIO_VU (audio.payload.vu_level)
+    #define AUDIO_NOVELTY (audio.payload.novelty_curve)
+    #define AUDIO_CHROMAGRAM (audio.payload.chromagram)
 
     // Fallback to time-based animation if no audio
     if (!AUDIO_IS_AVAILABLE()) {
@@ -434,9 +434,9 @@ void draw_bloom(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_VU (audio.vu_level)
-    #define AUDIO_NOVELTY (audio.novelty_curve)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_VU (audio.payload.vu_level)
+    #define AUDIO_NOVELTY (audio.payload.novelty_curve)
     #define AUDIO_BASS_ABS() get_audio_band_energy_absolute(audio, 0, 8)
     #define AUDIO_MIDS_ABS() get_audio_band_energy_absolute(audio, 16, 32)
     #define AUDIO_TREBLE_ABS() get_audio_band_energy_absolute(audio, 48, 63)
@@ -492,10 +492,10 @@ void draw_bloom_mirror(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_VU (audio.vu_level)
-    #define AUDIO_NOVELTY (audio.novelty_curve)
-    #define AUDIO_CHROMAGRAM (audio.chromagram)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_VU (audio.payload.vu_level)
+    #define AUDIO_NOVELTY (audio.payload.novelty_curve)
+    #define AUDIO_CHROMAGRAM (audio.payload.chromagram)
 
 	// Acquire shared dual-channel buffer for bloom pattern
 	static int bloom_buffer_id = -1;
@@ -691,8 +691,8 @@ float get_dominant_chroma_hue() {
 	uint16_t max_index = 0;
 
 	for (uint16_t i = 0; i < 12; i++) {
-		if (audio.chromagram[i] > max_chroma) {
-			max_chroma = audio.chromagram[i];
+		if (audio.payload.chromagram[i] > max_chroma) {
+			max_chroma = audio.payload.chromagram[i];
 			max_index = i;
 		}
 	}
@@ -707,10 +707,10 @@ void draw_pulse(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
-    #define AUDIO_VU (audio.vu_level)
-    #define AUDIO_NOVELTY (audio.novelty_curve)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.payload.timestamp_us) / 1000))
+    #define AUDIO_VU (audio.payload.vu_level)
+    #define AUDIO_NOVELTY (audio.payload.novelty_curve)
     #define AUDIO_KICK() get_audio_band_energy(audio, KICK_START, KICK_END)
 
     // Frame-rate independent delta time
@@ -857,9 +857,9 @@ void draw_tempiscope(const PatternRenderContext& context) {
     // Avoid macro redefinition warnings by undefining first
     #undef AUDIO_IS_AVAILABLE
     #undef AUDIO_IS_STALE
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000)) > 50)
-    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.payload.timestamp_us) / 1000)) > 50)
+    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.payload.spectrogram_smooth, NUM_FREQS)
 
 	// Diagnostic logging (once per second)
 	static uint32_t last_diagnostic = 0;
@@ -893,8 +893,8 @@ void draw_tempiscope(const PatternRenderContext& context) {
         int bin = (int)lroundf(progress * (float)(NUM_TEMPI - 1));
         if (bin < 0) bin = 0; if (bin >= NUM_TEMPI) bin = NUM_TEMPI - 1;
 
-        float phase = audio.tempo_phase[bin];
-        float mag   = clip_float(audio.tempo_magnitude[bin]);
+        float phase = audio.payload.tempo_phase[bin];
+        float mag   = clip_float(audio.payload.tempo_magnitude[bin]);
         // Beat peak gate in [0,1]
         float peak = 0.5f * (sinf(phase) + 1.0f);
         // Perceptual brightness; favor clarity at low magnitudes
@@ -954,10 +954,10 @@ void draw_beat_tunnel(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_VU (audio.vu_level)
-    #define AUDIO_NOVELTY (audio.novelty_curve)
-    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_VU (audio.payload.vu_level)
+    #define AUDIO_NOVELTY (audio.payload.novelty_curve)
+    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.payload.spectrogram_smooth, NUM_FREQS)
 
 	const uint8_t ch_idx = get_pattern_channel_index();
 
@@ -1007,8 +1007,8 @@ void draw_beat_tunnel(const PatternRenderContext& context) {
         const int half_leds = NUM_LEDS >> 1;
         const float sigma = 0.02f + 0.06f * clip_float(params.softness); // gaussian width
         for (int t = 0; t < NUM_TEMPI; ++t) {
-            float phase = audio.tempo_phase[t];
-            float mag = clip_float(audio.tempo_magnitude[t]);
+            float phase = audio.payload.tempo_phase[t];
+            float mag = clip_float(audio.payload.tempo_magnitude[t]);
             float peak = 0.5f * (sinf(phase) + 1.0f);
             float strength = response_square(mag) * peak; // emphasize strong beats
             if (strength < 0.02f) continue;
@@ -1064,10 +1064,10 @@ void draw_beat_tunnel_variant(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_VU (audio.vu_level)
-    #define AUDIO_NOVELTY (audio.novelty_curve)
-    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_VU (audio.payload.vu_level)
+    #define AUDIO_NOVELTY (audio.payload.novelty_curve)
+    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.payload.spectrogram_smooth, NUM_FREQS)
 
     const uint8_t ch_idx = get_pattern_channel_index();
 
@@ -1131,8 +1131,8 @@ void draw_beat_tunnel_variant(const PatternRenderContext& context) {
         const int half_leds = NUM_LEDS >> 1;
         const float sigma = 0.02f + 0.06f * clip_float(params.softness);
         for (int t = 0; t < NUM_TEMPI; ++t) {
-            float phase = audio.tempo_phase[t];
-            float mag = clip_float(audio.tempo_magnitude[t]);
+            float phase = audio.payload.tempo_phase[t];
+            float mag = clip_float(audio.payload.tempo_magnitude[t]);
             float peak = 0.5f * (sinf(phase) + 1.0f);
             float strength = response_square(mag) * peak;
             if (strength < 0.02f) continue;
@@ -1348,10 +1348,10 @@ void draw_tunnel_glow(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_VU (audio.vu_level)
-    #define AUDIO_NOVELTY (audio.novelty_curve)
-    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_VU (audio.payload.vu_level)
+    #define AUDIO_NOVELTY (audio.payload.novelty_curve)
+    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.payload.spectrogram_smooth, NUM_FREQS)
 
     // Frame-rate independent delta time
     static float last_time_tg = 0.0f;
@@ -1507,8 +1507,8 @@ void draw_perlin(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_VU (audio.vu_level)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_VU (audio.payload.vu_level)
 
     // CRITICAL: Only proceed with audio-reactive rendering if audio is available
     if (!AUDIO_IS_AVAILABLE()) {
@@ -1602,9 +1602,9 @@ void draw_analog(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_VU (audio.vu_level)
-    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000)) > 50)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_VU (audio.payload.vu_level)
+    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.payload.timestamp_us) / 1000)) > 50)
     
     // Clear LED buffer
     for (int i = 0; i < NUM_LEDS; i++) {
@@ -1661,8 +1661,8 @@ void draw_metronome(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000)) > 50)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.payload.timestamp_us) / 1000)) > 50)
     
     // Clear LED buffer
     for (int i = 0; i < NUM_LEDS; i++) {
@@ -1726,8 +1726,8 @@ void draw_hype(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000)) > 50)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.payload.timestamp_us) / 1000)) > 50)
     #define AUDIO_KICK() get_audio_band_energy(audio, KICK_START, KICK_END)
     #define AUDIO_SNARE() get_audio_band_energy(audio, SNARE_START, SNARE_END)
     #define AUDIO_HATS() get_audio_band_energy(audio, HATS_START, HATS_END)
@@ -1824,9 +1824,9 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_VU (audio.vu_level)
-    #define AUDIO_SPECTRUM (audio.spectrogram)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_VU (audio.payload.vu_level)
+    #define AUDIO_SPECTRUM (audio.payload.spectrogram)
 
     // --- SETUP: Half-array buffer with per-position smoothing history ---
     static CRGBF spectrum_buffer[NUM_LEDS / 2] = {};
@@ -1881,8 +1881,8 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
         float dominant_chroma_hue = 0.0f;
         float max_chroma_val = 0.0f;
         for (uint8_t i = 0; i < 12; i++) {
-            if (audio.chromagram[i] > max_chroma_val) {
-                max_chroma_val = audio.chromagram[i];
+            if (audio.payload.chromagram[i] > max_chroma_val) {
+                max_chroma_val = audio.payload.chromagram[i];
                 dominant_chroma_hue = (float)i / 12.0f;
             }
         }
@@ -1898,7 +1898,7 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
             buffer_idx = fmaxf(0, fminf(half_leds - 1, buffer_idx));
 
             // Get chromagram bin value and apply non-linear brightness curve
-            float chromagram_value = audio.chromagram[bin];
+            float chromagram_value = audio.payload.chromagram[bin];
             float chromagram_brightness = chromagram_value * chromagram_value;  // Squaring
             chromagram_brightness *= 1.5f;  // Legacy scale
             chromagram_brightness = fminf(1.0f, chromagram_brightness);
@@ -1964,8 +1964,8 @@ void draw_snapwave(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_SPECTRUM (audio.spectrogram)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_SPECTRUM (audio.payload.spectrogram)
 
     // --- SETUP: Half-array buffer (index 0 = center, increases away from center) ---
     // This is the CENTER-ORIGIN CORRECT approach (modeled on draw_bloom)
@@ -2001,16 +2001,16 @@ void draw_snapwave(const PatternRenderContext& context) {
         uint8_t dominant_tempo_bin = 0;
         float max_tempo_mag = 0.0f;
         for (uint8_t i = 0; i < NUM_TEMPI; i++) {
-            if (audio.tempo_magnitude[i] > max_tempo_mag) {
-                max_tempo_mag = audio.tempo_magnitude[i];
+            if (audio.payload.tempo_magnitude[i] > max_tempo_mag) {
+                max_tempo_mag = audio.payload.tempo_magnitude[i];
                 dominant_tempo_bin = i;
             }
         }
 
         // Beat appears when sin(phase) is positive and confidence is high
-        float beat_phase = audio.tempo_phase[dominant_tempo_bin];
+        float beat_phase = audio.payload.tempo_phase[dominant_tempo_bin];
         float beat_strength = sinf(beat_phase);  // -1.0 to 1.0
-        float beat_confidence = audio.tempo_magnitude[dominant_tempo_bin];
+        float beat_confidence = audio.payload.tempo_magnitude[dominant_tempo_bin];
 
         if (beat_strength > 0.3f && beat_confidence > 0.1f) {
             float beat_brightness = beat_strength * beat_confidence * clip_float(params.speed + 0.5f);
@@ -2084,11 +2084,11 @@ void draw_prism(const PatternRenderContext& context) {
     CRGBF* leds = context.leds;
     int num_leds = context.num_leds;
     const AudioDataSnapshot& audio = context.audio_snapshot;
-    #define AUDIO_IS_AVAILABLE() (audio.is_valid)
-    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000))
-    #define AUDIO_VU (audio.vu_level)
-    #define AUDIO_NOVELTY (audio.novelty_curve)
-    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_AGE_MS() ((uint32_t)((esp_timer_get_time() - audio.payload.timestamp_us) / 1000))
+    #define AUDIO_VU (audio.payload.vu_level)
+    #define AUDIO_NOVELTY (audio.payload.novelty_curve)
+    #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.payload.spectrogram_smooth, NUM_FREQS)
 
     // STEP 1: Decay trail buffer
     float trail_decay = 0.93f + 0.05f * clip_float(params.softness);  // 0.93-0.98

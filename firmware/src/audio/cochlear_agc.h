@@ -274,6 +274,11 @@ private:
     void update_global_agc(const float* spectrum) {
         current_total_energy = calculate_total_energy(spectrum);
 
+        // BOOTSTRAP FIX: On first call with real signal, initialize envelope immediately
+        if (smoothed_input_energy < 1e-9f && current_total_energy > SILENCE_THRESHOLD_ENERGY) {
+            smoothed_input_energy = current_total_energy;  // Jump-start envelope to prevent silence gate
+        }
+
         // v2.1.1 FIX: Implement RMS Envelope Follower
         // 1. Update the envelope follower (Fast Smoothing)
         // Use asymmetrical attack/release rates for the envelope itself
@@ -295,7 +300,7 @@ private:
 
         // Clamping
         required_gain = std::min(required_gain, max_gain_linear);
-        required_gain = std::max(required_gain, 1.0f); // Only boost or unity
+        // REMOVED: required_gain = std::max(required_gain, 1.0f); // Allows attenuation when needed
 
         // 4. Smooth gain changes (The actual slow AGC attack/release)
         if (required_gain > global_gain) {

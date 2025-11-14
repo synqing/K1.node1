@@ -98,12 +98,19 @@ void init_audio_data_sync() {
 	}
 
 	// Initialize both buffers to zero
-	memset(&audio_front, 0, sizeof(AudioDataSnapshot));
-	memset(&audio_back, 0, sizeof(AudioDataSnapshot));
+	// CRITICAL: Only memset the PAYLOAD, not the atomics (undefined behavior!)
+	memset(&audio_front.payload, 0, sizeof(AudioDataPayload));
+	memset(&audio_back.payload, 0, sizeof(AudioDataPayload));
+
+	// Initialize atomic sequence counters properly (never use memset on atomics!)
+	audio_front.sequence.store(0, std::memory_order_relaxed);
+	audio_front.sequence_end.store(0, std::memory_order_relaxed);
+	audio_back.sequence.store(0, std::memory_order_relaxed);
+	audio_back.sequence_end.store(0, std::memory_order_relaxed);
 
 	// Mark buffers as invalid until first audio update
-	audio_front.is_valid = false;
-	audio_back.is_valid = false;
+	audio_front.payload.is_valid = false;
+	audio_back.payload.is_valid = false;
 
 	audio_sync_initialized = true;
 
@@ -113,116 +120,115 @@ void init_audio_data_sync() {
 }
 
 // =============================================================================
-// Get thread-safe snapshot of current audio data
-// Returns: true if snapshot copied successfully, false on timeout
+// Get thread-safe snapshot of current audio data (seqlock protocol reader)
+// Returns: true if snapshot copied successfully, false on failure
 //
 // Usage:
 //   AudioDataSnapshot snapshot;
 //   if (get_audio_snapshot(&snapshot)) {
-//     // Use snapshot.spectrogram, snapshot.chromagram, etc.
+//     // Use snapshot.payload.spectrogram, snapshot.payload.chromagram, etc.
 //   }
 //
-// SYNCHRONIZATION STRATEGY:
-// Uses sequence counter to detect torn reads (Core 0 reading while Core 1 writing)
-// - Reader (Core 0): Read sequence, copy data, read sequence again - retry if changed
-// - Writer (Core 1): Increment sequence (mark dirty), write data, increment again (mark clean)
-// - Memory barriers ensure cache coherency between ESP32-S3 cores
+// SYNCHRONIZATION STRATEGY (Seqlock Protocol):
+// - Read sequence (memory_order_acquire) - ensures we see latest writes
+// - If ODD, retry (writer in progress)
+// - Copy payload (memcpy safe - no atomics)
+// - Read sequence_end (memory_order_acquire) - validate consistency
+// - If sequence changed or sequence != sequence_end, retry (torn read)
+//
+// memory_order_acquire ensures we see all writes that happened before sequence update
 // =============================================================================
 bool get_audio_snapshot(AudioDataSnapshot* snapshot) {
 	if (!audio_sync_initialized || snapshot == NULL) {
 		return false;
 	}
 
-	// LOCK-FREE READ with sequence counter validation
+	// LOCK-FREE READ with seqlock protocol
 	// Retry if sequence changes during copy (torn read detection)
 	uint32_t seq1, seq2;
-    // REDUCED from 1000 to 50 to prevent excessive stalls while still allowing retries
-    int max_retries = 50;  // Prevent infinite loop in extreme contention
+	int max_retries = 50;  // Prevent infinite loop in extreme contention
 	int retry_count = 0;
 
 	do {
-		// Read sequence counter before copy (relaxed - explicit barriers handle synchronization)
-		seq1 = audio_front.sequence.load(std::memory_order_relaxed);
+		// Read sequence counter before copy
+		// memory_order_acquire: Ensure we see all writes before sequence update
+		seq1 = audio_front.sequence.load(std::memory_order_acquire);
 
-		// Memory barrier: Ensure sequence read completes before data copy
-		// ESP32-S3 requires explicit cache synchronization between cores
-		__sync_synchronize();
-
-		// Copy data from front buffer (may be interrupted by writer)
-		memcpy(snapshot, &audio_front, sizeof(AudioDataSnapshot));
-
-		// Memory barrier: Ensure data copy completes before sequence check
-		__sync_synchronize();
-
-		// Read sequence counter after copy (relaxed - explicit barriers handle synchronization)
-		seq2 = audio_front.sequence_end.load(std::memory_order_relaxed);
-
-		// Retry if:
-		// 1. Sequence changed during copy (torn read)
-		// 2. Sequence is odd (writer is in progress)
-		// 3. Start/end sequences don't match (partial write)
-		if (++retry_count > max_retries) {
-			// Extreme contention - return stale data rather than infinite loop
-			LOG_WARN(TAG_SYNC, "Max retries exceeded, using potentially stale data");
-			return audio_front.is_valid;
+		// If sequence is ODD, writer is in progress - retry immediately
+		if (seq1 & 1) {
+			if (++retry_count > max_retries) {
+				LOG_WARN(TAG_SYNC, "Max retries exceeded (writer in progress)");
+				return audio_front.payload.is_valid;
+			}
+			continue;  // Don't copy - writer is actively writing
 		}
-	} while (seq1 != seq2 || (seq1 & 1) || seq1 != audio_front.sequence.load(std::memory_order_relaxed));
 
-	return audio_front.is_valid;
+		// Copy PAYLOAD ONLY from front buffer (no atomics - safe for memcpy)
+		memcpy(&snapshot->payload, &audio_front.payload, sizeof(AudioDataPayload));
+
+		// Read sequence_end after copy
+		// memory_order_acquire: Ensure payload copy completed before validation
+		seq2 = audio_front.sequence_end.load(std::memory_order_acquire);
+
+		// Verify consistency:
+		// 1. Sequence didn't change during copy (no torn read)
+		// 2. Sequence matches sequence_end (writer finished cleanly)
+		if (seq1 == seq2 && seq1 == audio_front.sequence.load(std::memory_order_acquire)) {
+			// Valid read - copy atomic counters for compatibility
+			snapshot->sequence.store(seq1, std::memory_order_relaxed);
+			snapshot->sequence_end.store(seq2, std::memory_order_relaxed);
+			return audio_front.payload.is_valid;
+		}
+
+		// Torn read detected - retry
+		if (++retry_count > max_retries) {
+			LOG_WARN(TAG_SYNC, "Max retries exceeded (torn read)");
+			return audio_front.payload.is_valid;
+		}
+	} while (true);
+
+	return audio_front.payload.is_valid;
 }
 
 // =============================================================================
-// Commit audio data from back buffer to front buffer (atomic swap)
+// Commit audio data from back buffer to front buffer (seqlock protocol)
 // Called by audio processing thread after updating audio_back
 //
-// SYNCHRONIZATION STRATEGY:
-// Uses sequence counter to signal write in progress
-// - Increment sequence (odd = writing in progress, signals readers to retry)
-// - Memory barrier (flush Core 1 cache, ensure readers see sequence change)
-// - Copy data from back to front buffer
-// - Memory barrier (ensure data written before final sequence update)
-// - Increment sequence again (even = valid data available)
+// SYNCHRONIZATION STRATEGY (Seqlock Protocol):
+// - Increment sequence to ODD (memory_order_release) - signals "writing in progress"
+// - Copy PAYLOAD ONLY (no atomics) - memcpy on AudioDataPayload is safe
+// - Increment sequence to EVEN (memory_order_release) - signals "valid data available"
+// - Update sequence_end to match (reader validates both match)
 //
-// Memory barriers are CRITICAL for ESP32-S3 dual-core cache coherency
+// CRITICAL: Never memcpy std::atomic (undefined behavior)
+// memory_order_release ensures writes are visible to other cores before sequence update
 // =============================================================================
 void commit_audio_data() {
 	if (!audio_sync_initialized) {
 		return;
 	}
 
-	// LOCK-FREE WRITE with sequence counter synchronization
+	// LOCK-FREE WRITE with seqlock protocol
 	// Step 1: Increment sequence to ODD value (signals "writing in progress")
+	// memory_order_release: All prior writes complete before sequence becomes visible
 	uint32_t seq = audio_front.sequence.load(std::memory_order_relaxed);
-	audio_front.sequence.store(seq + 1, std::memory_order_relaxed);
+	audio_front.sequence.store(seq + 1, std::memory_order_release);
 
-	// Memory barrier: Ensure sequence write is visible to Core 0 before data copy
-	// This flushes Core 1's cache and invalidates Core 0's cache for audio_front
-	__sync_synchronize();
-
-	// Step 2: Copy data from back buffer to front buffer
+	// Step 2: Copy PAYLOAD ONLY from back buffer to front buffer
+	// CRITICAL: Only copy AudioDataPayload (no atomics) - safe for memcpy
 	// This is a large (1,300+ byte) non-atomic operation that may take microseconds
 	// Readers will detect the odd sequence and retry
-	memcpy(&audio_front, &audio_back, sizeof(AudioDataSnapshot));
+	memcpy(&audio_front.payload, &audio_back.payload, sizeof(AudioDataPayload));
 
-	// Step 3: Restore sequence counter (must match the incremented value)
-	// We just overwrote it with memcpy, so restore it
-	uint32_t back_seq = audio_back.sequence.load(std::memory_order_relaxed);
-	audio_front.sequence.store(back_seq + 1, std::memory_order_relaxed);
-
-	// Memory barrier: Ensure data copy completes before marking as valid
-	__sync_synchronize();
-
-	// Step 4: Increment sequence to EVEN value (signals "valid data")
-	// Also update sequence_end to match (reader validates both match)
+	// Step 3: Increment sequence to EVEN value (signals "valid data available")
+	// memory_order_release: Payload write completes before sequence update is visible
 	seq = audio_front.sequence.load(std::memory_order_relaxed);
-	audio_front.sequence.store(seq + 1, std::memory_order_relaxed);
-	audio_front.sequence_end.store(audio_front.sequence.load(std::memory_order_relaxed), std::memory_order_relaxed);
+	audio_front.sequence.store(seq + 1, std::memory_order_release);
 
-	// Step 5: Mark front buffer as valid (first-time initialization flag)
-	audio_front.is_valid = true;
-
-	// Final memory barrier: Ensure all writes are visible to Core 0
-	__sync_synchronize();
+	// Step 4: Update sequence_end to match (reader validates both match)
+	// memory_order_release: Ensure sequence_end is consistent with sequence
+	audio_front.sequence_end.store(audio_front.sequence.load(std::memory_order_relaxed),
+	                                std::memory_order_release);
 }
 
 void init_goertzel(uint16_t frequency_slot, float frequency, float bandwidth) {
@@ -374,16 +380,33 @@ float calculate_magnitude_of_bin(uint16_t bin_number) {
 
 		float magnitude_squared = (q1 * q1) + (q2 * q2) - q1 * q2 * coeff;
 		float magnitude = sqrt(magnitude_squared);
-		normalized_magnitude = magnitude_squared / (block_size / 2.0);
+		// EMOTISCOPE VERBATIM: Divide by N/2 (not N)
+		normalized_magnitude = magnitude / (block_size / 2.0);
 
+		// EMOTISCOPE VERBATIM: Frequency-dependent scale factor (progress^4)
 		float progress = float(bin_number) / NUM_FREQS;
 		progress *= progress;
 		progress *= progress;
 		scale = (progress * 0.995) + 0.005;
 
+		// TRACE POINT 2: Goertzel Calculation Output - Check if magnitude calculation works
+		if (bin_number == 32) {
+			static uint32_t trace_counter_goertzel = 0;
+			if (++trace_counter_goertzel % 100 == 0) {  // Mid-frequency bin, every 100 frames
+				do {
+					LOG_INFO(TAG_TRACE, "[PT2-GOERTZEL] bin32: normalized_mag=%.6f scale=%.6f result=%.6f | history[0-2]=%.4f %.4f %.4f",
+						normalized_magnitude, scale, normalized_magnitude * scale,
+						sample_history[SAMPLE_HISTORY_LENGTH - 1 - block_size],
+						sample_history[SAMPLE_HISTORY_LENGTH - 1 - block_size + 1],
+						sample_history[SAMPLE_HISTORY_LENGTH - 1 - block_size + 2]);
+				} while(0);
+			}
+		}
+
 	}, __func__ );
 
-	return normalized_magnitude * scale;
+	// FIX: Add missing final sqrt() (Emotiscope verbatim)
+	return sqrt(normalized_magnitude * scale);
 }
 
 float collect_and_filter_noise(float input_magnitude, uint16_t bin) {
@@ -405,21 +428,25 @@ float collect_and_filter_noise(float input_magnitude, uint16_t bin) {
 }
 
 void calculate_magnitudes() {
+	// TRACE POINT STORAGE (outside profile_function to avoid preprocessor issues)
+	static uint32_t trace_counter_avg = 0;
+	static uint32_t trace_counter_agc = 0;
+	static uint32_t trace_counter_final = 0;
+	float trace_smooth_bins[3], trace_agc_input[3], trace_spect32, trace_vu;
+
 	profile_function([&]() {
 		magnitudes_locked.store(true, std::memory_order_relaxed);
 
-		const uint16_t NUM_AVERAGE_SAMPLES = 6;
+		const uint16_t NUM_AVERAGE_SAMPLES = 2;  // EMOTISCOPE VERBATIM (was 6)
 
 		static float magnitudes_raw[NUM_FREQS];
 		static float magnitudes_unfiltered[NUM_FREQS];  // CRITICAL: Save values BEFORE noise filtering
 		static float magnitudes_avg[NUM_AVERAGE_SAMPLES][NUM_FREQS];
 		static float magnitudes_smooth[NUM_FREQS];
-		static float max_val_smooth = 0.0;
 
 		static uint32_t iter = 0;
 		iter++;
 
-		float max_val = 0.0;
 		// Iterate over all target frequencies - calculate ALL bins every frame (no interlacing)
 		for (uint16_t i = 0; i < NUM_FREQS; i++) {
 			// Get raw magnitude of frequency
@@ -427,8 +454,9 @@ void calculate_magnitudes() {
 			magnitudes_unfiltered[i] = magnitudes_raw[i];  // CRITICAL: Save BEFORE noise filter destroys the signal
 			magnitudes_raw[i] = collect_and_filter_noise(magnitudes_raw[i], i);
 
-			// Store raw magnitude
+			// Store raw magnitude (full-scale, no normalization)
 			frequencies_musical[i].magnitude_full_scale = magnitudes_raw[i];
+			frequencies_musical[i].magnitude = magnitudes_raw[i];
 
 			// Add raw magnitude to moving average array
 			magnitudes_avg[iter % NUM_AVERAGE_SAMPLES][i] = magnitudes_raw[i];
@@ -442,11 +470,42 @@ void calculate_magnitudes() {
 
 			// Store averaged value
 			magnitudes_smooth[i] = magnitudes_avg_result;
+		}
 
-			// Accumulate maximum magnitude of all bins
+		// EMOTISCOPE VERBATIM: Find max magnitude for auto-ranging
+		float max_val = 0.0f;
+		for (uint16_t i = 0; i < NUM_FREQS; i++) {
 			if (magnitudes_smooth[i] > max_val) {
 				max_val = magnitudes_smooth[i];
 			}
+		}
+
+		// EMOTISCOPE VERBATIM: Auto-ranger (IIR smoothed peak normalization)
+		static float max_val_smooth = 0.1f;
+
+		// Smooth max_val increases
+		if (max_val > max_val_smooth) {
+			float delta = max_val - max_val_smooth;
+			max_val_smooth += delta * 0.005f;
+		}
+		// Smooth max_val decreases
+		if (max_val < max_val_smooth) {
+			float delta = max_val_smooth - max_val;
+			max_val_smooth -= delta * 0.005f;
+		}
+
+		// Set minimum floor for auto-ranging
+		if (max_val_smooth < 0.0025f) {
+			max_val_smooth = 0.0025f;
+		}
+
+		// Calculate auto-ranging scale
+		float autoranger_scale = 1.0f / max_val_smooth;
+
+		// Apply auto-ranger normalization to create 0.0-1.0 spectrum
+		for (uint16_t i = 0; i < NUM_FREQS; i++) {
+			frequencies_musical[i].magnitude = clip_float(magnitudes_smooth[i] * autoranger_scale);
+			spectrogram[i] = frequencies_musical[i].magnitude;
 		}
 
 		if(noise_calibration_active_frames_remaining > 0){
@@ -459,52 +518,21 @@ void calculate_magnitudes() {
 				broadcast("noise_cal_ready");
 				save_config();
 				save_noise_spectrum();
-				
+
 			}
 		}
 
-		// Smooth max_val with different speed limits for increases vs. decreases
-		if (max_val > max_val_smooth) {
-			float delta = max_val - max_val_smooth;
-			max_val_smooth += delta * 0.005;
-		}
-		if (max_val < max_val_smooth) {
-			float delta = max_val_smooth - max_val;
-			max_val_smooth -= delta * 0.005;
-		}
+		// REMOVED: Auto-ranger normalization (max_val_smooth / autoranger_scale)
+		// REASON: AGC must receive raw dynamic spectrum to function properly
+		// Pre-normalization crushes dynamic range before AGC can process it
 
-		// Set a minimum "floor" to auto-range for, below this we don't auto-range anymore
-		if (max_val_smooth < 0.000001) {
-			max_val_smooth = 0.000001;
-		}
-
-		// VU will be calculated AFTER AGC processes the spectrum (moved to line 560+)
-
-		// CRITICAL FIX: Preserve normalized spectrogram for consistent loudness measurement
-		// Store the AUTO-RANGED spectrogram (same scale as VU and beat detection) so patterns
-		// can reliably calculate loudness without frequency bias artifacts
+		// Store RAW spectrum data (no normalization applied)
 		for (uint16_t i = 0; i < NUM_FREQS; i++) {
-			spectrogram_absolute[i] = spectrogram[i];  // Store NORMALIZED values for consistency
+			spectrogram[i] = magnitudes_smooth[i];
 		}
 
-		// Calculate auto-ranging scale
-		float autoranger_scale = 1.0 / (max_val_smooth);
-
-		// Iterate over all frequencies
-		for (uint16_t i = 0; i < NUM_FREQS; i++) {
-			// Apply the auto-scaler
-			frequencies_musical[i].magnitude = clip_float(magnitudes_smooth[i] * autoranger_scale);
-			spectrogram[i] = frequencies_musical[i].magnitude;
-		}
-
-		spectrogram_average_index++;
-		if(spectrogram_average_index >= NUM_SPECTROGRAM_AVERAGE_SAMPLES){
-			spectrogram_average_index = 0;
-		}
-
+		// Build spectrogram_smooth[] from PREVIOUS AGC-processed frames
 		for(uint16_t i = 0; i < NUM_FREQS; i++){
-			spectrogram_average[spectrogram_average_index][i] = spectrogram[i];
-
 			spectrogram_smooth[i] = 0;
 			for(uint16_t a = 0; a < NUM_SPECTROGRAM_AVERAGE_SAMPLES; a++){
 				spectrogram_smooth[i] += spectrogram_average[a][i];
@@ -512,11 +540,29 @@ void calculate_magnitudes() {
 			spectrogram_smooth[i] /= float(NUM_SPECTROGRAM_AVERAGE_SAMPLES);
 		}
 
+		// TRACE POINT 3: Capture data for logging outside profile_function
+		if (++trace_counter_avg % 100 == 0) {
+			trace_smooth_bins[0] = spectrogram_smooth[0];
+			trace_smooth_bins[1] = spectrogram_smooth[32];
+			trace_smooth_bins[2] = spectrogram_smooth[63];
+			trace_spect32 = spectrogram[32];
+		}
+
 		// COCHLEAR AGC APPLICATION (Multi-band adaptive gain control)
-		// Boosts weak signals while preventing clipping on strong signals
-		// Processes spectrogram_smooth for multi-band frequency equalization
+		// TRACE POINT 4: Capture AGC input for logging
+		if (++trace_counter_agc % 100 == 0) {
+			trace_agc_input[0] = spectrogram_smooth[0];
+			trace_agc_input[1] = spectrogram_smooth[32];
+			trace_agc_input[2] = spectrogram_smooth[63];
+		}
+
 		if (g_cochlear_agc) {
 			g_cochlear_agc->process(spectrogram_smooth);
+		}
+
+		// Copy AGC-processed values to spectrogram[] for pattern consumption
+		for (uint16_t i = 0; i < NUM_FREQS; i++) {
+			spectrogram[i] = spectrogram_smooth[i];
 		}
 
 		// MICROPHONE GAIN APPLICATION (Simple linear gain multiplier)
@@ -526,6 +572,16 @@ void calculate_magnitudes() {
 		for (uint16_t i = 0; i < NUM_FREQS; i++) {
 			spectrogram[i] = clip_float(spectrogram[i] * configuration.microphone_gain);
 			spectrogram_smooth[i] = clip_float(spectrogram_smooth[i] * configuration.microphone_gain);
+		}
+
+		// SAVE AGC-PROCESSED VALUES TO AVERAGING BUFFER (for next frame's spectrogram_smooth)
+		// CRITICAL: This must happen AFTER AGC processing, not before
+		spectrogram_average_index++;
+		if(spectrogram_average_index >= NUM_SPECTROGRAM_AVERAGE_SAMPLES){
+			spectrogram_average_index = 0;
+		}
+		for(uint16_t i = 0; i < NUM_FREQS; i++){
+			spectrogram_average[spectrogram_average_index][i] = spectrogram[i];
 		}
 
 		// CALCULATE VU FROM AGC-PROCESSED SPECTRUM (CRITICAL: Must be AFTER AGC)
@@ -557,30 +613,35 @@ void calculate_magnitudes() {
 		// NOTE: VU level calculation has been moved BEFORE auto-ranging (see lines 469-481)
 		// This ensures VU reflects absolute loudness, not normalized spectrum energy
 
+		// TRACE POINT 5: Capture final output for logging
+		if (++trace_counter_final % 100 == 0) {
+			trace_vu = vu_level_calculated;
+		}
+
 		// PHASE 1: Copy spectrum data to audio_back buffer for thread-safe access
 		if (audio_sync_initialized) {
 			// Copy spectrogram data
-			memcpy(audio_back.spectrogram, spectrogram, sizeof(float) * NUM_FREQS);
-			memcpy(audio_back.spectrogram_smooth, spectrogram_smooth, sizeof(float) * NUM_FREQS);
-			memcpy(audio_back.spectrogram_absolute, spectrogram_absolute, sizeof(float) * NUM_FREQS);
+			memcpy(audio_back.payload.spectrogram, spectrogram, sizeof(float) * NUM_FREQS);
+			memcpy(audio_back.payload.spectrogram_smooth, spectrogram_smooth, sizeof(float) * NUM_FREQS);
+			memcpy(audio_back.payload.spectrogram_absolute, spectrogram_absolute, sizeof(float) * NUM_FREQS);
 
 			// CRITICAL FIX: Sync VU level to snapshot for audio-reactive patterns (e.g., bloom mode)
-			audio_back.vu_level = vu_level_calculated;
-			audio_back.vu_level_raw = vu_level_calculated * max_val_smooth;
+			audio_back.payload.vu_level = vu_level_calculated;
+			audio_back.payload.vu_level_raw = vu_level_calculated;  // Same as vu_level (no auto-ranging)
 
 			// PHASE 2: Tempo data sync for beat/tempo reactive patterns
 			// tempo.h will populate these arrays after calculating tempi[] and tempi_smooth[]
 			// CRITICAL FIX: Sync calculated tempo data to audio snapshot
 			// This was being zeroed out, preventing patterns from accessing beat information
 			for (uint16_t i = 0; i < NUM_TEMPI; i++) {
-				audio_back.tempo_magnitude[i] = tempi_smooth[i];  // Smoothed tempo energy
-				audio_back.tempo_phase[i] = tempi[i].phase;        // Beat phase for synchronization
+				audio_back.payload.tempo_magnitude[i] = tempi_smooth[i];  // Smoothed tempo energy
+				audio_back.payload.tempo_phase[i] = tempi[i].phase;        // Beat phase for synchronization
 			}
 
 			// Update metadata
-			audio_back.update_counter++;
-			audio_back.timestamp_us = esp_timer_get_time();
-			audio_back.is_valid = true;
+			audio_back.payload.update_counter++;
+			audio_back.payload.timestamp_us = esp_timer_get_time();
+			audio_back.payload.is_valid = true;
 
 			// Note: chromagram will be updated by get_chromagram()
 		}
@@ -588,6 +649,25 @@ void calculate_magnitudes() {
 		magnitudes_locked.store(false, std::memory_order_relaxed);
 	}, __func__ );
 	___();
+
+	// TRACE LOGGING (outside profile_function to avoid preprocessor comma issues)
+	if (trace_counter_avg % 100 == 0 && trace_counter_avg > 0) {
+		LOG_INFO(TAG_TRACE, "[PT3-AVERAGE] smooth[0,32,63]=%.6f %.6f %.6f | raw[32]=%.6f avg_idx=%d",
+			trace_smooth_bins[0], trace_smooth_bins[1], trace_smooth_bins[2],
+			trace_spect32, spectrogram_average_index);
+	}
+	if (trace_counter_agc % 100 == 0 && trace_counter_agc > 0) {
+		LOG_INFO(TAG_TRACE, "[PT4-AGC] IN[0,32,63]=%.6f %.6f %.6f | OUT[0,32,63]=%.6f %.6f %.6f | enabled=%d",
+			trace_agc_input[0], trace_agc_input[1], trace_agc_input[2],
+			spectrogram_smooth[0], spectrogram_smooth[32], spectrogram_smooth[63],
+			(g_cochlear_agc != nullptr));
+	}
+	if (trace_counter_final % 100 == 0 && trace_counter_final > 0) {
+		LOG_INFO(TAG_TRACE, "[PT5-FINAL] PRE-COMMIT: spect[32]=%.6f smooth[32]=%.6f VU=%.6f",
+			spectrogram[32], spectrogram_smooth[32], trace_vu);
+		LOG_INFO(TAG_TRACE, "[PT5b-COPIED] audio_back[32]=%.6f audio_back.vu=%.6f",
+			audio_back.payload.spectrogram[32], audio_back.payload.vu_level);
+	}
 }
 
 void start_noise_calibration() {
@@ -615,7 +695,7 @@ void get_chromagram(){
 
 	// PHASE 1: Copy chromagram to audio_back buffer
 	if (audio_sync_initialized) {
-		memcpy(audio_back.chromagram, chromagram, sizeof(float) * 12);
+		memcpy(audio_back.payload.chromagram, chromagram, sizeof(float) * 12);
 	}
 }
 

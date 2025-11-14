@@ -81,12 +81,12 @@ bool is_beat_phase_locked_ms(const AudioDataSnapshot& audio_snapshot, uint16_t b
     bool audio_available = get_audio_snapshot(&audio); \
     static uint32_t pattern_last_update = 0; \
     bool audio_is_fresh = (audio_available && \
-                           audio.update_counter != pattern_last_update); \
+                           audio.payload.update_counter != pattern_last_update); \
     if (audio_is_fresh) { \
-        pattern_last_update = audio.update_counter; \
+        pattern_last_update = audio.payload.update_counter; \
     } \
     uint32_t audio_age_ms = audio_available ? \
-        ((uint32_t)((esp_timer_get_time() - audio.timestamp_us) / 1000)) : 9999
+        ((uint32_t)((esp_timer_get_time() - audio.payload.timestamp_us) / 1000)) : 9999
 
 // ============================================================================
 // AUDIO DATA ACCESSORS
@@ -149,11 +149,11 @@ bool is_beat_phase_locked_ms(const AudioDataSnapshot& audio_snapshot, uint16_t b
 //
 // ============================================================================
 
-#define AUDIO_SPECTRUM          (audio.spectrogram)
-#define AUDIO_SPECTRUM_SMOOTH   (audio.spectrogram_smooth)
-#define AUDIO_SPECTRUM_ABSOLUTE (audio.spectrogram_absolute)
-#define AUDIO_CHROMAGRAM        (audio.chromagram)
-#define AUDIO_FFT               (audio.fft_smooth)
+#define AUDIO_SPECTRUM          (audio.payload.spectrogram)
+#define AUDIO_SPECTRUM_SMOOTH   (audio.payload.spectrogram_smooth)
+#define AUDIO_SPECTRUM_ABSOLUTE (audio.payload.spectrogram_absolute)
+#define AUDIO_CHROMAGRAM        (audio.payload.chromagram)
+#define AUDIO_FFT               (audio.payload.fft_smooth)
 
 /**
  * Scalar audio metrics
@@ -163,10 +163,10 @@ bool is_beat_phase_locked_ms(const AudioDataSnapshot& audio_snapshot, uint16_t b
  * AUDIO_NOVELTY    : Spectral change/onset detection (0.0-1.0)
  * AUDIO_TEMPO_CONFIDENCE : Beat detection confidence (0.0-1.0)
  */
-#define AUDIO_VU                (audio.vu_level)
-#define AUDIO_VU_RAW            (audio.vu_level_raw)
-#define AUDIO_NOVELTY           (audio.novelty_curve)
-#define AUDIO_TEMPO_CONFIDENCE  (audio.tempo_confidence)
+#define AUDIO_VU                (audio.payload.vu_level)
+#define AUDIO_VU_RAW            (audio.payload.vu_level_raw)
+#define AUDIO_NOVELTY           (audio.payload.novelty_curve)
+#define AUDIO_TEMPO_CONFIDENCE  (audio.payload.tempo_confidence)
 
 // Helper: Adaptive beat gating for patterns
 // Returns a squashed confidence with a minimum threshold to prevent flicker
@@ -419,7 +419,7 @@ float get_audio_band_energy_absolute(const AudioDataSnapshot& audio, int start_b
  *   - Bounds-checked at generation time (all indices 0-63 valid)
  */
 #define AUDIO_TEMPO_MAGNITUDE(bin)  \
-    (((int)(bin) >= 0 && (int)(bin) < NUM_TEMPI) ? audio.tempo_magnitude[(int)(bin)] : 0.0f)
+    (((int)(bin) >= 0 && (int)(bin) < NUM_TEMPI) ? audio.payload.tempo_magnitude[(int)(bin)] : 0.0f)
 
 /**
  * AUDIO_TEMPO_PHASE(bin)
@@ -451,7 +451,7 @@ float get_audio_band_energy_absolute(const AudioDataSnapshot& audio, int start_b
  *   - Best practice: Use sin(phase) or cos(phase) to get normalized -1 to 1
  */
 #define AUDIO_TEMPO_PHASE(bin)      \
-    (((int)(bin) >= 0 && (int)(bin) < NUM_TEMPI) ? audio.tempo_phase[(int)(bin)] : 0.0f)
+    (((int)(bin) >= 0 && (int)(bin) < NUM_TEMPI) ? audio.payload.tempo_phase[(int)(bin)] : 0.0f)
 
 /**
  * AUDIO_TEMPO_BEAT(bin)  [Derived from phase]

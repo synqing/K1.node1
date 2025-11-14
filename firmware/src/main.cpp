@@ -272,16 +272,16 @@ void audio_task(void* param) {
     while (true) {
         // If audio reactivity is disabled, invalidate snapshot and idle
         if (!EMOTISCOPE_ACTIVE) {
-            memset(audio_back.spectrogram, 0, sizeof(float) * NUM_FREQS);
-            memset(audio_back.spectrogram_smooth, 0, sizeof(float) * NUM_FREQS);
-            memset(audio_back.chromagram, 0, sizeof(float) * 12);
-            audio_back.vu_level = 0.0f;
-            audio_back.vu_level_raw = 0.0f;
-            memset(audio_back.tempo_magnitude, 0, sizeof(float) * NUM_TEMPI);
-            memset(audio_back.tempo_phase, 0, sizeof(float) * NUM_TEMPI);
-            audio_back.tempo_confidence = 0.0f;
-            audio_back.is_valid = false;
-            audio_back.timestamp_us = micros();
+            memset(audio_back.payload.spectrogram, 0, sizeof(float) * NUM_FREQS);
+            memset(audio_back.payload.spectrogram_smooth, 0, sizeof(float) * NUM_FREQS);
+            memset(audio_back.payload.chromagram, 0, sizeof(float) * 12);
+            audio_back.payload.vu_level = 0.0f;
+            audio_back.payload.vu_level_raw = 0.0f;
+            memset(audio_back.payload.tempo_magnitude, 0, sizeof(float) * NUM_TEMPI);
+            memset(audio_back.payload.tempo_phase, 0, sizeof(float) * NUM_TEMPI);
+            audio_back.payload.tempo_confidence = 0.0f;
+            audio_back.payload.is_valid = false;
+            audio_back.payload.timestamp_us = micros();
             commit_audio_data();
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
@@ -370,10 +370,10 @@ void audio_task(void* param) {
         extern float tempo_confidence;  // From tempo.cpp
         static portMUX_TYPE audio_spinlock = portMUX_INITIALIZER_UNLOCKED;
         portENTER_CRITICAL(&audio_spinlock);
-        audio_back.tempo_confidence = tempo_confidence;
-        audio_back.is_valid = !silence_frame;
-        audio_back.locked_tempo_bpm = tempo_lock_tracker.locked_tempo_bpm;
-        audio_back.tempo_lock_state = tempo_lock_tracker.state;
+        audio_back.payload.tempo_confidence = tempo_confidence;
+        audio_back.payload.is_valid = !silence_frame;
+        audio_back.payload.locked_tempo_bpm = tempo_lock_tracker.locked_tempo_bpm;
+        audio_back.payload.tempo_lock_state = tempo_lock_tracker.state;
         portEXIT_CRITICAL(&audio_spinlock);
 
         // SYNC TEMPO MAGNITUDE AND PHASE ARRAYS
@@ -383,8 +383,8 @@ void audio_task(void* param) {
         portENTER_CRITICAL(&audio_spinlock);
         for (uint16_t i = 0; i < NUM_TEMPI; i++) {
             // Use smoothed magnitudes for visual stability
-            audio_back.tempo_magnitude[i] = tempi_smooth[i];  // 0.0-1.0 per bin (smoothed)
-            audio_back.tempo_phase[i] = tempi[i].phase;          // -π to +π per bin
+            audio_back.payload.tempo_magnitude[i] = tempi_smooth[i];  // 0.0-1.0 per bin (smoothed)
+            audio_back.payload.tempo_phase[i] = tempi[i].phase;          // -π to +π per bin
         }
         portEXIT_CRITICAL(&audio_spinlock);
 
@@ -634,16 +634,16 @@ void audio_task(void* param) {
 static inline void run_audio_pipeline_once() {
     // If audio reactivity is disabled, invalidate snapshot and return
     if (!EMOTISCOPE_ACTIVE) {
-        memset(audio_back.spectrogram, 0, sizeof(float) * NUM_FREQS);
-        memset(audio_back.spectrogram_smooth, 0, sizeof(float) * NUM_FREQS);
-        memset(audio_back.chromagram, 0, sizeof(float) * 12);
-        audio_back.vu_level = 0.0f;
-        audio_back.vu_level_raw = 0.0f;
-        memset(audio_back.tempo_magnitude, 0, sizeof(float) * NUM_TEMPI);
-        memset(audio_back.tempo_phase, 0, sizeof(float) * NUM_TEMPI);
-        audio_back.tempo_confidence = 0.0f;
-        audio_back.is_valid = false;
-        audio_back.timestamp_us = micros();
+        memset(audio_back.payload.spectrogram, 0, sizeof(float) * NUM_FREQS);
+        memset(audio_back.payload.spectrogram_smooth, 0, sizeof(float) * NUM_FREQS);
+        memset(audio_back.payload.chromagram, 0, sizeof(float) * 12);
+        audio_back.payload.vu_level = 0.0f;
+        audio_back.payload.vu_level_raw = 0.0f;
+        memset(audio_back.payload.tempo_magnitude, 0, sizeof(float) * NUM_TEMPI);
+        memset(audio_back.payload.tempo_phase, 0, sizeof(float) * NUM_TEMPI);
+        audio_back.payload.tempo_confidence = 0.0f;
+        audio_back.payload.is_valid = false;
+        audio_back.payload.timestamp_us = micros();
         commit_audio_data();
         return;
     }
@@ -674,15 +674,15 @@ static inline void run_audio_pipeline_once() {
     extern float tempo_confidence;  // From tempo.cpp
     static portMUX_TYPE audio_spinlock = portMUX_INITIALIZER_UNLOCKED;
     portENTER_CRITICAL(&audio_spinlock);
-    audio_back.tempo_confidence = tempo_confidence;
+    audio_back.payload.tempo_confidence = tempo_confidence;
     portEXIT_CRITICAL(&audio_spinlock);
 
     // SYNC TEMPO MAGNITUDE AND PHASE ARRAYS
     extern tempo tempi[NUM_TEMPI];  // From tempo.cpp (96 tempo hypotheses)
     portENTER_CRITICAL(&audio_spinlock);
     for (uint16_t i = 0; i < NUM_TEMPI; i++) {
-        audio_back.tempo_magnitude[i] = tempi[i].magnitude;
-        audio_back.tempo_phase[i] = tempi[i].phase;
+        audio_back.payload.tempo_magnitude[i] = tempi[i].magnitude;
+        audio_back.payload.tempo_phase[i] = tempi[i].phase;
     }
     portEXIT_CRITICAL(&audio_spinlock);
 
@@ -734,8 +734,8 @@ static inline void run_audio_pipeline_once() {
 
     // Lock-free buffer synchronization with Core 0
     finish_audio_frame();
-    heartbeat_logger_note_audio(audio_back.update_counter);
-    heartbeat_logger_note_audio(audio_back.update_counter);
+    heartbeat_logger_note_audio(audio_back.payload.update_counter);
+    heartbeat_logger_note_audio(audio_back.payload.update_counter);
 }
 
 // ============================================================================

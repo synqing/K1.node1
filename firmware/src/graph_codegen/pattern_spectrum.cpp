@@ -27,7 +27,7 @@ extern "C" void pattern_spectrum_render(
                 // === Emotiscope-style 12-band chroma spectrum (aggressive) ===
     static float peaks[12] = {0};
     for (int b = 0; b < 12; ++b) {
-        float v = clip_float(audio.chromagram[b]);
+        float v = clip_float(audio.payload.chromagram[b]);
         float resp = response_exp(v, 2.4f);
         if (resp > peaks[b]) { peaks[b] = peaks[b] + 0.70f * (resp - peaks[b]); }
         else { peaks[b] = peaks[b] * 0.95f; }

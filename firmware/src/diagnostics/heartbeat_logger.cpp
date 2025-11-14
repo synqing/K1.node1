@@ -169,9 +169,9 @@ void heartbeat_logger_poll() {
   }
 
   entry.pattern_index = g_current_pattern_index;
-  entry.vu_level = audio_back.vu_level;
-  entry.vu_level_raw = audio_back.vu_level_raw;
-  entry.tempo_confidence = audio_back.tempo_confidence;
+  entry.vu_level = audio_back.payload.vu_level;
+  entry.vu_level_raw = audio_back.payload.vu_level_raw;
+  entry.tempo_confidence = audio_back.payload.tempo_confidence;
   entry.silence = silence_detected;
   entry.beat_queue_depth = beat_events_count();
 

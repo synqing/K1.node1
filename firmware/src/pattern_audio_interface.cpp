@@ -35,7 +35,7 @@ bool is_beat_phase_locked_ms(const AudioDataSnapshot& audio_snapshot,
 		return false;
 	}
 
-	const float delta = wrap_phase(audio_snapshot.tempo_phase[bin] - target_phase);
+	const float delta = wrap_phase(audio_snapshot.payload.tempo_phase[bin] - target_phase);
 	const float delta_time_ms = std::fabs(delta) * 1000.0f / (static_cast<float>(2.0 * M_PI) * tempo_hz);
 
 	return delta_time_ms <= tolerance_ms;
@@ -73,7 +73,7 @@ float get_audio_band_energy(const AudioDataSnapshot& audio, int start_bin, int e
     // Sum energy across bins
     float sum = 0.0f;
     for (int i = start_bin; i <= end_bin; i++) {
-        sum += audio.spectrogram[i];
+        sum += audio.payload.spectrogram[i];
     }
 
     // Return average
@@ -92,7 +92,7 @@ float get_audio_band_energy_absolute(const AudioDataSnapshot& audio, int start_b
     }
     float sum = 0.0f;
     for (int i = start_bin; i <= end_bin; i++) {
-        sum += audio.spectrogram_absolute[i];
+        sum += audio.payload.spectrogram_absolute[i];
     }
     int num_bins = end_bin - start_bin + 1;
     return sum / (float)num_bins;

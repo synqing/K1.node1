@@ -33,6 +33,7 @@
 #define TAG_MEMORY      'M'
 #define TAG_PROFILE     'P'
 #define TAG_ONSET       'O'
+#define TAG_TRACE       'X'  // Diagnostic data flow tracing
 
 // ============================================================================
 // TAG ENABLE/DISABLE - Runtime filtering (optional, adds ~100 bytes RAM)
