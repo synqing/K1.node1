@@ -7,6 +7,8 @@
 #include "goertzel.h"
 #include "vu.h"
 #include "validation/tempo_validation.h"
+#include "logging/logger.h"
+#include "tempo_enhanced.h"
 
 static const char* TAG = "TEMPO";
 
@@ -115,15 +117,22 @@ void init_tempo_goertzel_constants() {
             neighbor_right = tempi_bpm_values_hz[i + 1];
         }
 
-        float neighbor_left_distance_hz = fabsf(neighbor_left - tempi[i].target_tempo_hz);
-        float neighbor_right_distance_hz = fabsf(neighbor_right - tempi[i].target_tempo_hz);
-        float max_distance_hz = fmaxf(neighbor_left_distance_hz, neighbor_right_distance_hz);
-
-        tempi[i].block_size = static_cast<uint32_t>(NOVELTY_LOG_HZ / (max_distance_hz * 0.5f));
-
-        if (tempi[i].block_size > NOVELTY_HISTORY_LENGTH) {
-            tempi[i].block_size = NOVELTY_HISTORY_LENGTH;
-        }
+        // ====================================================================
+        // PHASE 0 FIX: Block size = 1-2 beat cycles, NOT frequency spacing
+        // ====================================================================
+        // Block size should adapt to the beat period, not bin resolution
+        // One beat cycle = 1 / target_tempo_hz seconds
+        // At NOVELTY_LOG_HZ (50 Hz), convert to sample count
+        // Use 1.5x beat period for responsive but stable detection
+        float beat_period_samples = NOVELTY_LOG_HZ / tempi[i].target_tempo_hz;
+        uint32_t block_size_ideal = (uint32_t)(beat_period_samples * 1.5f);
+        
+        // Clamp to reasonable range [32, 512]
+        // Min: Need sufficient data for Goertzel computation
+        // Max: ~10 seconds of history, captures slow variations without aliasing
+        tempi[i].block_size = block_size_ideal;
+        if (tempi[i].block_size < 32) tempi[i].block_size = 32;
+        if (tempi[i].block_size > 512) tempi[i].block_size = 512;
 
         float k = floorf(0.5f + ((tempi[i].block_size * tempi[i].target_tempo_hz) / NOVELTY_LOG_HZ));
         float w = (2.0f * static_cast<float>(M_PI) * k) / tempi[i].block_size;
@@ -216,9 +225,16 @@ static void calculate_tempi_magnitudes(int16_t single_bin = -1) {
                 scaled_magnitude = 1.0f;
             }
 
-            // EMOTISCOPE VERBATIM: Cubic scaling (x³) for proper dynamic range compression
-            float cubed = scaled_magnitude * scaled_magnitude * scaled_magnitude;
-            tempi[i].magnitude = cubed;
+            // ====================================================================
+            // PHASE 0 FIX: Linear scaling instead of cubic
+            // ====================================================================
+            // Cubic scaling (x³) was crushing competing peaks
+            // Linear scaling preserves relative differences better
+            // Example: If bin 83 = 0.2 and bin 120 = 1.0:
+            //   - Cubic: 0.008 vs 1.0 (125x difference) - CRUSHING
+            //   - Linear: 0.2 vs 1.0 (5x difference) - PRESERVES RATIO
+            
+            tempi[i].magnitude = scaled_magnitude;  // Direct linear assignment
         }
     }, __func__);
 }
@@ -249,7 +265,7 @@ void update_tempo() {
         normalize_novelty_curve();
 
         uint16_t max_bin = static_cast<uint16_t>((NUM_TEMPI - 1) * MAX_TEMPO_RANGE);
-        // Process multiple bins per call to keep visuals responsive
+        // Process multiple bins per call to keep visuals responsive (EMOTISCOPE: 2 bins/frame, K1: 8 bins/frame)
         const uint16_t stride = 8;  // bins per frame
         for (uint16_t k = 0; k < stride; ++k) {
             uint16_t bin = calc_bin + k;
@@ -259,6 +275,37 @@ void update_tempo() {
 
         calc_bin = (uint16_t)(calc_bin + stride);
         if (calc_bin >= max_bin) calc_bin = 0;
+
+        // DEBUG: Print every 3.3 seconds (330 frames @ 100 FPS) - Gated by 't' keystroke
+        extern bool tempo_debug_enabled;
+        static uint32_t debug_count = 0;
+        if (tempo_debug_enabled && ++debug_count % 330 == 0) {
+            LOG_INFO(TAG_TEMPO, "=== TEMPO DEBUG ===");
+
+            LOG_INFO(TAG_TEMPO, "NOVELTY (last 10):");
+            for (int i = 0; i < 10; i++) {
+                int idx = NOVELTY_HISTORY_LENGTH - 10 + i;
+                LOG_INFO(TAG_TEMPO, "  [%d] raw=%.4f norm=%.4f", i, novelty_curve[idx], novelty_curve_normalized[idx]);
+            }
+
+            LOG_INFO(TAG_TEMPO, "BLOCK SIZES:");
+            LOG_INFO(TAG_TEMPO, "  bin 83 (115 BPM): block_size=%u", tempi[83].block_size);
+            LOG_INFO(TAG_TEMPO, "  bin 100 (128 BPM): block_size=%u", tempi[100].block_size);
+            LOG_INFO(TAG_TEMPO, "  bin 103 (130.5 BPM): block_size=%u", tempi[103].block_size);
+            LOG_INFO(TAG_TEMPO, "  NOVELTY_HISTORY_LENGTH=%u", NOVELTY_HISTORY_LENGTH);
+
+            LOG_INFO(TAG_TEMPO, "TEMPI_SMOOTH SPECTRUM:");
+            for (uint16_t i = 0; i < NUM_TEMPI; i += 8) {
+                float bpm = tempi_bpm_values_hz[i] * 60.0f;
+                LOG_INFO(TAG_TEMPO, "  bin %3u (%.1f BPM): %.4f | bin %3u (%.1f BPM): %.4f | bin %3u (%.1f BPM): %.4f | bin %3u (%.1f BPM): %.4f",
+                         i, bpm, tempi_smooth[i],
+                         i+1, tempi_bpm_values_hz[i+1]*60.0f, tempi_smooth[i+1],
+                         i+2, tempi_bpm_values_hz[i+2]*60.0f, tempi_smooth[i+2],
+                         i+3, tempi_bpm_values_hz[i+3]*60.0f, tempi_smooth[i+3]);
+            }
+
+            LOG_INFO(TAG_TEMPO, "power_sum=%.3f", tempi_power_sum);
+        }
     }, __func__);
 }
 

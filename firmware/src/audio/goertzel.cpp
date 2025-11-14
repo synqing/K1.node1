@@ -12,12 +12,16 @@
 // Frequency domain analysis via constant-Q Goertzel filter
 
 #include "goertzel.h"
+#include "cochlear_agc.h"
 #include <cmath>
 #include <cstring>
 #include <atomic>
 #include <Arduino.h>
 #include "../logging/logger.h"
 #include "../parameters.h"
+
+// Global AGC instance
+CochlearAGC* g_cochlear_agc = nullptr;
 
 // ============================================================================
 // GLOBAL DATA DEFINITIONS
@@ -474,44 +478,7 @@ void calculate_magnitudes() {
 			max_val_smooth = 0.000001;
 		}
 
-		// CRITICAL FIX: Calculate VU from spectrogram (auto-ranged, normalized values)
-		// magnitudes_unfiltered[] have 100-200x frequency-based attenuation from calculate_magnitude_of_bin()
-		// that was crushing low frequencies. Beat detection uses spectrogram[] (auto-ranged) which
-		// normalizes all frequencies equally. VU must use the same scale for consistency.
-
-		// Get audio parameters for processing
-		const PatternParameters& params = get_params();
-		const float bass_treble_balance = params.bass_treble_balance;
-		const float audio_sensitivity = params.audio_sensitivity;
-
-		float vu_sum = 0.0f;
-		for (uint16_t i = 0; i < NUM_FREQS; i++) {
-			// Apply bass_treble_balance weighting
-			// -1.0 = bass emphasis, 0.0 = balanced, +1.0 = treble emphasis
-			float weight = 1.0f;
-			if (bass_treble_balance < 0.0f) {
-				// Bass emphasis: reduce high frequency contribution
-				float freq_position = (float)i / NUM_FREQS;  // 0.0 to 1.0
-				weight = 1.0f + (bass_treble_balance * freq_position);  // Lower frequencies get more weight
-			} else if (bass_treble_balance > 0.0f) {
-				// Treble emphasis: reduce low frequency contribution
-				float freq_position = (float)i / NUM_FREQS;  // 0.0 to 1.0
-				weight = 1.0f - (bass_treble_balance * (1.0f - freq_position));  // Higher frequencies get more weight
-			}
-
-			vu_sum += spectrogram[i] * weight;  // Use AUTO-RANGED values with frequency weighting
-		}
-		float vu_level_calculated = vu_sum / NUM_FREQS;  // Now reflects actual audio loudness with frequency emphasis
-
-		// Apply audio_sensitivity (gain/amplification)
-		vu_level_calculated *= audio_sensitivity;
-
-		audio_level = vu_level_calculated;  // Update legacy global variable
-
-		// Cap VU at reasonable maximum to prevent saturation (optional, but prevents edge cases)
-		if (vu_level_calculated > 1.0f) {
-			vu_level_calculated = 1.0f;
-		}
+		// VU will be calculated AFTER AGC processes the spectrum (moved to line 560+)
 
 		// CRITICAL FIX: Preserve normalized spectrogram for consistent loudness measurement
 		// Store the AUTO-RANGED spectrogram (same scale as VU and beat detection) so patterns
@@ -545,14 +512,47 @@ void calculate_magnitudes() {
 			spectrogram_smooth[i] /= float(NUM_SPECTROGRAM_AVERAGE_SAMPLES);
 		}
 
-		// MICROPHONE GAIN APPLICATION (NEW - FIX FOR BEAT DETECTION SENSITIVITY)
+		// COCHLEAR AGC APPLICATION (Multi-band adaptive gain control)
+		// Boosts weak signals while preventing clipping on strong signals
+		// Processes spectrogram_smooth for multi-band frequency equalization
+		if (g_cochlear_agc) {
+			g_cochlear_agc->process(spectrogram_smooth);
+		}
+
+		// MICROPHONE GAIN APPLICATION (Simple linear gain multiplier)
 		// Apply user-configured microphone gain to all frequency bins
-		// This amplifies or attenuates the entire spectrum uniformly
 		// Range: 0.5x (-6dB) to 2.0x (+6dB), default 1.0x (0dB, no change)
+		// Note: Applied AFTER AGC so user can fine-tune the AGC output
 		for (uint16_t i = 0; i < NUM_FREQS; i++) {
 			spectrogram[i] = clip_float(spectrogram[i] * configuration.microphone_gain);
 			spectrogram_smooth[i] = clip_float(spectrogram_smooth[i] * configuration.microphone_gain);
 		}
+
+		// CALCULATE VU FROM AGC-PROCESSED SPECTRUM (CRITICAL: Must be AFTER AGC)
+		// VU must reflect the actual boosted signal that beat detection sees
+		const PatternParameters& params = get_params();
+		const float bass_treble_balance = params.bass_treble_balance;
+		const float audio_sensitivity = params.audio_sensitivity;
+
+		float vu_sum = 0.0f;
+		for (uint16_t i = 0; i < NUM_FREQS; i++) {
+			// Apply bass_treble_balance weighting
+			float weight = 1.0f;
+			if (bass_treble_balance < 0.0f) {
+				float freq_position = (float)i / NUM_FREQS;
+				weight = 1.0f + (bass_treble_balance * freq_position);
+			} else if (bass_treble_balance > 0.0f) {
+				float freq_position = (float)i / NUM_FREQS;
+				weight = 1.0f - (bass_treble_balance * (1.0f - freq_position));
+			}
+
+			vu_sum += spectrogram_smooth[i] * weight;  // Use AGC-PROCESSED values
+		}
+		float vu_level_calculated = vu_sum / NUM_FREQS;
+
+		// Apply audio_sensitivity
+		vu_level_calculated *= audio_sensitivity;
+		audio_level = clip_float(vu_level_calculated);
 
 		// NOTE: VU level calculation has been moved BEFORE auto-ranging (see lines 469-481)
 		// This ensures VU reflects absolute loudness, not normalized spectrum energy

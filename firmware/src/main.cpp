@@ -49,6 +49,7 @@ void init_rmt_driver();
 #include "audio/tempo_enhanced.h"
 #include "audio/microphone.h"  // REAL SPH0645 I2S MICROPHONE INPUT
 #include "audio/vu.h"
+#include "audio/cochlear_agc.h"  // Cochlear AGC v2.1 - Multi-band adaptive gain control
 #include "palettes.h"
 #include "easing_functions.h"
 #include "parameters.h"
@@ -92,8 +93,9 @@ CRGBF leds[NUM_LEDS];
 // Global beat event rate limiter (shared across audio paths)
 static uint32_t g_last_beat_event_ms = 0;
 
-// Debug mode flag (toggle with 'd' keystroke)
+// Debug mode flags (toggle with keystrokes: 'd' = audio, 't' = tempo)
 static bool audio_debug_enabled = false;
+bool tempo_debug_enabled = false;  // Non-static for visibility to tempo.cpp
 
 // Forward declaration for single-core audio pipeline helper
 static inline void run_audio_pipeline_once();
@@ -546,18 +548,69 @@ void audio_task(void* param) {
                     last_lowvu_ms = now_ms;
                 }
             }
-            // Diagnostic output: BPM + VU every 3 seconds
+            // ================================================================
+            // AUDIO DIAGNOSTICS PANEL (every 3 seconds)
+            // ================================================================
             static uint32_t last_diag_ms = 0;
             uint32_t diag_interval = 3000;  // 3 second interval
             if ((now_ms - last_diag_ms) >= diag_interval) {
                 float best_bpm = get_best_bpm();
-                LOG_INFO(TAG_AUDIO, "BPM: %.1f | VU: %.2f", best_bpm, audio_level);
+
+                // Basic status line (always shown)
+                LOG_INFO(TAG_AUDIO, "BPM: " COLOR_BPM "%.1f" COLOR_RESET " | VU: %.2f", best_bpm, audio_level);
+
+                // Extended diagnostics (toggle with 'd' key)
+                if (audio_debug_enabled) {
+                    LOG_INFO(TAG_AUDIO, "═══ AUDIO DIAGNOSTICS ═══");
+
+                    // I2S Microphone Status
+                    extern float sample_history[];
+                    float sample_peak = 0.0f;
+                    float sample_rms = 0.0f;
+                    for (int i = 0; i < 128; i++) {
+                        float s = fabs(sample_history[i]);
+                        sample_peak = fmaxf(sample_peak, s);
+                        sample_rms += s * s;
+                    }
+                    sample_rms = sqrtf(sample_rms / 128.0f);
+                    LOG_INFO(TAG_AUDIO, "I2S: peak=%.0f rms=%.0f (normalized ±131072)", sample_peak, sample_rms);
+
+                    // Spectrum Energy Distribution
+                    extern float spectrogram[NUM_FREQS];
+                    float spec_low = 0.0f, spec_mid = 0.0f, spec_high = 0.0f;
+                    for (int i = 0; i < 21; i++) spec_low += spectrogram[i];      // 0-21: Low (bass)
+                    for (int i = 21; i < 43; i++) spec_mid += spectrogram[i];     // 21-43: Mid
+                    for (int i = 43; i < NUM_FREQS; i++) spec_high += spectrogram[i]; // 43-64: High
+                    LOG_INFO(TAG_AUDIO, "SPECTRUM: low=%.3f mid=%.3f high=%.3f", spec_low, spec_mid, spec_high);
+
+                    // VU Meter Details
+                    extern volatile float vu_max;
+                    LOG_INFO(TAG_AUDIO, "VU: level=%.3f peak=%.3f gate=%.2f", audio_level, vu_max, VU_LOCK_GATE);
+
+                    // Novelty & Tempo
+                    float novelty_recent = 0.0f;
+                    for (int i = 0; i < 10; i++) {
+                        novelty_recent += novelty_curve_normalized[(NOVELTY_HISTORY_LENGTH - 10) + i];
+                    }
+                    novelty_recent /= 10.0f;
+                    LOG_INFO(TAG_AUDIO, "NOVELTY: recent_avg=%.4f silence=%.2f", novelty_recent, silence_level);
+                    LOG_INFO(TAG_AUDIO, "TEMPO: conf=%.3f power_sum=%.3f", tempo_confidence, tempi_power_sum);
+
+                    // AGC Internal State (v2.1.1: envelope follower shows smoothed energy)
+                    extern CochlearAGC* g_cochlear_agc;
+                    if (g_cochlear_agc) {
+                        LOG_INFO(TAG_AUDIO, "AGC: gain=%.2fx | E_inst=%.6f E_smooth=%.6f | bands[0]=%.2fx [2]=%.2fx",
+                                 g_cochlear_agc->get_global_gain(),
+                                 g_cochlear_agc->get_current_energy(),
+                                 g_cochlear_agc->get_smoothed_energy(),
+                                 g_cochlear_agc->get_band_gain(0),
+                                 g_cochlear_agc->get_band_gain(2));
+                    }
+
+                    LOG_INFO(TAG_AUDIO, "═══════════════════════");
+                }
+
                 last_diag_ms = now_ms;
-            }
-            // Debug output: verbose metrics (only if debug mode enabled)
-            if (audio_debug_enabled) {
-                LOG_DEBUG(TAG_AUDIO, "tempo_conf=%.3f silence=%.3f novelty_sum=%.3f",
-                          tempo_confidence, silence_level, tempi_power_sum);
             }
             if (probe_started) {
                 beat_events_probe_end("audio_step");
@@ -772,7 +825,8 @@ void loop_gpu(void* param) {
 // SETUP - Initialize hardware, create tasks
 // ============================================================================
 void setup() {
-    Serial.begin(2000000);
+    Serial.begin(250000);  // Match serial monitor max baud rate (was 2000000 - 8× too fast!)
+    Serial.setRxBufferSize(1024);  // Increase RX buffer from 256 to 1024 bytes
     LOG_INFO(TAG_CORE0, "=== K1.reinvented Starting ===");
 
     // Print build environment and IDF/Arduino versions up front (so we catch cursed mismatches early)
@@ -799,6 +853,9 @@ void setup() {
     // Print keyboard controls help (menu-driven to minimize unique keys)
     LOG_INFO(TAG_CORE1, "========== KEYBOARD CONTROLS ==========");
     LOG_INFO(TAG_CORE1, "  SPACEBAR  - Cycle to next pattern");
+    LOG_INFO(TAG_CORE1, "  a         - Toggle AGC (Cochlear +40dB boost)");
+    LOG_INFO(TAG_CORE1, "  d         - Toggle audio diagnostics panel");
+    LOG_INFO(TAG_CORE1, "  t         - Toggle tempo debug (spectrum dump)");
     LOG_INFO(TAG_CORE1, "  m         - Open/close Debug Menu");
     LOG_INFO(TAG_CORE1, "=======================================");
 
@@ -872,6 +929,19 @@ void setup() {
     LOG_INFO(TAG_AUDIO, "Initializing Goertzel DFT...");
     init_window_lookup();
     init_goertzel_constants_musical();
+
+    // Initialize Cochlear AGC (multi-band adaptive gain control)
+    LOG_INFO(TAG_AUDIO, "Initializing Cochlear AGC v2.1...");
+    extern CochlearAGC* g_cochlear_agc;
+    g_cochlear_agc = new CochlearAGC();
+    if (g_cochlear_agc && g_cochlear_agc->initialize(NUM_FREQS, 100.0f)) {
+        LOG_INFO(TAG_AUDIO, "Cochlear AGC v2.1.1: 64 bins, 100Hz, +40dB max");
+        LOG_INFO(TAG_AUDIO, "  RMS envelope: 100ms/150ms | Leveling: 3s/8s");
+    } else {
+        LOG_WARN(TAG_AUDIO, "Cochlear AGC initialization failed - continuing without AGC");
+        delete g_cochlear_agc;
+        g_cochlear_agc = nullptr;
+    }
 
     LOG_INFO(TAG_AUDIO, "Initializing VU meter...");
     init_vu();
@@ -1057,13 +1127,30 @@ void loop() {
         LOG_INFO(TAG_CORE1, "0) Back to main");
     };
 
-    if (Serial.available() > 0) {
+    // Process ALL available characters in serial buffer (not just one)
+    while (Serial.available() > 0) {
         char ch = Serial.read();
         if (ch == ' ') {  // SPACEBAR - cycle to next pattern (operational)
             g_current_pattern_index = (g_current_pattern_index + 1) % g_num_patterns;
             const PatternInfo& pattern = g_pattern_registry[g_current_pattern_index];
             LOG_INFO(TAG_CORE1, "PATTERN CHANGED: [%d] %s - %s", g_current_pattern_index, pattern.name, pattern.description);
             LOG_INFO(TAG_CORE1, "Pattern changed via spacebar to: %s", pattern.name);
+        } else if (ch == 'd') { // Toggle audio diagnostics (direct toggle, no menu)
+            audio_debug_enabled = !audio_debug_enabled;
+            LOG_INFO(TAG_AUDIO, "Audio diagnostics: %s", audio_debug_enabled ? "ON" : "OFF");
+        } else if (ch == 't') { // Toggle tempo debug (direct toggle, no menu)
+            tempo_debug_enabled = !tempo_debug_enabled;
+            LOG_INFO(TAG_TEMPO, "Tempo debug: %s", tempo_debug_enabled ? "ON" : "OFF");
+        } else if (ch == 'a') { // Toggle AGC (direct toggle, no menu)
+            extern CochlearAGC* g_cochlear_agc;
+            if (g_cochlear_agc) {
+                static bool agc_enabled = true;
+                agc_enabled = !agc_enabled;
+                g_cochlear_agc->enable(agc_enabled);
+                LOG_INFO(TAG_AUDIO, "Cochlear AGC: %s", agc_enabled ? "ENABLED (+40dB boost)" : "DISABLED (bypassed)");
+            } else {
+                LOG_WARN(TAG_AUDIO, "AGC not initialized - cannot toggle");
+            }
         } else if (ch == 'm') { // Toggle menu (lowercase only)
             if (dbg_menu_state == MENU_OFF) { dbg_menu_state = MENU_MAIN; print_menu_main(); }
             else { dbg_menu_state = MENU_OFF; LOG_DEBUG(TAG_CORE1, "Menu closed"); }

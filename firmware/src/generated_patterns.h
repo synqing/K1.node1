@@ -1257,7 +1257,8 @@ void draw_startup_intro(const PatternRenderContext& context) {
     // EXPANDED: custom_param_2 (flow): 0.0 = no movement (stuck at center), 1.0 = full strip width swing
     // Range: 0.0 to 1.0 amplitude (was 0.25 to 1.0)
     float position_amplitude = fmaxf(0.0f, fminf(1.0f, params.custom_param_2));
-    float position = position_amplitude * sinf(startup_intro_angle);
+    // FIX: Map sinf output from [-1, +1] to [0, 1] normalized range (prevents negative position causing edge artifacts)
+    float position = 0.5f * (1.0f + position_amplitude * sinf(startup_intro_angle));
 
     // ========================================================================
     // TRAIL PERSISTENCE (Motion Blur Effect) - EXPANDED RANGE
@@ -1321,6 +1322,8 @@ void draw_startup_intro(const PatternRenderContext& context) {
     }
 
     // Apply mirror mode and background overlay (cannot fuse due to symmetry/overlay logic)
+    // FIX: Mirror persistence buffer BEFORE mirroring output to maintain trail symmetry
+    apply_mirror_mode(startup_intro_image_prev, true);
     apply_mirror_mode(leds, true);
     apply_background_overlay(context);
 }

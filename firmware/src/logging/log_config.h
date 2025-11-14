@@ -32,6 +32,7 @@
 #define TAG_CORE1       '1'
 #define TAG_MEMORY      'M'
 #define TAG_PROFILE     'P'
+#define TAG_ONSET       'O'
 
 // ============================================================================
 // TAG ENABLE/DISABLE - Runtime filtering (optional, adds ~100 bytes RAM)
@@ -42,7 +43,7 @@
 // ============================================================================
 // SERIAL CONFIGURATION
 // ============================================================================
-#define LOG_SERIAL_BAUD 2000000  // 2M baud for low latency
+#define LOG_SERIAL_BAUD 250000  // 250K baud (max supported by most serial monitors)
 
 // ============================================================================
 // ANSI COLOR CODES - Optional, can be disabled for raw output
@@ -56,6 +57,7 @@
   #define COLOR_DEBUG   "\033[94m"  // Bright blue
   #define COLOR_TAG     "\033[96m"  // Bright cyan
   #define COLOR_TIME    "\033[90m"  // Dark gray
+  #define COLOR_BPM     "\033[1;33m"  // Bold gold/bright yellow (for BPM highlighting)
   #define COLOR_RESET   "\033[0m"   // Reset
 #else
   #define COLOR_ERROR   ""
@@ -64,6 +66,7 @@
   #define COLOR_DEBUG   ""
   #define COLOR_TAG     ""
   #define COLOR_TIME    ""
+  #define COLOR_BPM     ""
   #define COLOR_RESET   ""
 #endif
 
