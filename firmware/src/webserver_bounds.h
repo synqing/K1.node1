@@ -33,7 +33,7 @@
 
 // WebSocket Limits
 #define MAX_WEBSOCKET_MESSAGE_SIZE      2048    // Max WebSocket message
-#define MAX_WEBSOCKET_CONNECTIONS       8       // Max concurrent connections
+#define MAX_WEBSOCKET_CONNECTIONS       2       // Max concurrent connections (reduced from 8 to save memory)
 
 // String Buffer Limits
 #define MAX_API_PATH_LENGTH             256

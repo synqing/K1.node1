@@ -230,9 +230,11 @@ void acquire_sample_chunk() {
 
         // If audio reactivity is active and we have a non-silent chunk, mark input as active
         // Heuristic value based on observed silence VU of 1-5
-        const float silence_threshold = 10.0f;
+        const float silence_threshold = 0.005f;  // ~-46 dBFS threshold after scaling
         if (EMOTISCOPE_ACTIVE && chunk_vu > silence_threshold) {
             g_audio_input_active.store(true, std::memory_order_relaxed);
+        } else if (chunk_vu <= silence_threshold * 0.5f) {
+            g_audio_input_active.store(false, std::memory_order_relaxed);
         }
 
         // Apply audio_responsiveness parameter (0=smooth, 1=instant)

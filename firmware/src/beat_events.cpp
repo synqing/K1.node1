@@ -10,6 +10,7 @@ static uint16_t s_capacity = 0;
 static std::atomic<uint16_t> s_head{0};  // write index (acquire/release for ring buffer sync)
 static std::atomic<uint16_t> s_tail{0};  // read index (acquire/release for ring buffer sync)
 static std::atomic<uint16_t> s_count{0};  // buffer occupancy counter
+static std::atomic<uint32_t> s_overflow_count{0};  // total overflow events
 
 // Latency probe
 static std::atomic<uint32_t> s_probe_start_us{0};
@@ -35,13 +36,23 @@ void beat_events_init(uint16_t capacity) {
 }
 
 bool beat_events_push(uint32_t timestamp_us, uint16_t confidence) {
-    if (!s_buffer || s_capacity == 0) return false;
+    // Critical safety check: ensure buffer is initialized
+    if (!s_buffer || s_capacity == 0 || timestamp_us == 0) return false;
 
     // Load head with acquire semantics to ensure we see writes from other cores
     uint16_t head = s_head.load(std::memory_order_acquire);
+    
+    // Bounds check to prevent buffer overflow
+    if (head >= s_capacity) {
+        // Reset head to prevent crash
+        head = 0;
+        s_head.store(0, std::memory_order_release);
+    }
+    
     BeatEvent ev = { timestamp_us, confidence };
     s_buffer[head] = ev;
-    s_head.store((head + 1) % s_capacity, std::memory_order_release);
+    uint16_t new_head = (head + 1) % s_capacity;
+    s_head.store(new_head, std::memory_order_release);
 
     uint16_t count = s_count.load(std::memory_order_acquire);
     if (count < s_capacity) {
@@ -50,17 +61,29 @@ bool beat_events_push(uint32_t timestamp_us, uint16_t confidence) {
     } else {
         // Overwrite oldest when full
         uint16_t tail = s_tail.load(std::memory_order_acquire);
-        s_tail.store((tail + 1) % s_capacity, std::memory_order_release);
+        uint16_t new_tail = (tail + 1) % s_capacity;
+        s_tail.store(new_tail, std::memory_order_release);
+        s_overflow_count.fetch_add(1, std::memory_order_relaxed); // Track overflows
         return false; // indicate overwrite
     }
 }
 
 bool beat_events_pop(BeatEvent* out) {
+    if (!out) return false;
+    
     uint16_t count = s_count.load(std::memory_order_acquire);
-    if (!out || count == 0) return false;
+    if (count == 0) return false;
+    
     uint16_t tail = s_tail.load(std::memory_order_acquire);
+    
+    // Bounds check to prevent buffer overflow
+    if (tail >= s_capacity || !s_buffer) {
+        return false;
+    }
+    
     *out = s_buffer[tail];
-    s_tail.store((tail + 1) % s_capacity, std::memory_order_release);
+    uint16_t new_tail = (tail + 1) % s_capacity;
+    s_tail.store(new_tail, std::memory_order_release);
     s_count.store(count - 1, std::memory_order_release);
     return true;
 }
@@ -73,15 +96,28 @@ uint16_t beat_events_capacity() {
     return s_capacity;
 }
 
+uint32_t beat_events_overflow_count() {
+    return s_overflow_count.load(std::memory_order_acquire);
+}
+
 uint16_t beat_events_peek(BeatEvent* out, uint16_t max) {
+    if (!out || max == 0) return 0;
+    
     uint16_t count = s_count.load(std::memory_order_acquire);
-    if (!out || max == 0 || count == 0) return 0;
+    if (count == 0 || !s_buffer) return 0;
+    
     // Snapshot tail and count to avoid inconsistent traversal
     uint16_t local_tail = s_tail.load(std::memory_order_acquire);
     uint16_t local_count = count;
     uint16_t to_copy = (local_count < max) ? local_count : max;
+    
+    // Bounds check to prevent buffer overflow
+    if (local_tail >= s_capacity) return 0;
+    
     for (uint16_t i = 0; i < to_copy; ++i) {
         uint16_t idx = (local_tail + i) % s_capacity;
+        // Additional bounds check for safety
+        if (idx >= s_capacity) break;
         out[i] = s_buffer[idx];
     }
     return to_copy;

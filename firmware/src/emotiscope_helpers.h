@@ -141,3 +141,15 @@ inline float response_cube(float x) {
 inline float response_exp(float x, float exponent = 2.2f) {
     return powf(clip_float(x), exponent);
 }
+
+
+// === Added: Audio/Chroma utilities for parity visuals ===
+float chroma_centroid(const float chroma[12]);
+CRGBF chroma_weighted_color(const float chroma[12], float saturation);
+float compute_onset_pulse(float vu_current, float& vu_prev, float decay, float gain);
+CRGBF palette_blend(const CRGBF* palette, int n, float t);
+float band_weight(int bin, float bass_treble_balance);
+void apply_eq_curve(float* spectrum, int len, float balance);
+class BufferPersistNode;
+void adaptive_band_decay(BufferPersistNode& persist, const float* input, int len, float rise_rate, float fall_rate);
+void resample_history_to_leds(const float* history, int hist_len, float* out, int leds);

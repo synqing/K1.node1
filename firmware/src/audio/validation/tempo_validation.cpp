@@ -9,21 +9,13 @@
 // ============================================================================
 
 TempoConfidenceMetrics tempo_confidence_metrics = {0};
-MedianFilter3 tempo_median_filter = {{0.0f, 0.0f, 0.0f}, 0};
+MedianFilter3 tempo_median_filter = {{0}, 0};
 TempoStabilityTracker tempo_stability = {{0}, 0, 0};
 TempoLockTracker tempo_lock_tracker = {TEMPO_UNLOCKED, 0, 0.0f};
+TempoValidationConfig tempo_validation_config = {0};
 
-TempoValidationConfig tempo_validation_config = {
-    .novelty_update_interval_us = 20000,     // 50 Hz (1000000/50)
-    .vu_calibration_window_ms = 250,
-    .confidence_lock_duration_ms = DEFAULT_CONFIDENCE_LOCK_DURATION_MS,
-    .confidence_reject_duration_ms = DEFAULT_CONFIDENCE_REJECT_DURATION_MS,
-    .confidence_accept_threshold = TEMPO_CONFIDENCE_ACCEPT,
-    .confidence_reject_threshold = TEMPO_CONFIDENCE_REJECT,
-    .smoothing_alpha_base = 0.08f,
-    .attack_multiplier = 1.5f,
-    .release_multiplier = 0.75f,
-};
+// Current octave relationship for beat detection refractory tuning
+static OctaveRelationship current_octave_relationship = {0, 1.0f, 0.0f};
 
 // Genre presets (from research)
 static const GenrePreset genre_presets[] = {
@@ -60,7 +52,7 @@ void init_tempo_validation() {
     // Initialize confidence metrics
     tempo_confidence_metrics.peak_ratio = 0.0f;
     tempo_confidence_metrics.entropy_confidence = 0.0f;
-    tempo_confidence_metrics.temporal_stability = 0.5f;  // Neutral start
+    tempo_confidence_metrics.temporal_stability = 0.0f;  // No data = no confidence
     tempo_confidence_metrics.combined = 0.0f;
 
     // Initialize median filter
@@ -79,7 +71,19 @@ void init_tempo_validation() {
     tempo_lock_tracker.state_entry_time_ms = 0;
     tempo_lock_tracker.locked_tempo_bpm = 0.0f;
 
-    Serial.println("[Tempo Validation] Initialized - Phase 3 validation active");
+    // Initialize configuration - disable Phase 3 by default for clean validation
+    tempo_validation_config.phase3_validation_enabled = false;
+
+    Serial.println("[Tempo Validation] Initialized - Phase 3 validation DISABLED (using Emotiscope behavior)");
+}
+
+void set_phase3_validation_enabled(bool enabled) {
+    tempo_validation_config.phase3_validation_enabled = enabled;
+    if (enabled) {
+        Serial.println("[Tempo Validation] Phase 3 multi-metric validation ENABLED");
+    } else {
+        Serial.println("[Tempo Validation] Phase 3 multi-metric validation DISABLED - using Emotiscope behavior");
+    }
 }
 
 void set_genre_preset(MusicGenre genre) {
@@ -162,7 +166,7 @@ void update_tempo_history(float current_tempo_bpm) {
 
 float calculate_temporal_stability() {
     if (tempo_stability.history_filled < 5) {
-        return 0.5f;  // Not enough data yet, return neutral
+        return 0.0f;  // Not enough data yet, return no confidence
     }
 
     // Calculate mean
@@ -211,12 +215,18 @@ void update_confidence_metrics(const float* tempi_smooth, uint16_t num_tempi, fl
     // 3. Temporal stability (updated externally via update_tempo_history)
     tempo_confidence_metrics.temporal_stability = calculate_temporal_stability();
 
-    // 4. Combined confidence (weighted average)
-    // Weights: 35% peak ratio, 35% entropy, 30% stability
-    tempo_confidence_metrics.combined =
-        0.35f * tempo_confidence_metrics.peak_ratio +
-        0.35f * tempo_confidence_metrics.entropy_confidence +
-        0.30f * tempo_confidence_metrics.temporal_stability;
+    // 4. Combined confidence calculation
+    if (tempo_validation_config.phase3_validation_enabled) {
+        // Phase 3 multi-metric validation (35% peak ratio, 35% entropy, 30% stability)
+        tempo_confidence_metrics.combined =
+            0.35f * tempo_confidence_metrics.peak_ratio +
+            0.35f * tempo_confidence_metrics.entropy_confidence +
+            0.30f * tempo_confidence_metrics.temporal_stability;
+    } else {
+        // Original Emotiscope behavior - direct peak ratio assignment
+        // This provides the cleanest signal for beat detection validation
+        tempo_confidence_metrics.combined = tempo_confidence_metrics.peak_ratio;
+    }
 }
 
 // ============================================================================
@@ -308,11 +318,15 @@ OctaveRelationship check_octave_ambiguity(const float* tempi_smooth,
         // Prefer slower tempo (research shows humans prefer lower BPM for foot-tapping)
         uint16_t preferred_bin = (tempo0 < tempo1) ? top_bins[0] : top_bins[1];
 
-        return {
+        OctaveRelationship result = {
             .bin_index = preferred_bin,
             .relationship = ratio_1_0,
             .combined_strength = top_strengths[0] + top_strengths[1]
         };
+        
+        // Store for beat detection refractory tuning
+        current_octave_relationship = result;
+        return result;
     }
 
     // Check for 0.5x relationship (half tempo)
@@ -320,19 +334,27 @@ OctaveRelationship check_octave_ambiguity(const float* tempi_smooth,
         // Half-tempo relationship
         uint16_t preferred_bin = (tempo0 < tempo1) ? top_bins[0] : top_bins[1];
 
-        return {
+        OctaveRelationship result = {
             .bin_index = preferred_bin,
             .relationship = ratio_1_0,
             .combined_strength = top_strengths[0] + top_strengths[1]
         };
+        
+        // Store for beat detection refractory tuning
+        current_octave_relationship = result;
+        return result;
     }
 
     // No octave ambiguity, return dominant bin
-    return {
+    OctaveRelationship result = {
         .bin_index = top_bins[0],
         .relationship = 1.0f,
         .combined_strength = top_strengths[0]
     };
+    
+    // Store for beat detection refractory tuning
+    current_octave_relationship = result;
+    return result;
 }
 
 // ============================================================================
@@ -390,4 +412,9 @@ const char* get_tempo_lock_state_string(TempoLockState state) {
         case TEMPO_DEGRADING:   return "DEGRADING";
         default:                return "UNKNOWN";
     }
+}
+
+// Get current octave relationship for beat detection refractory tuning
+OctaveRelationship get_current_octave_relationship() {
+    return current_octave_relationship;
 }

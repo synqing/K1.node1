@@ -24,6 +24,9 @@ bool beat_events_pop(BeatEvent* out);
 // Current number of queued events
 uint16_t beat_events_count();
 
+// Get total number of overflow events since initialization
+uint32_t beat_events_overflow_count();
+
 // Capacity of the ring buffer
 uint16_t beat_events_capacity();
 

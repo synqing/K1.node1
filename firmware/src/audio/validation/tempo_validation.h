@@ -94,6 +94,8 @@ struct TempoValidationConfig {
     float smoothing_alpha_base;              // Base alpha for EMA smoothing
     float attack_multiplier;                 // Attack speed multiplier (>1.0 = faster)
     float release_multiplier;                // Release speed multiplier (<1.0 = slower)
+    
+    bool phase3_validation_enabled;          // Enable/disable Phase 3 multi-metric validation
 };
 
 // Octave relationship detection
@@ -139,6 +141,9 @@ void init_tempo_validation();
 // Set genre preset
 void set_genre_preset(MusicGenre genre);
 
+// Enable/disable Phase 3 multi-metric validation
+void set_phase3_validation_enabled(bool enabled);
+
 // ============================================================================
 // PUBLIC API - VALIDATION FUNCTIONS
 // ============================================================================
@@ -178,6 +183,9 @@ uint16_t find_dominant_tempo_bin(const float* tempi_smooth, uint16_t num_tempi);
 
 // Get tempo lock state as string (for REST API)
 const char* get_tempo_lock_state_string(TempoLockState state);
+
+// Get current octave relationship for beat detection refractory tuning
+OctaveRelationship get_current_octave_relationship();
 
 // ============================================================================
 // INLINE HELPERS

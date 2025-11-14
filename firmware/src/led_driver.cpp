@@ -20,6 +20,9 @@ uint8_t rgb8_data[NUM_LEDS * 3];
 uint8_t raw_led_data[NUM_LEDS * 3];
 uint8_t raw_led_data_ch2[NUM_LEDS * 3];
 
+// Persistent error diffusion accumulator for temporal dithering parity
+CRGBF dither_error[NUM_LEDS];
+
 // Logging tag
 static const char *TAG = "led_encoder";
 

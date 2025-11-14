@@ -149,6 +149,7 @@ extern LedChannelConfig g_ch2_config;
 extern uint8_t rgb8_data[NUM_LEDS * 3];
 extern uint8_t raw_led_data[NUM_LEDS * 3];
 extern uint8_t raw_led_data_ch2[NUM_LEDS * 3];
+extern CRGBF dither_error[NUM_LEDS];
 
 // Count of RMT wait timeouts (observed via diagnostics/UI)
 extern std::atomic<uint32_t> g_led_rmt_wait_timeouts;
@@ -268,26 +269,31 @@ inline void quantize_color(bool temporal_dithering) {
 	const float brightness_scale = global_brightness * 255.0f;
 	
 	if (temporal_dithering == true) {
-		const float dither_table[4] = {0.25f, 0.50f, 0.75f, 1.00f};
-		static uint8_t dither_step = 0;
-		dither_step++;
-		const float dither_threshold = dither_table[dither_step & 3];  // Use bitwise AND for modulo
-		const float brightness_scale_dither = global_brightness * 254.0f;
-
+		// Error-diffusion temporal dithering (legacy parity)
+		const float thresh = 0.055f;
 		for (uint16_t i = 0; i < NUM_LEDS; i++) {
 			const uint16_t base = i * 3;
 			// RED
-			const float dec_r = leds[i].r * brightness_scale_dither;
-			const uint8_t whole_r = (uint8_t)dec_r;
-			rgb8_data[base + 0] = whole_r + ((dec_r - whole_r) >= dither_threshold);
+			const float dec_r = leds[i].r * brightness_scale;
+			uint8_t out_r = (uint8_t)dec_r;
+			float new_err_r = dec_r - (float)out_r;
+			if (new_err_r >= thresh) dither_error[i].r += new_err_r;
+			if (dither_error[i].r >= 1.0f) { out_r += 1; dither_error[i].r -= 1.0f; }
+			rgb8_data[base + 0] = out_r;
 			// GREEN
-			const float dec_g = leds[i].g * brightness_scale_dither;
-			const uint8_t whole_g = (uint8_t)dec_g;
-			rgb8_data[base + 1] = whole_g + ((dec_g - whole_g) >= dither_threshold);
+			const float dec_g = leds[i].g * brightness_scale;
+			uint8_t out_g = (uint8_t)dec_g;
+			float new_err_g = dec_g - (float)out_g;
+			if (new_err_g >= thresh) dither_error[i].g += new_err_g;
+			if (dither_error[i].g >= 1.0f) { out_g += 1; dither_error[i].g -= 1.0f; }
+			rgb8_data[base + 1] = out_g;
 			// BLUE
-			const float dec_b = leds[i].b * brightness_scale_dither;
-			const uint8_t whole_b = (uint8_t)dec_b;
-			rgb8_data[base + 2] = whole_b + ((dec_b - whole_b) >= dither_threshold);
+			const float dec_b = leds[i].b * brightness_scale;
+			uint8_t out_b = (uint8_t)dec_b;
+			float new_err_b = dec_b - (float)out_b;
+			if (new_err_b >= thresh) dither_error[i].b += new_err_b;
+			if (dither_error[i].b >= 1.0f) { out_b += 1; dither_error[i].b -= 1.0f; }
+			rgb8_data[base + 2] = out_b;
 		}
 	}
 	else {

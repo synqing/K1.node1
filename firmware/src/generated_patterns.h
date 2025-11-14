@@ -14,6 +14,7 @@
 #include "dsps_helpers.h"
 #include "logging/logger.h"
 #include "pattern_helpers.h"
+#include "shared_pattern_buffers.h"
 #include <math.h>
 #include <cstring>
 #include <algorithm>
@@ -151,10 +152,7 @@ void draw_departure(const PatternRenderContext& context) {
 			leds[i].b = color1.b + (color2.b - color1.b) * interpolation_factor;
 		}
 		
-		// Apply runtime parameters: brightness multiplier
-		leds[i].r *= params.brightness;
-		leds[i].g *= params.brightness;
-		leds[i].b *= params.brightness;
+		// Master brightness handled in color pipeline
 	}
 
     // Apply uniform background overlay
@@ -203,10 +201,7 @@ void draw_lava(const PatternRenderContext& context) {
 			leds[i].b = color1.b + (color2.b - color1.b) * interpolation_factor;
 		}
 		
-		// Apply runtime parameters: brightness multiplier
-		leds[i].r *= params.brightness;
-		leds[i].g *= params.brightness;
-		leds[i].b *= params.brightness;
+		// Master brightness handled in color pipeline
 	}
 
     // Apply uniform background overlay
@@ -253,10 +248,7 @@ void draw_twilight(const PatternRenderContext& context) {
 			leds[i].b = color1.b + (color2.b - color1.b) * interpolation_factor;
 		}
 		
-		// Apply runtime parameters: brightness multiplier
-		leds[i].r *= params.brightness;
-		leds[i].g *= params.brightness;
-		leds[i].b *= params.brightness;
+		// Master brightness handled in color pipeline
 	}
 
     // Apply uniform background overlay
@@ -299,11 +291,11 @@ void draw_spectrum(const PatternRenderContext& context) {
 
 	// Fallback to ambient if no audio
 	if (!AUDIO_IS_AVAILABLE()) {
-		CRGBF ambient_color = color_from_palette(
-			params.palette_id,
-			clip_float(params.color),
-			clip_float(params.background) * clip_float(params.brightness)
-		);
+        CRGBF ambient_color = color_from_palette(
+            params.palette_id,
+            clip_float(params.color),
+            clip_float(params.background) * 0.25f
+        );
 		for (int i = 0; i < NUM_LEDS; i++) {
 			leds[i] = ambient_color;
 		}
@@ -342,11 +334,6 @@ void draw_spectrum(const PatternRenderContext& context) {
 
 		// Get color from palette using progress and magnitude
 		CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
-
-		// Apply global brightness
-		color.r *= params.brightness;
-		color.g *= params.brightness;
-		color.b *= params.brightness;
 
 		// Mirror from center (centre-origin architecture)
 		int left_index = wrap_idx(((NUM_LEDS / 2) - 1 - i) + SPECTRUM_CENTER_OFFSET);
@@ -390,7 +377,7 @@ void draw_octave(const PatternRenderContext& context) {
             leds[i] = color_from_palette(
                 params.palette_id,
                 position,
-                clip_float(params.background) * clip_float(params.brightness)
+                clip_float(params.background) * 0.25f
             );
         }
         return;
@@ -418,11 +405,6 @@ void draw_octave(const PatternRenderContext& context) {
 
 		// Get color from palette
 		CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
-
-		// Apply global brightness
-		color.r *= params.brightness;
-		color.g *= params.brightness;
-		color.b *= params.brightness;
 
 		// Mirror from center
 		int left_index = (NUM_LEDS / 2) - 1 - i;
@@ -490,9 +472,6 @@ void draw_bloom(const PatternRenderContext& context) {
 	for (int i = 0; i < half_leds; ++i) {
 		float brightness = clip_float(bloom_trail[ch_idx][i]);
 		CRGBF color = color_from_palette(params.palette_id, static_cast<float>(i) / half_leds, brightness);
-		color.r *= params.brightness;
-		color.g *= params.brightness;
-		color.b *= params.brightness;
 
 		int left_index = (half_leds - 1) - i;
 		int right_index = half_leds + i;
@@ -518,9 +497,15 @@ void draw_bloom_mirror(const PatternRenderContext& context) {
     #define AUDIO_NOVELTY (audio.novelty_curve)
     #define AUDIO_CHROMAGRAM (audio.chromagram)
 
-	static CRGBF bloom_buffer[2][NUM_LEDS];
-	static CRGBF bloom_buffer_prev[2][NUM_LEDS];
+	// Acquire shared dual-channel buffer for bloom pattern
+	static int bloom_buffer_id = -1;
+	if (bloom_buffer_id == -1) {
+		acquire_dual_channel_buffer(bloom_buffer_id);
+	}
+	
 	const uint8_t ch_idx = get_pattern_channel_index();
+	CRGBF (&bloom_buffer)[2][NUM_LEDS] = shared_pattern_buffers.shared_image_buffer;
+	CRGBF (&bloom_buffer_prev)[2][NUM_LEDS] = shared_pattern_buffers.shared_image_buffer_prev;
 
 	// Scroll the full strip outward and apply decay
 	float scroll_speed = 0.25f + 1.75f * clip_float(params.speed);
@@ -640,7 +625,7 @@ void draw_bloom_mirror(const PatternRenderContext& context) {
 		CRGBF palette_color = color_from_palette(
 			params.palette_id,
 			palette_progress,
-			px_brightness * params.brightness
+			px_brightness
 		);
 
 		leds[i] = palette_color;
@@ -747,7 +732,7 @@ void draw_pulse(const PatternRenderContext& context) {
 	// Fallback to ambient if no audio
 	if (!AUDIO_IS_AVAILABLE()) {
 		for (int i = 0; i < NUM_LEDS; i++) {
-			leds[i] = color_from_palette(params.palette_id, 0.5f, params.background);
+			leds[i] = CRGBF(0.0f, 0.0f, 0.0f);
 		}
 		return;
 	}
@@ -830,12 +815,7 @@ void draw_pulse(const PatternRenderContext& context) {
 	// Mirror from center
 	apply_mirror_mode(leds, true);
 
-	// Apply global brightness
-	for (int i = 0; i < NUM_LEDS; i++) {
-		leds[i].r *= params.brightness;
-		leds[i].g *= params.brightness;
-		leds[i].b *= params.brightness;
-	}
+	// Master brightness applied in color pipeline
 
     // Apply uniform background overlay
     apply_background_overlay(context);
@@ -894,8 +874,7 @@ void draw_tempiscope(const PatternRenderContext& context) {
 	if (!AUDIO_IS_AVAILABLE()) {
 		float phase = fmodf(time * params.speed * 0.3f, 1.0f);
 		for (int i = 0; i < NUM_LEDS; i++) {
-			float position = fmodf(phase + LED_PROGRESS(i), 1.0f);
-			leds[i] = color_from_palette(params.palette_id, position, params.background);
+			leds[i] = CRGBF(0.0f, 0.0f, 0.0f);
 		}
 		return;
 	}
@@ -905,26 +884,30 @@ void draw_tempiscope(const PatternRenderContext& context) {
 		leds[i] = CRGBF(0.0f, 0.0f, 0.0f);
 	}
 
-	// Render frequency bands using smoothed spectrum data
-	const int half_leds = NUM_LEDS >> 1;
-	const float freshness = AUDIO_IS_STALE() ? 0.6f : 1.0f;
-	const float speed_scale = 0.4f + params.speed * 0.6f;
-	for (int i = 0; i < half_leds; i++) {
-		float progress = (half_leds > 1) ? ((float)i / (float)(half_leds - 1)) : 0.0f;
-		float spectrum = AUDIO_SPECTRUM_INTERP(progress);
-		float brightness = powf(spectrum, 0.85f) * speed_scale * freshness;
-		brightness = clip_float(brightness);
+    // Render tempo bins using phase + magnitude (legacy parity)
+    const int half_leds = NUM_LEDS >> 1;
+    const float freshness = AUDIO_IS_STALE() ? 0.6f : 1.0f;
+    for (int i = 0; i < half_leds; i++) {
+        float progress = (half_leds > 1) ? ((float)i / (float)(half_leds - 1)) : 0.0f;
+        // Map LED progress to tempo bin index
+        int bin = (int)lroundf(progress * (float)(NUM_TEMPI - 1));
+        if (bin < 0) bin = 0; if (bin >= NUM_TEMPI) bin = NUM_TEMPI - 1;
 
-		CRGBF color = color_from_palette(params.palette_id, progress, brightness * params.saturation);
-		color.r *= params.brightness;
-		color.g *= params.brightness;
-		color.b *= params.brightness;
+        float phase = audio.tempo_phase[bin];
+        float mag   = clip_float(audio.tempo_magnitude[bin]);
+        // Beat peak gate in [0,1]
+        float peak = 0.5f * (sinf(phase) + 1.0f);
+        // Perceptual brightness; favor clarity at low magnitudes
+        float brightness = response_sqrt(mag) * peak * freshness;
+        brightness = clip_float(brightness);
 
-		int left_index = (half_leds - 1) - i;
-		int right_index = half_leds + i;
-		leds[left_index] = color;
-		leds[right_index] = color;
-	}
+        CRGBF color = color_from_palette(params.palette_id, progress, brightness * params.saturation);
+
+        int left_index = (half_leds - 1) - i;
+        int right_index = half_leds + i;
+        leds[left_index] = color;
+        leds[right_index] = color;
+    }
 
     // Apply uniform background overlay
     apply_background_overlay(context);
@@ -951,13 +934,8 @@ void draw_tempiscope(const PatternRenderContext& context) {
 // float eased = ease_cubic_in_out(progress);
 // float position = eased * NUM_LEDS;  // Use eased position instead of linear
 
-// Static buffers for tunnel image and motion blur persistence
-// Dualized for dual-channel independence: [0] = channel_a, [1] = channel_b
-static CRGBF beat_tunnel_variant_image[2][NUM_LEDS] = {{}};
-static CRGBF beat_tunnel_variant_image_prev[2][NUM_LEDS] = {{}};
+// Shared buffers for tunnel patterns - reduces memory usage
 static float beat_tunnel_variant_angle = 0.0f;
-static CRGBF beat_tunnel_image[2][NUM_LEDS] = {{}};
-static CRGBF beat_tunnel_image_prev[2][NUM_LEDS] = {{}};
 static float beat_tunnel_angle = 0.0f;
 
 // Static buffers for startup_intro pattern (deterministic, non-audio-reactive)
@@ -982,6 +960,15 @@ void draw_beat_tunnel(const PatternRenderContext& context) {
     #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
 
 	const uint8_t ch_idx = get_pattern_channel_index();
+
+	// Acquire shared dual-channel buffer for this pattern
+	static int tunnel_buffer_id = -1;
+	if (tunnel_buffer_id == -1) {
+		acquire_dual_channel_buffer(tunnel_buffer_id);
+	}
+	
+	CRGBF (&beat_tunnel_image)[2][NUM_LEDS] = shared_pattern_buffers.shared_image_buffer;
+	CRGBF (&beat_tunnel_image_prev)[2][NUM_LEDS] = shared_pattern_buffers.shared_image_buffer_prev;
 
 	static float last_time_bt = 0.0f;
 	float dt_bt = time - last_time_bt;
@@ -1009,26 +996,45 @@ void draw_beat_tunnel(const PatternRenderContext& context) {
 			float led_pos = LED_PROGRESS(i);
 			float distance = fabsf(led_pos - (position * 0.5f + 0.5f));
 			float brightness = expf(-(distance * distance) / (2.0f * 0.08f * 0.08f));
-			brightness = clip_float(brightness * clip_float(params.background));
+			// Background disabled: no extra brightness factor
 			CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
 			beat_tunnel_image[ch_idx][i].r += color.r * brightness;
 			beat_tunnel_image[ch_idx][i].g += color.g * brightness;
 			beat_tunnel_image[ch_idx][i].b += color.b * brightness;
 		}
-	} else {
-		float energy = fminf(1.0f, (AUDIO_VU * 0.8f) + (AUDIO_NOVELTY * 0.5f));
-		for (int i = 0; i < NUM_LEDS; i++) {
-			float led_pos = LED_PROGRESS(i);
-			float spectrum = AUDIO_SPECTRUM_INTERP(led_pos);
-			float brightness = powf(spectrum, 0.9f) * (0.3f + energy * 0.7f);
-			brightness = clip_float(brightness);
+    } else {
+        // Tempo-phase seeding (legacy behavior): brighten narrow bands when phase peaks
+        const int half_leds = NUM_LEDS >> 1;
+        const float sigma = 0.02f + 0.06f * clip_float(params.softness); // gaussian width
+        for (int t = 0; t < NUM_TEMPI; ++t) {
+            float phase = audio.tempo_phase[t];
+            float mag = clip_float(audio.tempo_magnitude[t]);
+            float peak = 0.5f * (sinf(phase) + 1.0f);
+            float strength = response_square(mag) * peak; // emphasize strong beats
+            if (strength < 0.02f) continue;
 
-			CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
-			beat_tunnel_image[ch_idx][i].r += color.r * brightness;
-			beat_tunnel_image[ch_idx][i].g += color.g * brightness;
-			beat_tunnel_image[ch_idx][i].b += color.b * brightness;
-		}
-	}
+            float prog = (NUM_TEMPI > 1) ? ((float)t / (float)(NUM_TEMPI - 1)) : 0.0f;
+            int i_center = (int)lroundf(prog * (float)(half_leds - 1));
+            // Paint a narrow gaussian at mirrored positions
+            for (int dx = -3; dx <= 3; ++dx) {
+                int i_local = i_center + dx;
+                if (i_local < 0 || i_local >= half_leds) continue;
+                float p_led = (half_leds > 1) ? ((float)i_local / (float)(half_leds - 1)) : 0.0f;
+                float dist = (float)dx / (float)half_leds;
+                float gauss = expf(-(dist * dist) / (2.0f * sigma * sigma));
+                float b = clip_float(strength * gauss);
+                CRGBF c = color_from_palette(params.palette_id, p_led, b);
+                int left_index = (half_leds - 1) - i_local;
+                int right_index = half_leds + i_local;
+                beat_tunnel_image[ch_idx][left_index].r += c.r * b;
+                beat_tunnel_image[ch_idx][left_index].g += c.g * b;
+                beat_tunnel_image[ch_idx][left_index].b += c.b * b;
+                beat_tunnel_image[ch_idx][right_index].r += c.r * b;
+                beat_tunnel_image[ch_idx][right_index].g += c.g * b;
+                beat_tunnel_image[ch_idx][right_index].b += c.b * b;
+            }
+        }
+    }
 
 	for (int i = 0; i < NUM_LEDS; i++) {
 		beat_tunnel_image[ch_idx][i].r = clip_float(beat_tunnel_image[ch_idx][i].r);
@@ -1039,9 +1045,9 @@ void draw_beat_tunnel(const PatternRenderContext& context) {
 	apply_mirror_mode(beat_tunnel_image[ch_idx], true);
 
 	for (int i = 0; i < NUM_LEDS; i++) {
-		leds[i].r = beat_tunnel_image[ch_idx][i].r * params.brightness;
-		leds[i].g = beat_tunnel_image[ch_idx][i].g * params.brightness;
-		leds[i].b = beat_tunnel_image[ch_idx][i].b * params.brightness;
+		leds[i].r = beat_tunnel_image[ch_idx][i].r;
+		leds[i].g = beat_tunnel_image[ch_idx][i].g;
+		leds[i].b = beat_tunnel_image[ch_idx][i].b;
 	}
 
     // Apply uniform background overlay
@@ -1064,6 +1070,15 @@ void draw_beat_tunnel_variant(const PatternRenderContext& context) {
     #define AUDIO_SPECTRUM_INTERP(pos) interpolate(clip_float(pos), audio.spectrogram_smooth, NUM_FREQS)
 
     const uint8_t ch_idx = get_pattern_channel_index();
+
+    // Acquire shared dual-channel buffer for this pattern
+    static int tunnel_variant_buffer_id = -1;
+    if (tunnel_variant_buffer_id == -1) {
+        acquire_dual_channel_buffer(tunnel_variant_buffer_id);
+    }
+    
+    CRGBF (&beat_tunnel_variant_image)[2][NUM_LEDS] = shared_pattern_buffers.shared_image_buffer;
+    CRGBF (&beat_tunnel_variant_image_prev)[2][NUM_LEDS] = shared_pattern_buffers.shared_image_buffer_prev;
 
     // Frame-rate independent delta time
     static float last_time_bt = 0.0f;
@@ -1111,21 +1126,38 @@ void draw_beat_tunnel_variant(const PatternRenderContext& context) {
             beat_tunnel_variant_image[ch_idx][i].g += color.g * brightness;
             beat_tunnel_variant_image[ch_idx][i].b += color.b * brightness;
 		}
-	} else {
-        float energy = fminf(1.0f, (AUDIO_VU * 0.7f) + (AUDIO_NOVELTY * 0.4f));
-        for (int i = 0; i < NUM_LEDS; i++) {
-            float led_pos = LED_PROGRESS(i);
-            float sample_pos = fabsf(led_pos - 0.5f) * 2.0f;
-            float spectrum = AUDIO_SPECTRUM_INTERP(sample_pos);
-            float brightness = powf(spectrum, 1.05f) * (0.25f + energy * 0.75f);
-            brightness = clip_float(brightness);
+    } else {
+        // Tempo-phase seeding like draw_beat_tunnel
+        const int half_leds = NUM_LEDS >> 1;
+        const float sigma = 0.02f + 0.06f * clip_float(params.softness);
+        for (int t = 0; t < NUM_TEMPI; ++t) {
+            float phase = audio.tempo_phase[t];
+            float mag = clip_float(audio.tempo_magnitude[t]);
+            float peak = 0.5f * (sinf(phase) + 1.0f);
+            float strength = response_square(mag) * peak;
+            if (strength < 0.02f) continue;
 
-            CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
-            beat_tunnel_variant_image[ch_idx][i].r += color.r * brightness;
-            beat_tunnel_variant_image[ch_idx][i].g += color.g * brightness;
-            beat_tunnel_variant_image[ch_idx][i].b += color.b * brightness;
+            float prog = (NUM_TEMPI > 1) ? ((float)t / (float)(NUM_TEMPI - 1)) : 0.0f;
+            int i_center = (int)lroundf(prog * (float)(half_leds - 1));
+            for (int dx = -3; dx <= 3; ++dx) {
+                int i_local = i_center + dx;
+                if (i_local < 0 || i_local >= half_leds) continue;
+                float p_led = (half_leds > 1) ? ((float)i_local / (float)(half_leds - 1)) : 0.0f;
+                float dist = (float)dx / (float)half_leds;
+                float gauss = expf(-(dist * dist) / (2.0f * sigma * sigma));
+                float b = clip_float(strength * gauss);
+                CRGBF c = color_from_palette(params.palette_id, p_led, b);
+                int left_index = (half_leds - 1) - i_local;
+                int right_index = half_leds + i_local;
+                beat_tunnel_variant_image[ch_idx][left_index].r += c.r * b;
+                beat_tunnel_variant_image[ch_idx][left_index].g += c.g * b;
+                beat_tunnel_variant_image[ch_idx][left_index].b += c.b * b;
+                beat_tunnel_variant_image[ch_idx][right_index].r += c.r * b;
+                beat_tunnel_variant_image[ch_idx][right_index].g += c.g * b;
+                beat_tunnel_variant_image[ch_idx][right_index].b += c.b * b;
+            }
         }
-	}
+    }
 
 	// Clamp values to [0, 1]
 	for (int i = 0; i < NUM_LEDS; i++) {
@@ -1138,11 +1170,11 @@ void draw_beat_tunnel_variant(const PatternRenderContext& context) {
     apply_mirror_mode(beat_tunnel_variant_image[ch_idx], true);
 
 	// Copy tunnel image to LED output and apply brightness
-	for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i].r = beat_tunnel_variant_image[ch_idx][i].r * params.brightness;
-        leds[i].g = beat_tunnel_variant_image[ch_idx][i].g * params.brightness;
-        leds[i].b = beat_tunnel_variant_image[ch_idx][i].b * params.brightness;
-	}
+    for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i].r = beat_tunnel_variant_image[ch_idx][i].r;
+        leds[i].g = beat_tunnel_variant_image[ch_idx][i].g;
+        leds[i].b = beat_tunnel_variant_image[ch_idx][i].b;
+    }
 
     // Apply uniform background overlay
     apply_background_overlay(context);
@@ -1248,7 +1280,6 @@ void draw_startup_intro(const PatternRenderContext& context) {
     // Pre-calculate Gaussian denominator to avoid repeated division
     float sigma_sq_2 = 2.0f * gaussian_width * gaussian_width;
     float sigma_inv_sq = 1.0f / sigma_sq_2;
-    float global_brightness = params.brightness;
 
     // ========================================================================
     // FUSED LOOP: Render + Clamp + Output + Save (Single Pass)
@@ -1277,10 +1308,10 @@ void draw_startup_intro(const PatternRenderContext& context) {
         blended_g = fmaxf(0.0f, fminf(1.0f, blended_g));
         blended_b = fmaxf(0.0f, fminf(1.0f, blended_b));
 
-        // Write to LED output with global brightness
-        leds[i].r = blended_r * global_brightness;
-        leds[i].g = blended_g * global_brightness;
-        leds[i].b = blended_b * global_brightness;
+        // Write to LED output (master brightness applied in color pipeline)
+        leds[i].r = blended_r;
+        leds[i].g = blended_g;
+        leds[i].b = blended_b;
 
         // CRITICAL: Save blended output (not raw buffer) for next frame's trail
         // This preserves the visual persistence across frames
@@ -1369,7 +1400,7 @@ void draw_tunnel_glow(const PatternRenderContext& context) {
             float led_pos = LED_PROGRESS(i);
             float distance = fabsf(led_pos - (position * 0.5f + 0.5f));
             float brightness = expf(-(distance * distance) / (2.0f * 0.08f * 0.08f));
-            brightness = fmaxf(0.0f, fminf(1.0f, brightness * fmaxf(0.0f, fminf(1.0f, params.background))));
+            // Background disabled: no extra brightness factor
             CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
             tunnel_glow_image[i].r += color.r * brightness;
             tunnel_glow_image[i].g += color.g * brightness;
@@ -1401,11 +1432,11 @@ void draw_tunnel_glow(const PatternRenderContext& context) {
     // Apply mirror mode
     apply_mirror_mode(tunnel_glow_image, true);
 
-    // Copy image to LED output and apply brightness
+    // Copy image to LED output (master brightness applied in pipeline)
     for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i].r = tunnel_glow_image[i].r * params.brightness;
-        leds[i].g = tunnel_glow_image[i].g * params.brightness;
-        leds[i].b = tunnel_glow_image[i].b * params.brightness;
+        leds[i].r = tunnel_glow_image[i].r;
+        leds[i].g = tunnel_glow_image[i].g;
+        leds[i].b = tunnel_glow_image[i].b;
     }
 
     // Apply uniform background overlay
@@ -1482,7 +1513,7 @@ void draw_perlin(const PatternRenderContext& context) {
         for (int i = 0; i < num_leds; i++) {
             float hue = fmodf((float)i / num_leds + time * 0.05f * params.speed, 1.0f);
             CRGBF color = color_from_palette(params.palette_id, hue, 0.4f);
-            leds[i] = color * params.brightness * params.saturation;
+            leds[i] = color * params.saturation;
         }
         apply_mirror_mode(leds, true);
         apply_background_overlay(context);
@@ -1535,9 +1566,9 @@ void draw_perlin(const PatternRenderContext& context) {
 
 		CRGBF color = color_from_palette(params.palette_id, hue, brightness);
 
-		leds[i].r = color.r * params.brightness * params.saturation;
-		leds[i].g = color.g * params.brightness * params.saturation;
-		leds[i].b = color.b * params.brightness * params.saturation;
+		leds[i].r = color.r * params.saturation;
+		leds[i].g = color.g * params.saturation;
+		leds[i].b = color.b * params.saturation;
 	}
 
 	// Enforce center-origin symmetry
@@ -1607,9 +1638,7 @@ void draw_analog(const PatternRenderContext& context) {
     
     // Apply global brightness
 	for (int i = 0; i < NUM_LEDS; i++) {
-		leds[i].r *= params.brightness;
-		leds[i].g *= params.brightness;
-		leds[i].b *= params.brightness;
+		// Master brightness handled in color pipeline
 	}
 
     // Apply uniform background overlay
@@ -1674,9 +1703,7 @@ void draw_metronome(const PatternRenderContext& context) {
     
     // Apply global brightness
 	for (int i = 0; i < NUM_LEDS; i++) {
-		leds[i].r *= params.brightness;
-		leds[i].g *= params.brightness;
-		leds[i].b *= params.brightness;
+		// Master brightness handled in color pipeline
 	}
 
     // Apply uniform background overlay
@@ -1753,9 +1780,7 @@ void draw_hype(const PatternRenderContext& context) {
     
     // Apply global brightness
 	for (int i = 0; i < NUM_LEDS; i++) {
-		leds[i].r *= params.brightness;
-		leds[i].g *= params.brightness;
-		leds[i].b *= params.brightness;
+		// Master brightness handled in color pipeline
 	}
 
     // Apply uniform background overlay
@@ -1841,12 +1866,22 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
             // Combine VU envelope with spatial modulation
             float waveform_brightness = vu_envelope * spatial_modulation;
 
-            // Apply non-linear curve (cubic approximates legacy bright^2 multiple times)
-            waveform_brightness = waveform_brightness * waveform_brightness * waveform_brightness;
+            // Apply non-linear curve (squaring for brightness emphasis)
+            waveform_brightness = waveform_brightness * waveform_brightness;
             waveform_brightness = fminf(1.0f, waveform_brightness);
 
             // Temporal smoothing of waveform (legacy: 5% new + 95% history)
             waveform_history[i] = waveform_brightness * smoothing + waveform_history[i] * (1.0f - smoothing);
+        }
+
+        // Calculate dominant chromagram hue for enhanced color generation
+        float dominant_chroma_hue = 0.0f;
+        float max_chroma_val = 0.0f;
+        for (uint8_t i = 0; i < 12; i++) {
+            if (audio.chromagram[i] > max_chroma_val) {
+                max_chroma_val = audio.chromagram[i];
+                dominant_chroma_hue = (float)i / 12.0f;
+            }
         }
 
         // --- Phase 3: Map Chromagram Bins to Frequency-Based Colors ---
@@ -1860,8 +1895,8 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
             buffer_idx = fmaxf(0, fminf(half_leds - 1, buffer_idx));
 
             // Get chromagram bin value and apply non-linear brightness curve
-            float chromagram_value = AUDIO_SPECTRUM[bin];
-            float chromagram_brightness = chromagram_value * chromagram_value * chromagram_value;  // Cubic
+            float chromagram_value = audio.chromagram[bin];
+            float chromagram_brightness = chromagram_value * chromagram_value;  // Squaring
             chromagram_brightness *= 1.5f;  // Legacy scale
             chromagram_brightness = fminf(1.0f, chromagram_brightness);
 
@@ -1870,7 +1905,7 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
             float blended_brightness = chromagram_brightness * waveform_history[buffer_idx];
 
             // Map frequency to palette color with modulation
-            float palette_progress = clip_float(params.color + (freq_progress * 0.5f));
+            float palette_progress = clip_float(dominant_chroma_hue + (freq_progress * 0.5f));
             CRGBF freq_color = color_from_palette(
                 params.palette_id,
                 palette_progress,
@@ -1891,9 +1926,7 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
 
     // --- Phase 6: Global Brightness & Background Overlay ---
     for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i].r *= params.brightness;
-        leds[i].g *= params.brightness;
-        leds[i].b *= params.brightness;
+        // Master brightness handled in color pipeline
     }
 
     apply_background_overlay(context);
@@ -2035,9 +2068,7 @@ void draw_snapwave(const PatternRenderContext& context) {
     // --- Phase 6: Global Brightness & Background Overlay ---
     // Apply user-controlled brightness to all LEDs
     for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i].r *= params.brightness;
-        leds[i].g *= params.brightness;
-        leds[i].b *= params.brightness;
+        // Master brightness handled in color pipeline
     }
 
     // Apply uniform background overlay (handles background brightness param)
@@ -2067,7 +2098,7 @@ void draw_prism(const PatternRenderContext& context) {
         for (int i = 0; i < NUM_LEDS; i++) {
             float progress = (float)i / NUM_LEDS;
             float breath = 0.5f + 0.3f * sinf(time * params.speed + progress * 3.14159f);
-            CRGBF color = color_from_palette(params.palette_id, progress, breath * params.brightness);
+            CRGBF color = color_from_palette(params.palette_id, progress, breath);
             prism_trail[i] = fmaxf(prism_trail[i], breath * 0.3f);
             leds[i] = color;
         }
@@ -2100,9 +2131,7 @@ void draw_prism(const PatternRenderContext& context) {
         CRGBF color = color_from_palette(params.palette_id, progress, magnitude);
 
         // Apply brightness
-        color.r *= params.brightness;
-        color.g *= params.brightness;
-        color.b *= params.brightness;
+        // Master brightness handled in color pipeline
 
         // Mirror from center
         int left_idx = half_leds - 1 - i;

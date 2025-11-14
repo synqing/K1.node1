@@ -32,7 +32,7 @@ bool validate_and_clamp(PatternParameters& params) {
     validate_float_0_1(params.color_range, 0.0f);     // Default: 0.0
     validate_float_0_1(params.saturation, 0.75f);     // Default: 0.75
     validate_float_0_1(params.warmth, 0.0f);          // Default: 0.0
-    validate_float_0_1(params.background, 0.25f);     // Default: 0.25
+    validate_float_0_1(params.background, 0.0f);      // Default: 0.0 (disabled)
     validate_float_0_1(params.dithering, 1.0f);       // Default: 1.0 (enabled)
     validate_float_0_1(params.mirror_mode, 1.0f);     // Default: enabled
 

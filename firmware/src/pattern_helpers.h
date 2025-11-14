@@ -11,20 +11,9 @@
  * Apply uniform background glow overlay using current palette and global brightness.
  */
 inline void apply_background_overlay(const PatternRenderContext& context) {
-    const auto& params = context.params;
-    float bg = clip_float(params.background);
-    if (bg <= 0.0f) return;
-    CRGBF ambient = color_from_palette(
-        params.palette_id,
-        clip_float(params.color),
-        bg * clip_float(params.brightness)
-    );
-
-    for (int i = 0; i < context.num_leds; ++i) {
-        context.leds[i].r = fminf(1.0f, context.leds[i].r + ambient.r);
-        context.leds[i].g = fminf(1.0f, context.leds[i].g + ambient.g);
-        context.leds[i].b = fminf(1.0f, context.leds[i].b + ambient.b);
-    }
+    // Background overlay forced OFF globally (background=0 for all patterns)
+    (void)context;
+    return;
 }
 
 #define HSV_HUE_ENTRIES 256

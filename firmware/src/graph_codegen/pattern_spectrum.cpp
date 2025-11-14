@@ -3,6 +3,8 @@
 #include "../stateful_nodes.h"
 #include "../parameters.h"
 #include "../pattern_audio_interface.h"
+#include "../audio/goertzel.h" // for SAMPLE_HISTORY_LENGTH
+#include "../emotiscope_helpers.h"
 
 extern "C" void pattern_spectrum_render(
     uint32_t frame_count,
@@ -22,21 +24,32 @@ extern "C" void pattern_spectrum_render(
     // Initialize RGB buffer to black
     for (int i = 0; i < PATTERN_NUM_LEDS; ++i) { tmp_rgb0[i] = {0.0f, 0.0f, 0.0f}; tmp_rgb1[i] = {0.0f, 0.0f, 0.0f}; }
 
-    // === Generated nodes ===
-    // Node: Time (no-op in PoC)
-    // Node: AudioSpectrum (no-op in PoC)
-    // Node: BandShape → fill scalar buffer with simple ramp (PoC)
-    for (int i = 0; i < PATTERN_NUM_LEDS; ++i) { tmp_f0[i] = (float)i / (float)(PATTERN_NUM_LEDS - 1); }
-    // Node: GradientMap → map scalar to color via placeholder palette (PoC)
-    static const CRGBF palette[5] = {{0.0f,0.0f,1.0f},{0.0f,1.0f,1.0f},{0.0f,1.0f,0.0f},{1.0f,1.0f,0.0f},{1.0f,0.0f,0.0f}};
-    for (int i = 0; i < PATTERN_NUM_LEDS; ++i) { float idx = clamp_val(tmp_f0[i], 0.0f, 1.0f); tmp_rgb0[i] = gradient_map(idx, palette, 5); }
-    // Node: Fill (color input assumed constant in PoC)
-    fill_buffer(tmp_rgb0, {1.0f, 1.0f, 1.0f}, PATTERN_NUM_LEDS);
-    // Node: Mirror
-    mirror_buffer(tmp_rgb0, tmp_rgb1, PATTERN_NUM_LEDS);
+                // === Emotiscope-style 12-band chroma spectrum (aggressive) ===
+    static float peaks[12] = {0};
+    for (int b = 0; b < 12; ++b) {
+        float v = clip_float(audio.chromagram[b]);
+        float resp = response_exp(v, 2.4f);
+        if (resp > peaks[b]) { peaks[b] = peaks[b] + 0.70f * (resp - peaks[b]); }
+        else { peaks[b] = peaks[b] * 0.95f; }
+    }
+    static const CRGBF palette12[12] = {
+        {1.00f, 0.00f, 0.00f}, {1.00f, 0.50f, 0.00f}, {1.00f, 0.80f, 0.00f},
+        {1.00f, 1.00f, 0.00f}, {0.60f, 1.00f, 0.00f}, {0.00f, 1.00f, 0.00f},
+        {0.00f, 1.00f, 0.60f}, {0.00f, 1.00f, 1.00f}, {0.00f, 0.60f, 1.00f},
+        {0.00f, 0.20f, 1.00f}, {0.40f, 0.00f, 1.00f}, {0.80f, 0.00f, 1.00f}
+    };
+    for (int i = 0; i < PATTERN_NUM_LEDS; ++i) {
+        float x = (float)i / (float)(PATTERN_NUM_LEDS - 1);
+        float bandf = x * 12.0f; int b = (int)bandf; if (b < 0) b = 0; if (b > 11) b = 11;
+        float t = bandf - (float)b;
+        float intensity = peaks[b] * (1.0f - 0.2f * (t - 0.5f) * (t - 0.5f));
+        intensity = response_exp(intensity, 1.6f); intensity = clamp_val(intensity, 0.0f, 1.0f);
+        CRGBF col = palette_blend(palette12, 12, b / 11.0f);
+        tmp_rgb0[i] = { col.r * intensity, col.g * intensity, col.b * intensity };
+    }
+    mirror_buffer_center_origin(tmp_rgb0, tmp_rgb1, PATTERN_NUM_LEDS);
 
-
-    // Terminal: LedOutput (clamp and write)
+// Terminal: LedOutput (clamp and write)
     const CRGBF* final_buf = tmp_rgb1;
     for (int i = 0; i < PATTERN_NUM_LEDS; ++i) {
         CRGBF c = clamped_rgb(final_buf[i]);

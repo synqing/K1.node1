@@ -143,6 +143,14 @@ public:
         doc["memory_free_kb"] = heap_free / 1024;
         doc["memory_total_kb"] = heap_total / 1024;
 
+        // Beat detection metrics
+        extern uint16_t beat_events_count();
+        extern uint16_t beat_events_capacity();
+        extern uint32_t beat_events_overflow_count();
+        doc["beat_queue_depth"] = beat_events_count();
+        doc["beat_queue_capacity"] = beat_events_capacity();
+        doc["beat_overflows_total"] = beat_events_overflow_count();
+
         // Include FPS history samples (length 16)
         JsonArray fps_history = doc.createNestedArray("fps_history");
         for (int i = 0; i < 16; ++i) {
@@ -674,7 +682,7 @@ public:
         new_params.color_range = params_obj["color_range"] | 0.0f;
         new_params.saturation = params_obj["saturation"] | 0.75f;
         new_params.warmth = params_obj["warmth"] | 0.0f;
-        new_params.background = params_obj["background"] | 0.25f;
+        new_params.background = params_obj["background"] | 0.0f;
         new_params.speed = params_obj["speed"] | 0.5f;
         new_params.palette_id = params_obj["palette_id"] | 0;
         new_params.custom_param_1 = params_obj["custom_param_1"] | 0.5f;

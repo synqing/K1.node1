@@ -60,7 +60,7 @@ inline PatternParameters get_default_params() {
     params.color_range = 0.0f;     // Emotiscope: color_range default = 0.0
     params.saturation = 0.75f;     // Emotiscope: saturation default = 0.75
     params.warmth = 0.0f;          // Emotiscope: warmth default = 0.0
-    params.background = 0.0f;       // No ambient background by default (clean visual separation)
+    params.background = 0.0f;      // Force background OFF by default
     params.dithering = 1.0f;       // Temporal dithering enabled by default
     params.mirror_mode = 1.0f;      // Centre-origin mirroring enabled
     params.led_offset = 0.0f;       // No logical shift
