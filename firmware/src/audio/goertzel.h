@@ -186,7 +186,7 @@ extern int audio_recording_index;
 extern int16_t audio_debug_recording[MAX_AUDIO_RECORDING_SAMPLES];
 
 // Spectrogram averaging
-#define NUM_SPECTROGRAM_AVERAGE_SAMPLES 8
+#define NUM_SPECTROGRAM_AVERAGE_SAMPLES 12  // EMOTISCOPE VERBATIM (was 8)
 extern float spectrogram_average[NUM_SPECTROGRAM_AVERAGE_SAMPLES][NUM_FREQS];
 extern uint8_t spectrogram_average_index;
 

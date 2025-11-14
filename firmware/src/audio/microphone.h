@@ -49,8 +49,8 @@
 // ============================================================================
 // Chunk duration: 128 samples / 16000 Hz = 8ms
 // This aligns with ring buffer and Goertzel FFT processing cadence
-#define CHUNK_SIZE 128
-#define SAMPLE_RATE 16000
+#define CHUNK_SIZE 64  // EMOTISCOPE VERBATIM (was 128)
+#define SAMPLE_RATE 12800  // EMOTISCOPE VERBATIM (was 16000)
 
 #define SAMPLE_HISTORY_LENGTH 4096
 
