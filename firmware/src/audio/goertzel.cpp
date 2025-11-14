@@ -548,21 +548,11 @@ void calculate_magnitudes() {
 			trace_spect32 = spectrogram[32];
 		}
 
-		// COCHLEAR AGC APPLICATION (Multi-band adaptive gain control)
-		// TRACE POINT 4: Capture AGC input for logging
-		if (++trace_counter_agc % 100 == 0) {
-			trace_agc_input[0] = spectrogram_smooth[0];
-			trace_agc_input[1] = spectrogram_smooth[32];
-			trace_agc_input[2] = spectrogram_smooth[63];
-		}
-
-		if (g_cochlear_agc) {
-			g_cochlear_agc->process(spectrogram_smooth);
-		}
-
-		// Copy AGC-processed values to spectrogram[] for pattern consumption
+		// EMOTISCOPE: No AGC processing (auto-ranger handles all normalization)
+		// spectrogram[] already contains normalized values from auto-ranger
+		// Just copy to spectrogram_smooth[] for pattern access
 		for (uint16_t i = 0; i < NUM_FREQS; i++) {
-			spectrogram[i] = spectrogram_smooth[i];
+			spectrogram_smooth[i] = spectrogram[i];
 		}
 
 		// MICROPHONE GAIN APPLICATION (Simple linear gain multiplier)
