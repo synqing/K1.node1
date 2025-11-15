@@ -598,6 +598,11 @@ void calculate_magnitudes() {
 
 		// Apply audio_sensitivity
 		vu_level_calculated *= audio_sensitivity;
+
+		// TEMPORARY: Boost VU for low-volume testing (55dB playback)
+		// Remove this once testing at normal 70-80dB levels
+		vu_level_calculated *= 50.0f;  // Compensate for 55dB vs 75dB (-20dB = 10× amplitude = 50× VU boost)
+
 		audio_level = clip_float(vu_level_calculated);
 
 		// NOTE: VU level calculation has been moved BEFORE auto-ranging (see lines 469-481)

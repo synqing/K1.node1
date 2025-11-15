@@ -1133,7 +1133,7 @@ void loop() {
         if (ch == ' ') {  // SPACEBAR - cycle to next pattern (operational)
             g_current_pattern_index = (g_current_pattern_index + 1) % g_num_patterns;
             const PatternInfo& pattern = g_pattern_registry[g_current_pattern_index];
-            LOG_INFO(TAG_CORE1, "PATTERN CHANGED: [%d] %s - %s", g_current_pattern_index, pattern.name, pattern.description);
+            LOG_INFO(TAG_CORE1, "PATTERN CHANGED: " COLOR_PATTERN "[%d]" COLOR_RESET " %s - %s", g_current_pattern_index, pattern.name, pattern.description);
             LOG_INFO(TAG_CORE1, "Pattern changed via spacebar to: %s", pattern.name);
         } else if (ch == 'd') { // Toggle audio diagnostics (direct toggle, no menu)
             audio_debug_enabled = !audio_debug_enabled;

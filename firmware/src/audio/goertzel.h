@@ -34,7 +34,8 @@
 // ============================================================================
 
 // Audio sample buffer
-#define SAMPLE_RATE 16000
+#include "audio_config.h"
+#define SAMPLE_RATE           AUDIO_SAMPLE_RATE_HZ
 #define SAMPLE_HISTORY_LENGTH 4096
 
 #define TWOPI   6.28318530
