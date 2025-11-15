@@ -599,9 +599,11 @@ void calculate_magnitudes() {
 		// Apply audio_sensitivity
 		vu_level_calculated *= audio_sensitivity;
 
-		// TEMPORARY: Boost VU for low-volume testing (55dB playback)
-		// Remove this once testing at normal 70-80dB levels
-		vu_level_calculated *= 50.0f;  // Compensate for 55dB vs 75dB (-20dB = 10× amplitude = 50× VU boost)
+		// Optional VU boost for low-volume environments (e.g., 55dB playback)
+		// Enable via audio_config.h if needed
+		#ifdef ENABLE_LOW_VOLUME_VU_BOOST
+		vu_level_calculated *= 50.0f;  // Boost for quiet environments
+		#endif
 
 		audio_level = clip_float(vu_level_calculated);
 
