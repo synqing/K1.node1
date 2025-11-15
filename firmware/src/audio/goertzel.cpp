@@ -526,10 +526,10 @@ void calculate_magnitudes() {
 		// REASON: AGC must receive raw dynamic spectrum to function properly
 		// Pre-normalization crushes dynamic range before AGC can process it
 
-		// Store RAW spectrum data (no normalization applied)
-		for (uint16_t i = 0; i < NUM_FREQS; i++) {
-			spectrogram[i] = magnitudes_smooth[i];
-		}
+			// Store RAW spectrum data (no normalization applied)
+			for (uint16_t i = 0; i < NUM_FREQS; i++) {
+				spectrogram[i] = magnitudes_smooth[i];
+			}
 
 		// Build spectrogram_smooth[] from PREVIOUS AGC-processed frames
 		for(uint16_t i = 0; i < NUM_FREQS; i++){
@@ -540,22 +540,13 @@ void calculate_magnitudes() {
 			spectrogram_smooth[i] /= float(NUM_SPECTROGRAM_AVERAGE_SAMPLES);
 		}
 
-		// TRACE POINT 3: Averaging output (COMMENTED - re-enable for debugging)
-		/*
-		if (++trace_counter_avg % 100 == 0) {
-			trace_smooth_bins[0] = spectrogram_smooth[0];
-			trace_smooth_bins[1] = spectrogram_smooth[32];
-			trace_smooth_bins[2] = spectrogram_smooth[63];
-			trace_spect32 = spectrogram[32];
-		}
-		*/
-
-		// EMOTISCOPE: No AGC processing (auto-ranger handles all normalization)
-		// spectrogram[] already contains normalized values from auto-ranger
-		// Just copy to spectrogram_smooth[] for pattern access
-		for (uint16_t i = 0; i < NUM_FREQS; i++) {
-			spectrogram_smooth[i] = spectrogram[i];
-		}
+			// TRACE POINT 3: Averaging output (COMMENTED - re-enable for debugging)
+			// if (++trace_counter_avg % 100 == 0) {
+			// 	trace_smooth_bins[0] = spectrogram_smooth[0];
+			// 	trace_smooth_bins[1] = spectrogram_smooth[32];
+			// 	trace_smooth_bins[2] = spectrogram_smooth[63];
+			// 	trace_spect32 = spectrogram[32];
+			// }
 
 		// MICROPHONE GAIN APPLICATION (Simple linear gain multiplier)
 		// Apply user-configured microphone gain to all frequency bins

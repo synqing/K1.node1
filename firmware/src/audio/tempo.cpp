@@ -119,21 +119,27 @@ void init_tempo_goertzel_constants() {
         }
 
         // ====================================================================
-        // PHASE 0 FIX: Block size = 1-2 beat cycles, NOT frequency spacing
+        // EMOTISCOPE VERBATIM: Frequency-spacing based block size calculation
         // ====================================================================
-        // Block size should adapt to the beat period, not bin resolution
-        // One beat cycle = 1 / target_tempo_hz seconds
-        // At NOVELTY_LOG_HZ (50 Hz), convert to sample count
-        // Use 1.5x beat period for responsive but stable detection
-        float beat_period_samples = NOVELTY_LOG_HZ / tempi[i].target_tempo_hz;
-        uint32_t block_size_ideal = (uint32_t)(beat_period_samples * 1.5f);
-        
-        // Clamp to reasonable range [32, 512]
-        // Min: Need sufficient data for Goertzel computation
-        // Max: ~10 seconds of history, captures slow variations without aliasing
-        tempi[i].block_size = block_size_ideal;
-        if (tempi[i].block_size < 32) tempi[i].block_size = 32;
-        if (tempi[i].block_size > 512) tempi[i].block_size = 512;
+        // Block size = samples needed to distinguish this bin from neighbors
+        // Formula: NOVELTY_LOG_HZ / (max_neighbor_distance_hz * 0.5)
+        // Ensures adjacent bins have non-overlapping frequency response
+        float neighbor_left_distance_hz = fabsf(neighbor_left - tempi[i].target_tempo_hz);
+        float neighbor_right_distance_hz = fabsf(neighbor_right - tempi[i].target_tempo_hz);
+        float max_distance_hz = 0.0f;
+
+        if (neighbor_left_distance_hz > max_distance_hz) {
+            max_distance_hz = neighbor_left_distance_hz;
+        }
+        if (neighbor_right_distance_hz > max_distance_hz) {
+            max_distance_hz = neighbor_right_distance_hz;
+        }
+
+        tempi[i].block_size = static_cast<uint32_t>(NOVELTY_LOG_HZ / (max_distance_hz * 0.5f));
+
+        if (tempi[i].block_size >= NOVELTY_HISTORY_LENGTH) {
+            tempi[i].block_size = NOVELTY_HISTORY_LENGTH - 1;
+        }
 
         float k = floorf(0.5f + ((tempi[i].block_size * tempi[i].target_tempo_hz) / NOVELTY_LOG_HZ));
         float w = (2.0f * static_cast<float>(M_PI) * k) / tempi[i].block_size;
@@ -235,7 +241,8 @@ static void calculate_tempi_magnitudes(int16_t single_bin = -1) {
             //   - Cubic: 0.008 vs 1.0 (125x difference) - CRUSHING
             //   - Linear: 0.2 vs 1.0 (5x difference) - PRESERVES RATIO
             
-            tempi[i].magnitude = scaled_magnitude;  // Direct linear assignment
+            // EMOTISCOPE VERBATIM: Cubic scaling (x³) crushes competing peaks
+            tempi[i].magnitude = scaled_magnitude * scaled_magnitude * scaled_magnitude;  // Direct linear assignment
         }
     }, __func__);
 }
@@ -261,21 +268,25 @@ static void normalize_novelty_curve() {
 
 void update_tempo() {
     profile_function([&]() {
-        static uint16_t calc_bin = 0;
+        static uint32_t iter = 0;
+        iter++;
 
         normalize_novelty_curve();
 
-        uint16_t max_bin = static_cast<uint16_t>((NUM_TEMPI - 1) * MAX_TEMPO_RANGE);
-        // Process multiple bins per call to keep visuals responsive (EMOTISCOPE: 2 bins/frame, K1: 8 bins/frame)
-        const uint16_t stride = 8;  // bins per frame
-        for (uint16_t k = 0; k < stride; ++k) {
-            uint16_t bin = calc_bin + k;
-            if (bin >= max_bin) break;
-            calculate_tempi_magnitudes((int16_t)bin);
+        static uint16_t calc_bin = 0;
+        uint16_t max_bin = (NUM_TEMPI - 1) * MAX_TEMPO_RANGE;
+
+        if(iter % 2 == 0){
+            calculate_tempi_magnitudes(calc_bin+0);
+        }
+        else{
+            calculate_tempi_magnitudes(calc_bin+1);
         }
 
-        calc_bin = (uint16_t)(calc_bin + stride);
-        if (calc_bin >= max_bin) calc_bin = 0;
+        calc_bin+=2;
+        if (calc_bin >= max_bin) {
+            calc_bin = 0;
+        }
 
         // DEBUG: Print every 3.3 seconds (330 frames @ 100 FPS) - Gated by 't' keystroke
         extern bool tempo_debug_enabled;

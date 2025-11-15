@@ -93,10 +93,10 @@ typedef struct {
 // Audio data payload - non-atomic data only (safe for memcpy)
 // Separated from atomic sequence counters to prevent undefined behavior
 typedef struct {
-	// Frequency spectrum data (64 bins covering ~50Hz to 6.4kHz)
-	float spectrogram[NUM_FREQS];           // Raw frequency magnitudes (0.0-1.0)
-	float spectrogram_smooth[NUM_FREQS];    // Smoothed spectrum (8-sample average)
-	float spectrogram_absolute[NUM_FREQS];   // Pre-normalized spectrum (absolute loudness)
+		// Frequency spectrum data (64 bins covering ~50Hz to 6.4kHz)
+		float spectrogram[NUM_FREQS];           // Raw frequency magnitudes (0.0-1.0)
+		float spectrogram_smooth[NUM_FREQS];    // Smoothed spectrum (multi-frame average)
+		float spectrogram_absolute[NUM_FREQS];   // Pre-normalized spectrum (absolute loudness)
 
 	// Musical note energy (12 pitch classes: C, C#, D, D#, E, F, F#, G, G#, A, A#, B)
 	float chromagram[12];                   // Chroma energy distribution
