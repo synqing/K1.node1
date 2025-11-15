@@ -45,14 +45,11 @@
 #define I2S_DIN_PIN   13  // DIN (Data In / DOUT from microphone)
 
 // ============================================================================
-// AUDIO CONFIGURATION: 16kHz, 128-chunk (8ms cadence)
+// AUDIO CONFIGURATION (centralized in audio_config.h)
 // ============================================================================
-// Chunk duration: 128 samples / 16000 Hz = 8ms
-// This aligns with ring buffer and Goertzel FFT processing cadence
+// Design baseline: 16kHz, 128-sample chunks (~8ms visual window)
+// Current runtime: AUDIO_SAMPLE_RATE_HZ / AUDIO_CHUNK_SIZE (see audio_config.h)
 #include "audio_config.h"
-
-#define CHUNK_SIZE  AUDIO_CHUNK_SIZE
-#define SAMPLE_RATE AUDIO_SAMPLE_RATE_HZ
 
 #define SAMPLE_HISTORY_LENGTH 4096
 

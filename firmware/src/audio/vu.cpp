@@ -37,10 +37,10 @@ void init_vu() {
 void run_vu() {
     profile_function([&]() {
         static float max_amplitude_cap = 0.0000001f;
-        float* samples = &sample_history[(SAMPLE_HISTORY_LENGTH - 1) - CHUNK_SIZE];
+        float* samples = &sample_history[(SAMPLE_HISTORY_LENGTH - 1) - AUDIO_CHUNK_SIZE];
 
         float max_amplitude_now = 0.000001f;
-        for (uint16_t i = 0; i < CHUNK_SIZE; i++) {
+        for (uint16_t i = 0; i < AUDIO_CHUNK_SIZE; i++) {
             float sample_abs = std::fabs(samples[i]);
             max_amplitude_now = fmaxf(max_amplitude_now, sample_abs * sample_abs);
         }

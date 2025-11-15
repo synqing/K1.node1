@@ -232,8 +232,8 @@ void commit_audio_data() {
 }
 
 void init_goertzel(uint16_t frequency_slot, float frequency, float bandwidth) {
-	// Calculate the block size based on the desired bandwidth
-	frequencies_musical[frequency_slot].block_size = SAMPLE_RATE / (bandwidth);
+		// Calculate the block size based on the desired bandwidth
+		frequencies_musical[frequency_slot].block_size = AUDIO_SAMPLE_RATE_HZ / (bandwidth);
 
 	// Adjust the block size to be divisible by 4
 	while (frequencies_musical[frequency_slot].block_size % 4 != 0) {
@@ -252,7 +252,7 @@ void init_goertzel(uint16_t frequency_slot, float frequency, float bandwidth) {
 	frequencies_musical[frequency_slot].window_step = 4096.0 / frequencies_musical[frequency_slot].block_size;
 
 	// Calculate the coefficients for the goertzel algorithm
-	float k = (int)(0.5 + ((frequencies_musical[frequency_slot].block_size * frequencies_musical[frequency_slot].target_freq) / SAMPLE_RATE));
+	float k = (int)(0.5 + ((frequencies_musical[frequency_slot].block_size * frequencies_musical[frequency_slot].target_freq) / AUDIO_SAMPLE_RATE_HZ));
 	float w = (2.0 * PI * k) / frequencies_musical[frequency_slot].block_size;
 	float cosine = cos(w);
 	float sine = sin(w);

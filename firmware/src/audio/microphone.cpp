@@ -42,7 +42,7 @@ void init_i2s_microphone() {
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, NULL, &rx_handle));
 
     i2s_std_config_t std_cfg = {
-        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
+        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(AUDIO_SAMPLE_RATE_HZ),
         .slot_cfg = {
             .data_bit_width = I2S_DATA_BIT_WIDTH_32BIT,
             .slot_bit_width = I2S_SLOT_BIT_WIDTH_32BIT,
@@ -80,7 +80,7 @@ static constexpr i2s_port_t I2S_PORT = I2S_NUM_0;
 void init_i2s_microphone() {
     i2s_config_t i2s_config = {};
     i2s_config.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX);
-    i2s_config.sample_rate = SAMPLE_RATE;
+    i2s_config.sample_rate = AUDIO_SAMPLE_RATE_HZ;
     i2s_config.bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT;
     i2s_config.channel_format = I2S_CHANNEL_FMT_ONLY_RIGHT;
     #ifdef I2S_COMM_FORMAT_STAND_I2S
@@ -90,7 +90,7 @@ void init_i2s_microphone() {
     #endif
     i2s_config.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1;
     i2s_config.dma_buf_count = 8;
-    i2s_config.dma_buf_len = CHUNK_SIZE;
+    i2s_config.dma_buf_len = AUDIO_CHUNK_SIZE;
     i2s_config.use_apll = false;
     i2s_config.tx_desc_auto_clear = false;
     i2s_config.fixed_mclk = 0;
@@ -106,15 +106,15 @@ void init_i2s_microphone() {
     pin_cfg.data_out_num = I2S_PIN_NO_CHANGE;
     pin_cfg.data_in_num = I2S_DIN_PIN;
     ESP_ERROR_CHECK(i2s_set_pin(I2S_PORT, &pin_cfg));
-    ESP_ERROR_CHECK(i2s_set_clk(I2S_PORT, SAMPLE_RATE, I2S_BITS_PER_SAMPLE_32BIT, I2S_CHANNEL_STEREO));
+    ESP_ERROR_CHECK(i2s_set_clk(I2S_PORT, AUDIO_SAMPLE_RATE_HZ, I2S_BITS_PER_SAMPLE_32BIT, I2S_CHANNEL_STEREO));
 }
 
 #endif  // MICROPHONE_USE_NEW_I2S
 
 void acquire_sample_chunk() {
     profile_function([&]() {
-        uint32_t new_samples_raw[CHUNK_SIZE];
-        float new_samples[CHUNK_SIZE];
+        uint32_t new_samples_raw[AUDIO_CHUNK_SIZE];
+        float new_samples[AUDIO_CHUNK_SIZE];
 
         // ====================================================================
         // PHASE 0: I2S TIMEOUT PROTECTION & RECOVERY
@@ -132,13 +132,13 @@ void acquire_sample_chunk() {
 #if MICROPHONE_USE_NEW_I2S
             i2s_result = i2s_channel_read(rx_handle,
                                           new_samples_raw,
-                                          CHUNK_SIZE * sizeof(uint32_t),
+                                          AUDIO_CHUNK_SIZE * sizeof(uint32_t),
                                           &bytes_read,
                                           pdMS_TO_TICKS(100));  // CRITICAL: 100ms max
 #else
             i2s_result = i2s_read(I2S_PORT,
                                    new_samples_raw,
-                                   CHUNK_SIZE * sizeof(uint32_t),
+                                   AUDIO_CHUNK_SIZE * sizeof(uint32_t),
                                    &bytes_read,
                                    pdMS_TO_TICKS(100));  // CRITICAL: 100ms max
 #endif
@@ -204,7 +204,7 @@ void acquire_sample_chunk() {
         }
 
         // Convert raw samples to float with silence fallback support
-        for (uint16_t i = 0; i < CHUNK_SIZE; i += 4) {
+        for (uint16_t i = 0; i < AUDIO_CHUNK_SIZE; i += 4) {
             if (use_silence_fallback || i2s_timeout_state.in_fallback_mode) {
                 // FALLBACK: output silence (zeros)
                 new_samples[i + 0] = 0.0f;
@@ -220,24 +220,24 @@ void acquire_sample_chunk() {
             }
         }
 
-        dsps_mulc_f32(new_samples, new_samples, CHUNK_SIZE, recip_scale, 1, 1);
+        dsps_mulc_f32(new_samples, new_samples, AUDIO_CHUNK_SIZE, recip_scale, 1, 1);
 
-        // TRACE POINT 1: I2S Input Validation - Check if audio data is entering pipeline
+        // TRACE POINT 1: I2S Input (COMMENTED - re-enable for debugging)
+        /*
         static uint32_t trace_counter_i2s = 0;
-        if (++trace_counter_i2s % 100 == 0) {  // Log every 100 frames (~1 second)
-            do {
-                LOG_INFO(TAG_TRACE, "[PT1-I2S] samples[0-4]=%.6f %.6f %.6f %.6f %.6f | fallback=%d active=%d",
-                    new_samples[0], new_samples[1], new_samples[2], new_samples[3], new_samples[4],
-                    use_silence_fallback, i2s_timeout_state.in_fallback_mode);
-            } while(0);
+        if (++trace_counter_i2s % 100 == 0) {
+            LOG_INFO(TAG_TRACE, "[PT1-I2S] samples[0-4]=%.6f %.6f %.6f %.6f %.6f | fallback=%d active=%d",
+                new_samples[0], new_samples[1], new_samples[2], new_samples[3], new_samples[4],
+                use_silence_fallback, i2s_timeout_state.in_fallback_mode);
         }
+        */
 
         // Compute absolute-average VU for downstream consumers
         float chunk_vu = 0.0f;
-        for (uint16_t i = 0; i < CHUNK_SIZE; ++i) {
+        for (uint16_t i = 0; i < AUDIO_CHUNK_SIZE; ++i) {
             chunk_vu += fabsf(new_samples[i]);
         }
-        chunk_vu /= static_cast<float>(CHUNK_SIZE);
+        chunk_vu /= static_cast<float>(AUDIO_CHUNK_SIZE);
 
         // If audio reactivity is active and we have a non-silent chunk, mark input as active
         // Heuristic value based on observed silence VU of 1-5
@@ -257,7 +257,7 @@ void acquire_sample_chunk() {
         audio_level = smooth_audio_level;
 
         waveform_locked = true;
-        shift_and_copy_arrays(sample_history, SAMPLE_HISTORY_LENGTH, new_samples, CHUNK_SIZE);
+        shift_and_copy_arrays(sample_history, SAMPLE_HISTORY_LENGTH, new_samples, AUDIO_CHUNK_SIZE);
 
         waveform_locked = false;
         waveform_sync_flag = true;
