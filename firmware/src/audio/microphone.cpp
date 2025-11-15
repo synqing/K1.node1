@@ -222,15 +222,13 @@ void acquire_sample_chunk() {
 
         dsps_mulc_f32(new_samples, new_samples, AUDIO_CHUNK_SIZE, recip_scale, 1, 1);
 
-        // TRACE POINT 1: I2S Input (COMMENTED - re-enable for debugging)
-        /*
+        // TRACE POINT 1: I2S Input Validation
         static uint32_t trace_counter_i2s = 0;
         if (++trace_counter_i2s % 100 == 0) {
             LOG_INFO(TAG_TRACE, "[PT1-I2S] samples[0-4]=%.6f %.6f %.6f %.6f %.6f | fallback=%d active=%d",
                 new_samples[0], new_samples[1], new_samples[2], new_samples[3], new_samples[4],
                 use_silence_fallback, i2s_timeout_state.in_fallback_mode);
         }
-        */
 
         // Compute absolute-average VU for downstream consumers
         float chunk_vu = 0.0f;

@@ -1011,15 +1011,15 @@ void setup() {
 
     // Create GPU/Visual task on Core 1
 #ifdef DYNAMIC_LED_CHANNELS
-    // Phase 0: VisualScheduler parity mode (uses channel A only, falls back to global RMT handles)
+    // VisualScheduler dual-channel mode (A/B mapping to primary/secondary RMT)
     static RenderChannel g_channel_a;
     static RenderChannel g_channel_b;
     static RenderChannel* g_channels[2] = { &g_channel_a, &g_channel_b };
-    // Bind per-channel RMT handles and shared encoder
-    g_channel_a.tx_handle = tx_chan_a ? tx_chan_a : tx_chan; // alias safe
-    g_channel_b.tx_handle = tx_chan_b ? tx_chan_b : tx_chan; // fallback to A if B missing
+    // Bind per-channel RMT handles and encoders
+    g_channel_a.tx_handle = tx_chan;
+    g_channel_b.tx_handle = tx_chan_2 ? tx_chan_2 : tx_chan; // fallback to primary if secondary missing
     g_channel_a.encoder   = led_encoder;
-    g_channel_b.encoder   = led_encoder;
+    g_channel_b.encoder   = led_encoder_2 ? led_encoder_2 : led_encoder;
     BaseType_t gpu_result = xTaskCreatePinnedToCore(
         visual_scheduler,   // Task function
         "visual_sched",     // Task name

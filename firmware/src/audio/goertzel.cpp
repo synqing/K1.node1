@@ -389,8 +389,7 @@ float calculate_magnitude_of_bin(uint16_t bin_number) {
 		progress *= progress;
 		scale = (progress * 0.995) + 0.005;
 
-		// TRACE POINT 2: Goertzel Calculation Output (COMMENTED - re-enable for debugging)
-		/*
+		// TRACE POINT 2: Goertzel Calculation Output
 		if (bin_number == 32) {
 			static uint32_t trace_counter_goertzel = 0;
 			if (++trace_counter_goertzel % 100 == 0) {
@@ -401,7 +400,6 @@ float calculate_magnitude_of_bin(uint16_t bin_number) {
 					sample_history[SAMPLE_HISTORY_LENGTH - 1 - block_size + 2]);
 			}
 		}
-		*/
 
 	}, __func__ );
 
@@ -603,12 +601,10 @@ void calculate_magnitudes() {
 		// NOTE: VU level calculation has been moved BEFORE auto-ranging (see lines 469-481)
 		// This ensures VU reflects absolute loudness, not normalized spectrum energy
 
-		// TRACE POINT 5: Final output (COMMENTED - re-enable for debugging)
-		/*
+		// TRACE POINT 5: Final output
 		if (++trace_counter_final % 100 == 0) {
 			trace_vu = vu_level_calculated;
 		}
-		*/
 
 		// PHASE 1: Copy spectrum data to audio_back buffer for thread-safe access
 		if (audio_sync_initialized) {
@@ -642,18 +638,11 @@ void calculate_magnitudes() {
 	}, __func__ );
 	___();
 
-	// TRACE LOGGING (COMMENTED - re-enable by uncommenting these blocks + trace capture points above)
-	/*
+	// TRACE LOGGING
 	if (trace_counter_avg % 100 == 0 && trace_counter_avg > 0) {
 		LOG_INFO(TAG_TRACE, "[PT3-AVERAGE] smooth[0,32,63]=%.6f %.6f %.6f | raw[32]=%.6f avg_idx=%d",
 			trace_smooth_bins[0], trace_smooth_bins[1], trace_smooth_bins[2],
 			trace_spect32, spectrogram_average_index);
-	}
-	if (trace_counter_agc % 100 == 0 && trace_counter_agc > 0) {
-		LOG_INFO(TAG_TRACE, "[PT4-AGC] IN[0,32,63]=%.6f %.6f %.6f | OUT[0,32,63]=%.6f %.6f %.6f | enabled=%d",
-			trace_agc_input[0], trace_agc_input[1], trace_agc_input[2],
-			spectrogram_smooth[0], spectrogram_smooth[32], spectrogram_smooth[63],
-			(g_cochlear_agc != nullptr));
 	}
 	if (trace_counter_final % 100 == 0 && trace_counter_final > 0) {
 		LOG_INFO(TAG_TRACE, "[PT5-FINAL] PRE-COMMIT: spect[32]=%.6f smooth[32]=%.6f VU=%.6f",
@@ -661,7 +650,6 @@ void calculate_magnitudes() {
 		LOG_INFO(TAG_TRACE, "[PT5b-COPIED] audio_back[32]=%.6f audio_back.vu=%.6f",
 			audio_back.payload.spectrogram[32], audio_back.payload.vu_level);
 	}
-	*/
 }
 
 void start_noise_calibration() {
