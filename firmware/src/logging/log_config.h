@@ -33,6 +33,7 @@
 #define TAG_MEMORY      'M'
 #define TAG_PROFILE     'P'
 #define TAG_ONSET       'O'
+#define TAG_TRACE       'X'  // Diagnostic data flow tracing
 
 // ============================================================================
 // TAG ENABLE/DISABLE - Runtime filtering (optional, adds ~100 bytes RAM)
@@ -58,6 +59,7 @@
   #define COLOR_TAG     "\033[96m"  // Bright cyan
   #define COLOR_TIME    "\033[90m"  // Dark gray
   #define COLOR_BPM     "\033[1;33m"  // Bold gold/bright yellow (for BPM highlighting)
+  #define COLOR_PATTERN "\033[1;31m"  // Bold RED (for pattern index highlighting - very visible)
   #define COLOR_RESET   "\033[0m"   // Reset
 #else
   #define COLOR_ERROR   ""
@@ -67,6 +69,7 @@
   #define COLOR_TAG     ""
   #define COLOR_TIME    ""
   #define COLOR_BPM     ""
+  #define COLOR_PATTERN ""
   #define COLOR_RESET   ""
 #endif
 

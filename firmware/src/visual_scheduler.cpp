@@ -17,6 +17,14 @@ static const char TAG_SCHED = 'V';  // Visual scheduler tag
 
 // Forward decls for local helpers
 static inline void quantize_frame(RenderChannel& ch, const PatternParameters& params) {
+    // EMOTISCOPE VERBATIM: Apply gamma correction (gamma 2.0 = square)
+    // This must happen BEFORE brightness scaling
+    for (uint16_t i = 0; i < NUM_LEDS; ++i) {
+        ch.frame[i].r = ch.frame[i].r * ch.frame[i].r;  // Gamma 2.0
+        ch.frame[i].g = ch.frame[i].g * ch.frame[i].g;
+        ch.frame[i].b = ch.frame[i].b * ch.frame[i].b;
+    }
+
     // Local quantize replica using channel-local dither step
     const bool temporal_dithering = (params.dithering >= 0.5f);
     const float brightness_scale = (params.brightness) * 255.0f;

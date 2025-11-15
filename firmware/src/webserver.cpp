@@ -418,15 +418,15 @@ public:
             // This ensures UI patterns see AUDIO_IS_AVAILABLE() == false right away
             if (!active) {
                 // Zero out and mark back buffer invalid, then commit
-                memset(audio_back.spectrogram, 0, sizeof(float) * NUM_FREQS);
-                memset(audio_back.spectrogram_smooth, 0, sizeof(float) * NUM_FREQS);
-                memset(audio_back.chromagram, 0, sizeof(float) * 12);
-                audio_back.vu_level = 0.0f;
-                audio_back.vu_level_raw = 0.0f;
-                memset(audio_back.tempo_magnitude, 0, sizeof(float) * NUM_TEMPI);
-                memset(audio_back.tempo_phase, 0, sizeof(float) * NUM_TEMPI);
-                audio_back.is_valid = false;
-                audio_back.timestamp_us = esp_timer_get_time();
+                memset(audio_back.payload.spectrogram, 0, sizeof(float) * NUM_FREQS);
+                memset(audio_back.payload.spectrogram_smooth, 0, sizeof(float) * NUM_FREQS);
+                memset(audio_back.payload.chromagram, 0, sizeof(float) * 12);
+                audio_back.payload.vu_level = 0.0f;
+                audio_back.payload.vu_level_raw = 0.0f;
+                memset(audio_back.payload.tempo_magnitude, 0, sizeof(float) * NUM_TEMPI);
+                memset(audio_back.payload.tempo_phase, 0, sizeof(float) * NUM_TEMPI);
+                audio_back.payload.is_valid = false;
+                audio_back.payload.timestamp_us = esp_timer_get_time();
                 commit_audio_data();
             }
         }
@@ -1054,7 +1054,7 @@ public:
         // Find top 5 tempo bins from SYNCHRONIZED snapshot data
         if (audio_valid) {
             for (uint16_t i = 0; i < NUM_TEMPI; ++i) {
-                float mag = snapshot.tempo_magnitude[i];  // READ FROM SNAPSHOT, not tempi_smooth
+                float mag = snapshot.payload.tempo_magnitude[i];  // READ FROM SNAPSHOT, not tempi_smooth
                 for (uint8_t k = 0; k < K; ++k) {
                     if (mag > top[k].mag) {
                         for (int j = K-1; j > k; --j) top[j] = top[j-1];
@@ -1091,9 +1091,9 @@ public:
             JsonObject b = top_bins.createNestedObject();
             b["idx"] = idx;
             b["bpm"] = tempi_bpm_values_hz[idx] * 60.0f;
-            b["magnitude"] = audio_valid ? snapshot.tempo_magnitude[idx] : 0.0f;  // READ FROM SNAPSHOT
-            b["phase"] = audio_valid ? snapshot.tempo_phase[idx] : 0.0f;           // READ FROM SNAPSHOT
-            b["beat"] = audio_valid ? sinf(snapshot.tempo_phase[idx]) : 0.0f;       // Compute beat from phase
+            b["magnitude"] = audio_valid ? snapshot.payload.tempo_magnitude[idx] : 0.0f;  // READ FROM SNAPSHOT
+            b["phase"] = audio_valid ? snapshot.payload.tempo_phase[idx] : 0.0f;           // READ FROM SNAPSHOT
+            b["beat"] = audio_valid ? sinf(snapshot.payload.tempo_phase[idx]) : 0.0f;       // Compute beat from phase
         }
         String output;
         serializeJson(resp, output);
@@ -1209,7 +1209,7 @@ public:
         if (include_chromagram) {
             JsonArray chroma_out = resp.createNestedArray("chromagram");
             for (uint16_t i = 0; i < 12; ++i) {
-                chroma_out.add(audio_back.chromagram[i]);
+                chroma_out.add(audio_back.payload.chromagram[i]);
             }
         }
 
@@ -1279,8 +1279,8 @@ public:
         resp["memory_free_kb"] = (uint32_t)(ESP.getFreeHeap()/1024);
         resp["beat_events_count"] = beat_events_count();
         resp["tempo_confidence"] = tempo_confidence;
-        resp["audio_update_counter"] = audio_back.update_counter;
-        resp["audio_timestamp_us"] = audio_back.timestamp_us;
+        resp["audio_update_counter"] = audio_back.payload.update_counter;
+        resp["audio_timestamp_us"] = audio_back.payload.timestamp_us;
         String output;
         serializeJson(resp, output);
         ctx.sendJson(200, output);
@@ -1293,12 +1293,12 @@ public:
     GetAudioSnapshotHandler() : K1RequestHandler(ROUTE_AUDIO_SNAPSHOT, ROUTE_GET) {}
     void handle(RequestContext& ctx) override {
         StaticJsonDocument<256> resp;
-        resp["vu_level"] = audio_back.vu_level;
-        resp["vu_level_raw"] = audio_back.vu_level_raw;
-        resp["tempo_confidence"] = audio_back.tempo_confidence;
-        resp["update_counter"] = audio_back.update_counter;
-        resp["timestamp_us"] = audio_back.timestamp_us;
-        resp["is_valid"] = audio_back.is_valid;
+        resp["vu_level"] = audio_back.payload.vu_level;
+        resp["vu_level_raw"] = audio_back.payload.vu_level_raw;
+        resp["tempo_confidence"] = audio_back.payload.tempo_confidence;
+        resp["update_counter"] = audio_back.payload.update_counter;
+        resp["timestamp_us"] = audio_back.payload.timestamp_us;
+        resp["is_valid"] = audio_back.payload.is_valid;
         String output;
         serializeJson(resp, output);
         ctx.sendJson(200, output);
@@ -2000,11 +2000,11 @@ void broadcast_realtime_data() {
     
     // Audio data
     JsonObject audio = doc.createNestedObject("audio");
-    audio["vu_level"] = audio_back.vu_level;
-    audio["vu_level_raw"] = audio_back.vu_level_raw;
-    audio["tempo_confidence"] = audio_back.tempo_confidence;
-    audio["locked_tempo_bpm"] = audio_back.locked_tempo_bpm;
-    audio["tempo_lock_state"] = get_tempo_lock_state_string(audio_back.tempo_lock_state);
+    audio["vu_level"] = audio_back.payload.vu_level;
+    audio["vu_level_raw"] = audio_back.payload.vu_level_raw;
+    audio["tempo_confidence"] = audio_back.payload.tempo_confidence;
+    audio["locked_tempo_bpm"] = audio_back.payload.locked_tempo_bpm;
+    audio["tempo_lock_state"] = get_tempo_lock_state_string(audio_back.payload.tempo_lock_state);
     
     // Current parameters (full set for real-time updates)
     const PatternParameters& params = get_params();

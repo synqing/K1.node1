@@ -34,7 +34,8 @@
 // ============================================================================
 
 // Audio sample buffer
-#define SAMPLE_RATE 16000
+#include "audio_config.h"
+#define SAMPLE_RATE           AUDIO_SAMPLE_RATE_HZ
 #define SAMPLE_HISTORY_LENGTH 4096
 
 #define TWOPI   6.28318530
@@ -46,7 +47,7 @@
 // Frequency analysis configuration
 #define NUM_FREQS 64
 
-#define BOTTOM_NOTE 24	// THESE ARE IN QUARTER-STEPS, NOT HALF-STEPS! That's 24 notes to an octave
+#define BOTTOM_NOTE 12	// EMOTISCOPE VERBATIM: Quarter-step 12 = 58.27 Hz (restores low bass 58-116 Hz)
 #define NOTE_STEP 2 // Use half-steps anyways
 
 // Tempo detection configuration (50-150 BPM range, 0.78 BPM/bin resolution)
@@ -89,15 +90,9 @@ typedef struct {
 	uint32_t block_size;                    // Goertzel block size (samples)
 } tempo;
 
-// Audio data snapshot for synchronization between cores
-// Used in double-buffered audio processing with sequence counter synchronization
+// Audio data payload - non-atomic data only (safe for memcpy)
+// Separated from atomic sequence counters to prevent undefined behavior
 typedef struct {
-	// SYNCHRONIZATION: Sequence counter for torn read detection
-	// Reader checks sequence before and after copy - if different, retry
-	// Writer increments sequence before and after write
-	// Uses relaxed ordering since memory barriers are explicit via __sync_synchronize()
-	std::atomic<uint32_t> sequence{0};      // Sequence number (even = valid, odd = writing)
-
 	// Frequency spectrum data (64 bins covering ~50Hz to 6.4kHz)
 	float spectrogram[NUM_FREQS];           // Raw frequency magnitudes (0.0-1.0)
 	float spectrogram_smooth[NUM_FREQS];    // Smoothed spectrum (8-sample average)
@@ -126,10 +121,28 @@ typedef struct {
 	uint32_t update_counter;                // Increments with each audio frame
 	uint32_t timestamp_us;                  // Microsecond timestamp (esp_timer)
 	bool is_valid;                          // True if data has been written at least once
+} AudioDataPayload;
+
+// Sequenced audio buffer - atomic sequence counters + data payload
+// Used for lock-free dual-core synchronization (Core 0 audio writes, Core 1 GPU reads)
+// CRITICAL: Atomics are NEVER copied with memcpy (undefined behavior)
+typedef struct {
+	// SYNCHRONIZATION: Sequence counter for torn read detection
+	// Seqlock protocol:
+	//   - Writer: Increment to ODD (signal writing), update payload, increment to EVEN (signal complete)
+	//   - Reader: Read sequence, copy payload, verify sequence unchanged and EVEN
+	// Uses memory_order_acquire/release for ESP32-S3 dual-core cache coherency
+	std::atomic<uint32_t> sequence{0};      // Sequence number (even = valid, odd = writing)
+
+	// Data payload (non-atomic, safe for memcpy)
+	AudioDataPayload payload;
 
 	// SYNCHRONIZATION: End sequence counter for validation
 	std::atomic<uint32_t> sequence_end{0};  // Must match sequence for valid read
-} AudioDataSnapshot;
+} SequencedAudioBuffer;
+
+// Legacy type alias for compatibility
+typedef SequencedAudioBuffer AudioDataSnapshot;
 
 // ============================================================================
 // GLOBAL AUDIO DATA (DEFINITIONS)
@@ -174,7 +187,7 @@ extern int audio_recording_index;
 extern int16_t audio_debug_recording[MAX_AUDIO_RECORDING_SAMPLES];
 
 // Spectrogram averaging
-#define NUM_SPECTROGRAM_AVERAGE_SAMPLES 8
+#define NUM_SPECTROGRAM_AVERAGE_SAMPLES 12  // EMOTISCOPE VERBATIM (was 8)
 extern float spectrogram_average[NUM_SPECTROGRAM_AVERAGE_SAMPLES][NUM_FREQS];
 extern uint8_t spectrogram_average_index;
 
@@ -256,17 +269,6 @@ inline void save_config() {}
 inline void save_noise_spectrum() {}
 inline void save_audio_debug_recording() {}
 
-// Inline stub for ESP-DSP function
-inline void dsps_mulc_f32(float* src, float* dest, int length, float multiplier, int stride_src, int stride_dest) {
-	for (int i = 0; i < length; i++) {
-		dest[i * stride_dest] = src[i * stride_src] * multiplier;
-	}
-}
-
-// Inline utility: array shift
-inline void shift_and_copy_arrays(float* dest, int dest_len, float* src, int src_len) {
-	memmove(dest, dest + src_len, (dest_len - src_len) * sizeof(float));
-	memcpy(dest + (dest_len - src_len), src, src_len * sizeof(float));
-}
+// ESP-DSP stubs removed - use proper wrappers from dsps_helpers.h instead
 
 #endif  // GOERTZEL_H

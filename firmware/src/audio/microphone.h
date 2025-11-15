@@ -49,8 +49,10 @@
 // ============================================================================
 // Chunk duration: 128 samples / 16000 Hz = 8ms
 // This aligns with ring buffer and Goertzel FFT processing cadence
-#define CHUNK_SIZE 128
-#define SAMPLE_RATE 16000
+#include "audio_config.h"
+
+#define CHUNK_SIZE  AUDIO_CHUNK_SIZE
+#define SAMPLE_RATE AUDIO_SAMPLE_RATE_HZ
 
 #define SAMPLE_HISTORY_LENGTH 4096
 
@@ -82,6 +84,16 @@ extern I2STimeoutState i2s_timeout_state;
 #if MICROPHONE_USE_NEW_I2S
 extern i2s_chan_handle_t rx_handle;
 #endif
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+// Shift array left and copy new data to the end
+inline void shift_and_copy_arrays(float* dest, int dest_len, float* src, int src_len) {
+    memmove(dest, dest + src_len, (dest_len - src_len) * sizeof(float));
+    memcpy(dest + (dest_len - src_len), src, src_len * sizeof(float));
+}
 
 // Public API
 void init_i2s_microphone();

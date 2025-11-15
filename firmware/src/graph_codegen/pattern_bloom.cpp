@@ -92,7 +92,7 @@ extern "C" void pattern_bloom_render(
     float share = 1.0f/6.0f;
     for (int i = 0; i < 12; ++i) {
         float prog = (float)i / 12.0f;
-        float bin = clip_float(audio.chromagram[i]);
+        float bin = clip_float(audio.payload.chromagram[i]);
         float v = bin * bin * share;
         CRGBF add = hsv_to_rgbf(prog, 1.0f, v);
         sum_color.r += add.r; sum_color.g += add.g; sum_color.b += add.b;
@@ -115,7 +115,7 @@ extern "C" void pattern_bloom_render(
         // Hue = chroma_val + hue_position + 0.05
         // chroma_val ~ dominant chroma hue
         int max_idx = 0; float max_val=-1.0f;
-        for (int i=0;i<12;++i){ if(audio.chromagram[i]>max_val){ max_val=audio.chromagram[i]; max_idx=i; } }
+        for (int i=0;i<12;++i){ if(audio.payload.chromagram[i]>max_val){ max_val=audio.payload.chromagram[i]; max_idx=i; } }
         float chroma_val = (float)max_idx / 12.0f;
         float hue_position = params.color;
         float led_hue = chroma_val + hue_position + 0.05f;

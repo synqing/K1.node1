@@ -8,6 +8,7 @@
 #include "vu.h"
 #include "validation/tempo_validation.h"
 #include "logging/logger.h"
+#include "../dsps_helpers.h"
 #include "tempo_enhanced.h"
 
 static const char* TAG = "TEMPO";
