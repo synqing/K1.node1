@@ -1,4 +1,5 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { PerformanceMetrics, EffectType } from '../../lib/types';
 import { generateHistoricalMetrics, EFFECTS } from '../../lib/mockData';
 import { LazyVisible } from '../common/LazyVisible';
@@ -46,20 +47,7 @@ export function ProfilingCharts({ selectedEffect, timeRange }: ProfilingChartsPr
     return null;
   };
   
-  // Lazily import Recharts primitives to defer heavy charts vendor
-  const LineChart = lazy(() => import('recharts').then(m => ({ default: m.LineChart })));
-  const Line = lazy(() => import('recharts').then(m => ({ default: m.Line })));
-  const AreaChart = lazy(() => import('recharts').then(m => ({ default: m.AreaChart })));
-  const Area = lazy(() => import('recharts').then(m => ({ default: m.Area })));
-  const BarChart = lazy(() => import('recharts').then(m => ({ default: m.BarChart })));
-  const Bar = lazy(() => import('recharts').then(m => ({ default: m.Bar })));
-  const XAxis = lazy(() => import('recharts').then(m => ({ default: m.XAxis })));
-  const YAxis = lazy(() => import('recharts').then(m => ({ default: m.YAxis })));
-  const CartesianGrid = lazy(() => import('recharts').then(m => ({ default: m.CartesianGrid })));
-  const Tooltip = lazy(() => import('recharts').then(m => ({ default: m.Tooltip })));
-  const Legend = lazy(() => import('recharts').then(m => ({ default: m.Legend })));
-  const ResponsiveContainer = lazy(() => import('recharts').then(m => ({ default: m.ResponsiveContainer })));
-  const ReferenceLine = lazy(() => import('recharts').then(m => ({ default: m.ReferenceLine })));
+  // Using static imports for Recharts primitives
 
   const chartFallback = <div className="h-[200px] w-full rounded bg-[var(--prism-bg-elevated)]/50" />;
 

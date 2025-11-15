@@ -57,11 +57,14 @@ String build_patterns_json() {
     for (uint16_t i = 0; i < g_num_patterns; i++) {
         const PatternInfo& info = g_pattern_registry[i];
         JsonObject pattern = patterns.createNestedObject();
+        pattern["index"] = i;
         pattern["name"] = info.name;
         pattern["id"] = info.id;
         pattern["description"] = info.description;
         pattern["audio_reactive"] = info.is_audio_reactive;
     }
+
+    doc["current_pattern"] = g_current_pattern_index;
 
     String output;
     serializeJson(doc, output);

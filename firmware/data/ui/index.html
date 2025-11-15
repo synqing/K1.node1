@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>K1.reinvented</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,7 +23,7 @@
             <span class="section-title">Controls</span>
             <div class="controls-grid">
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="brightness">
                         <span>Brightness</span>
                         <span class="control-value" id="brightness-val">1.00</span>
                     </label>
@@ -31,7 +31,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="softness">
                         <span>Softness</span>
                         <span class="control-value" id="softness-val">0.25</span>
                     </label>
@@ -39,7 +39,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="color">
                         <span>Color</span>
                         <span class="control-value" id="color-val">0.33</span>
                     </label>
@@ -47,16 +47,16 @@
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="color_range">
                         <span>Color Range</span>
                         <span class="control-value" id="color_range-val">0.00</span>
                     </label>
                     <input type="range" class="slider" id="color_range" min="0" max="1" step="0.01" value="0.0" oninput="updateDisplay('color_range')">
-                <div id="color-mode" class="mode-indicator" role="status" aria-live="polite" title="Color Range ≤ 0.5: HSV mode. Color Range > 0.5: Palette mode." data-mode="hsv">HSV Mode</div>
+                <output id="color-mode" class="mode-indicator" title="Color Range ≤ 0.5: HSV mode. Color Range > 0.5: Palette mode." data-mode="hsv">HSV Mode</output>
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="saturation">
                         <span>Saturation</span>
                         <span class="control-value" id="saturation-val">0.75</span>
                     </label>
@@ -64,7 +64,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="warmth">
                         <span>Warmth</span>
                         <span class="control-value" id="warmth-val">0.00</span>
                     </label>
@@ -72,7 +72,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="background">
                         <span>Background</span>
                         <span class="control-value" id="background-val">0.25</span>
                     </label>
@@ -80,7 +80,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="speed">
                         <span>Speed</span>
                         <span class="control-value" id="speed-val">0.50</span>
                     </label>
@@ -94,7 +94,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="microphone-gain">
                         <span>Microphone Gain</span>
                         <span class="control-value" id="microphone-gain-val">1.00x</span>
                     </label>
@@ -103,7 +103,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="palette-select">
                         <span>Palette</span>
                         <span class="loading-indicator" id="palette-loading" style="display: none; font-size: 10px; color: #999;">Loading...</span>
                     </label>
@@ -121,7 +121,7 @@
             <span class="section-title">WiFi Link Options</span>
             <div class="controls-grid">
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="bg-only">
                         <span>Force 802.11b/g (disable 11n)</span>
                         <span class="control-value" id="bg-only-val">—</span>
                     </label>
@@ -132,7 +132,7 @@
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">
+                    <label class="control-label" for="ht20">
                         <span>Force HT20 bandwidth (20 MHz)</span>
                         <span class="control-value" id="ht20-val">—</span>
                     </label>
@@ -140,6 +140,21 @@
                         <input type="checkbox" id="ht20" onchange="updateWifiLinkOptions()" />
                         <span class="toggle-label">HT20</span>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div>
+            <span class="section-title">WiFi Scan</span>
+            <div class="controls-grid">
+                <div class="control-group">
+                    <button class="btn" id="wifi-scan-button" onclick="startWifiScan()">Start Scan</button>
+                    <div id="wifi-scan-status" style="font-size: 12px; color: #999; margin-top: 6px;">Idle</div>
+                </div>
+                <div class="control-group">
+                    <div id="wifi-scan-results" style="font-size: 12px; white-space: pre-line;">No results yet</div>
                 </div>
             </div>
         </div>

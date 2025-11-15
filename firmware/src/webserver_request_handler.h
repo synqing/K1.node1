@@ -203,7 +203,7 @@ public:
         if (total > K1_MAX_REQUEST_BODY_SIZE) {
             auto *resp = request->beginResponse(413, "application/json",
                 "{\"error\":\"payload_too_large\",\"max_size\":" + String(K1_MAX_REQUEST_BODY_SIZE) + "}");
-            resp->addHeader("Content-Type", "application/json");
+            attach_cors_headers(resp);
             request->send(resp);
             return;
         }

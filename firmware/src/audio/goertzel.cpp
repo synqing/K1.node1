@@ -389,10 +389,11 @@ float calculate_magnitude_of_bin(uint16_t bin_number) {
 		progress *= progress;
 		scale = (progress * 0.995) + 0.005;
 
-		// TRACE POINT 2: Goertzel Calculation Output
+		// TRACE POINT 2: Goertzel Calculation Output (gated by audio_trace_enabled)
 		if (bin_number == 32) {
+			extern bool audio_trace_enabled;
 			static uint32_t trace_counter_goertzel = 0;
-			if (++trace_counter_goertzel % 100 == 0) {
+			if (audio_trace_enabled && ++trace_counter_goertzel % 100 == 0) {
 				LOG_INFO(TAG_TRACE, "[PT2-GOERTZEL] bin32: normalized_mag=%.6f scale=%.6f result=%.6f | history[0-2]=%.4f %.4f %.4f",
 					normalized_magnitude, scale, normalized_magnitude * scale,
 					sample_history[SAMPLE_HISTORY_LENGTH - 1 - block_size],
@@ -478,6 +479,11 @@ void calculate_magnitudes() {
 			}
 		}
 
+		// Preserve raw magnitudes for AUDIO_SPECTRUM_ABSOLUTE consumers
+		for (uint16_t i = 0; i < NUM_FREQS; i++) {
+			spectrogram_absolute[i] = magnitudes_smooth[i];
+		}
+
 		// EMOTISCOPE VERBATIM: Auto-ranger (IIR smoothed peak normalization)
 		static float max_val_smooth = 0.1f;
 
@@ -520,15 +526,6 @@ void calculate_magnitudes() {
 			}
 		}
 
-		// REMOVED: Auto-ranger normalization (max_val_smooth / autoranger_scale)
-		// REASON: AGC must receive raw dynamic spectrum to function properly
-		// Pre-normalization crushes dynamic range before AGC can process it
-
-			// Store RAW spectrum data (no normalization applied)
-			for (uint16_t i = 0; i < NUM_FREQS; i++) {
-				spectrogram[i] = magnitudes_smooth[i];
-			}
-
 		// Build spectrogram_smooth[] from PREVIOUS AGC-processed frames
 		for(uint16_t i = 0; i < NUM_FREQS; i++){
 			spectrogram_smooth[i] = 0;
@@ -550,9 +547,11 @@ void calculate_magnitudes() {
 		// Apply user-configured microphone gain to all frequency bins
 		// Range: 0.5x (-6dB) to 2.0x (+6dB), default 1.0x (0dB, no change)
 		// Note: Applied AFTER AGC so user can fine-tune the AGC output
+		const float mic_gain = configuration.microphone_gain;
 		for (uint16_t i = 0; i < NUM_FREQS; i++) {
-			spectrogram[i] = clip_float(spectrogram[i] * configuration.microphone_gain);
-			spectrogram_smooth[i] = clip_float(spectrogram_smooth[i] * configuration.microphone_gain);
+			spectrogram[i] = clip_float(spectrogram[i] * mic_gain);
+			spectrogram_smooth[i] = clip_float(spectrogram_smooth[i] * mic_gain);
+			spectrogram_absolute[i] = clip_float(spectrogram_absolute[i] * mic_gain);
 		}
 
 		// SAVE AGC-PROCESSED VALUES TO AVERAGING BUFFER (for next frame's spectrogram_smooth)
@@ -596,12 +595,12 @@ void calculate_magnitudes() {
 		vu_level_calculated *= 50.0f;  // Boost for quiet environments
 		#endif
 
-		audio_level = clip_float(vu_level_calculated);
+			audio_level = clip_float(vu_level_calculated);
 
-		// NOTE: VU level calculation has been moved BEFORE auto-ranging (see lines 469-481)
-		// This ensures VU reflects absolute loudness, not normalized spectrum energy
+			// NOTE: VU level calculation now uses normalized, smoothed spectrum energy
+			// This keeps VU aligned with what patterns see while preserving relative loudness
 
-		// TRACE POINT 5: Final output
+			// TRACE POINT 5: Final output
 		if (++trace_counter_final % 100 == 0) {
 			trace_vu = vu_level_calculated;
 		}
@@ -638,18 +637,21 @@ void calculate_magnitudes() {
 	}, __func__ );
 	___();
 
-	// TRACE LOGGING
-	if (trace_counter_avg % 100 == 0 && trace_counter_avg > 0) {
-		LOG_INFO(TAG_TRACE, "[PT3-AVERAGE] smooth[0,32,63]=%.6f %.6f %.6f | raw[32]=%.6f avg_idx=%d",
-			trace_smooth_bins[0], trace_smooth_bins[1], trace_smooth_bins[2],
-			trace_spect32, spectrogram_average_index);
-	}
-	if (trace_counter_final % 100 == 0 && trace_counter_final > 0) {
-		LOG_INFO(TAG_TRACE, "[PT5-FINAL] PRE-COMMIT: spect[32]=%.6f smooth[32]=%.6f VU=%.6f",
-			spectrogram[32], spectrogram_smooth[32], trace_vu);
-		LOG_INFO(TAG_TRACE, "[PT5b-COPIED] audio_back[32]=%.6f audio_back.vu=%.6f",
-			audio_back.payload.spectrogram[32], audio_back.payload.vu_level);
-	}
+		// TRACE LOGGING (gated by audio_trace_enabled)
+		extern bool audio_trace_enabled;
+		if (audio_trace_enabled) {
+			if (trace_counter_avg % 100 == 0 && trace_counter_avg > 0) {
+				LOG_INFO(TAG_TRACE, "[PT3-AVERAGE] smooth[0,32,63]=%.6f %.6f %.6f | raw[32]=%.6f avg_idx=%d",
+					trace_smooth_bins[0], trace_smooth_bins[1], trace_smooth_bins[2],
+					trace_spect32, spectrogram_average_index);
+			}
+			if (trace_counter_final % 100 == 0 && trace_counter_final > 0) {
+				LOG_INFO(TAG_TRACE, "[PT5-FINAL] PRE-COMMIT: spect[32]=%.6f smooth[32]=%.6f VU=%.6f",
+					spectrogram[32], spectrogram_smooth[32], trace_vu);
+				LOG_INFO(TAG_TRACE, "[PT5b-COPIED] audio_back[32]=%.6f audio_back.vu=%.6f",
+					audio_back.payload.spectrogram[32], audio_back.payload.vu_level);
+			}
+		}
 }
 
 void start_noise_calibration() {

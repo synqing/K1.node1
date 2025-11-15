@@ -838,6 +838,108 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/wifi/scan/results/json:
+    get:
+      tags: [WiFi]
+      summary: WiFi scan results (JSON)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WifiScanJson'
+
+  /api/wifi/ap-mode:
+    get:
+      tags: [WiFi]
+      summary: AP (captive portal) mode status
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ap_mode:
+                    type: boolean
+
+  /api/wifi/reassociate:
+    post:
+      tags: [WiFi]
+      summary: Trigger reassociation
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: OK
+
+  /api/wifi/tx-power:
+    post:
+      tags: [WiFi]
+      summary: Set TX power (dBm)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                power_dbm:
+                  type: number
+      responses:
+        '200':
+          description: Applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  applied_dbm: { type: number }
+
+  /api/wifi/power-save:
+    post:
+      tags: [WiFi]
+      summary: Toggle modem power save
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enable:
+                  type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  power_save: { type: boolean }
+
+  /api/wifi/metrics:
+    get:
+      tags: [WiFi]
+      summary: Basic WiFi metrics
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WifiMetrics'
+
 components:
   responses:
     BadRequest:
@@ -1201,3 +1303,27 @@ components:
           type: string
           minLength: 8
           maxLength: 64
+    WifiScanJson:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, complete, idle]
+        count:
+          type: integer
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              ssid: { type: string }
+              rssi_dbm: { type: integer }
+              auth_mode: { type: integer }
+
+    WifiMetrics:
+      type: object
+      properties:
+        ssid: { type: string }
+        rssi_dbm: { type: integer }
+        tx_power_dbm: { type: number }
+        connected: { type: boolean }

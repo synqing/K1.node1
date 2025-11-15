@@ -61,6 +61,21 @@ static const char* ROUTE_REALTIME_CONFIG = "/api/realtime/config";
 static const char* ROUTE_LED_FRAME = "/api/leds/frame";
 static const char* ROUTE_RMT = "/api/rmt";
 static const char* ROUTE_RMT_RESET = "/api/rmt/reset";
+static const char* ROUTE_REALTIME_PRESET = "/api/realtime/preset";
+static const char* ROUTE_WIFI_AP_MODE = "/api/wifi/ap-mode";
+static const char* ROUTE_WIFI_REASSOCIATE = "/api/wifi/reassociate";
+static const char* ROUTE_WIFI_SCAN_JSON = "/api/wifi/scan/results/json";
+static const char* ROUTE_WIFI_TX_POWER = "/api/wifi/tx-power";
+static const char* ROUTE_WIFI_POWER_SAVE = "/api/wifi/power-save";
+static const char* ROUTE_WIFI_METRICS = "/api/wifi/metrics";
+static const char* ROUTE_WIFI_CHANNEL = "/api/wifi/channel";
+static const char* ROUTE_WIFI_BAND_STEERING = "/api/wifi/band-steering";
+
+// Aliases and additional route keys
+static const char* ROUTE_DEVICE_INFO_ALIAS = "/api/device-info";
+static const char* ROUTE_DEVICE_PERFORMANCE_ALIAS = "/api/device-performance";
+static const char* ROUTE_METRICS_API = "/api/metrics";
+static const char* ROUTE_PARAMS_BOUNDS = "/api/params/bounds";
 
 // Spinlock for protecting rate limiter state against concurrent access
 // Prevents race condition where two requests could both pass the rate limit check
@@ -111,6 +126,20 @@ static RouteWindow control_windows[] = {
     {ROUTE_WIFI_CREDENTIALS, ROUTE_POST, 1500, 0},
     {ROUTE_WIFI_SCAN, ROUTE_POST, 5000, 0},  // WiFi scanning takes time; 5 second rate limit
     {ROUTE_AUDIO_NOISE_CAL, ROUTE_POST, 1000, 0},
+    // Aliased and additional routes
+    {ROUTE_DEVICE_INFO_ALIAS, ROUTE_GET, 1000, 0},
+    {ROUTE_DEVICE_PERFORMANCE_ALIAS, ROUTE_GET, 500, 0},
+    {ROUTE_METRICS_API, ROUTE_GET, 200, 0},
+    {ROUTE_PARAMS_BOUNDS, ROUTE_GET, 200, 0},
+    {ROUTE_REALTIME_PRESET, ROUTE_POST, 300, 0},
+    {ROUTE_WIFI_AP_MODE, ROUTE_GET, 500, 0},
+    {ROUTE_WIFI_REASSOCIATE, ROUTE_POST, 500, 0},
+    {ROUTE_WIFI_SCAN_JSON, ROUTE_GET, 5000, 0},
+    {ROUTE_WIFI_TX_POWER, ROUTE_POST, 500, 0},
+    {ROUTE_WIFI_POWER_SAVE, ROUTE_POST, 500, 0},
+    {ROUTE_WIFI_METRICS, ROUTE_GET, 500, 0},
+    {ROUTE_WIFI_CHANNEL, ROUTE_POST, 500, 0},
+    {ROUTE_WIFI_BAND_STEERING, ROUTE_POST, 500, 0},
 };
 
 /**

@@ -117,8 +117,20 @@ export function ControlPanelView({ connectionState }: Props) {
         ]);
         const mappedEffects = extractPatterns(patternsResp).map(mapPatternToEffect);
         if (!aborted) {
-          setEffects(mappedEffects.length ? mappedEffects : EFFECTS);
-          if (mappedEffects.length) setSelectedEffect(mappedEffects[0].id);
+          if (mappedEffects.length) {
+            setEffects(mappedEffects);
+            const currentIndex = Array.isArray(patternsResp)
+              ? undefined
+              : (patternsResp as any)?.current_pattern;
+            if (typeof currentIndex === 'number') {
+              const found = mappedEffects.find(e => Number.isInteger(e.firmwareIndex) && e.firmwareIndex === currentIndex);
+              setSelectedEffect(found ? found.id : mappedEffects[0].id);
+            } else {
+              setSelectedEffect(mappedEffects[0].id);
+            }
+          } else {
+            toast.error('Device returned no patterns', { description: 'Firmware /api/patterns responded without entries' });
+          }
         }
 
         const mappedPalettes = extractPalettes(palettesResp).map(mapPaletteToColorPalette);
@@ -144,8 +156,7 @@ export function ControlPanelView({ connectionState }: Props) {
       } catch (e) {
         console.warn('Device sync error', e);
         if (!aborted) {
-          setEffects(EFFECTS);
-          setPalettes(COLOR_PALETTES);
+          toast.error('Failed to sync from device', { description: 'Could not fetch patterns/palettes. Check device IP and API availability.' });
         }
       } finally {
         if (!aborted) setIsSyncing(false);

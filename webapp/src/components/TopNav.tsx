@@ -5,8 +5,8 @@ import { Button } from './ui/button';
 import { useEffect, useState } from 'react';
 
 interface TopNavProps {
-  currentView: 'control' | 'analysis' | 'profiling' | 'terminal' | 'node' | 'api';
-  onViewChange: (view: 'control' | 'analysis' | 'profiling' | 'terminal' | 'node' | 'api') => void;
+  currentView: 'control' | 'profiling' | 'terminal' | 'node' | 'api';
+  onViewChange: (view: 'control' | 'profiling' | 'terminal' | 'node' | 'api') => void;
   connected: boolean;
   deviceIp?: string;
   defaultIp?: string;
@@ -38,15 +38,12 @@ export function TopNav({ currentView, onViewChange, connected, deviceIp, default
         <div className="h-6 w-px bg-[var(--prism-bg-elevated)] mx-2" />
         
         <nav className="flex gap-1">
-          {([ 'control', 'analysis', 'profiling', 'terminal', 'node', ...(showApiIndex ? ['api'] as const : []) ]).map((view) => (
+          {([ 'control', 'profiling', 'terminal', 'node', ...(showApiIndex ? ['api'] as const : []) ]).map((view) => (
             <button
               key={view}
               onMouseEnter={() => {
                 // Prefetch view bundles on hover for snappier nav
-                if (view === 'analysis') {
-                  void import('../components/views/AnalysisView');
-                  void import('recharts');
-                } else if (view === 'profiling') {
+                if (view === 'profiling') {
                   void import('./views/ProfilingView');
                   void import('./profiling/ProfilingCharts');
                   void import('recharts');

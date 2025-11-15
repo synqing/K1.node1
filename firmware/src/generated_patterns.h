@@ -446,31 +446,55 @@ void draw_bloom(const PatternRenderContext& context) {
     const uint8_t ch_idx = get_pattern_channel_index();
 
     float spread_speed = 0.125f + 0.875f * clip_float(params.speed);
-    // Reduce saturation: decay incorporates softness (persistence)
-    float trail_decay = 0.92f + 0.06f * clip_float(params.softness); // 0.92..0.98
+    // More persistence (default closer to 0.98, up to ~0.99)
+    float trail_decay = 0.97f + 0.02f * clip_float(params.softness); // 0.97..0.99
     // Accelerate: pre-scale previous trail with DSPS mulc, then use alpha=1.0
     dsps_mulc_f32_inplace(bloom_trail_prev[ch_idx], NUM_LEDS, trail_decay);
+    // IMPORTANT: bloom_trail[] is the fresh destination for this frame.
+    // We must clear it manually before draw_sprite_float() because the helper no
+    // longer wipes buffers internally (to avoid the earlier regression).
+    for (int i = 0; i < NUM_LEDS; ++i) {
+        bloom_trail[ch_idx][i] = 0.0f;
+    }
     draw_sprite_float(bloom_trail[ch_idx], bloom_trail_prev[ch_idx], NUM_LEDS, NUM_LEDS, spread_speed, 1.0f);
 
 	if (AUDIO_IS_AVAILABLE()) {
-		// Loudness-aware injection using absolute bands, with sqrt response to favor quiet content
-		float energy_gate = fminf(1.0f, (AUDIO_VU * 0.9f) + (AUDIO_NOVELTY * 0.5f));
-		float inject_base = response_sqrt(AUDIO_BASS_ABS()) * 0.6f
-			+ response_sqrt(AUDIO_MIDS_ABS()) * 0.3f
-			+ response_sqrt(AUDIO_TREBLE_ABS()) * 0.2f;
-		// User-adjustable low-level boost (custom_param_3 ∈ [0,1] → boost ∈ [1.0,2.0])
-		float boost = 1.0f + fmaxf(0.0f, fminf(1.0f, params.custom_param_3)) * 1.0f;
-		float inject = inject_base * (0.25f + energy_gate * 0.85f) * boost;
-		// Minimal floor to avoid vanishing on near-silence when energy is present
-		if (inject < 0.02f && energy_gate > 0.05f) inject = 0.02f;
-		bloom_trail[ch_idx][0] = fmaxf(bloom_trail[ch_idx][0], inject);
-		// Seed an adjacent cell to improve initial spread
-		bloom_trail[ch_idx][1] = fmaxf(bloom_trail[ch_idx][1], inject * 0.6f);
+		// Emotiscope baseline: drive bloom directly from overall VU.
+		float vu = clip_float(AUDIO_VU);
+		// Legacy Sensory Bridge used vu_level unscaled; we give it a modest boost.
+		float inject = clip_float(vu * 1.5f);
+		// Optional low-level boost from custom_param_3 (0..1 → 1x..2x)
+		float boost = 1.0f + fmaxf(0.0f, fminf(1.0f, params.custom_param_3));
+		inject = clip_float(inject * boost);
+
+		// If signal is extremely quiet, skip injection.
+		if (inject > 0.01f) {
+			bloom_trail[ch_idx][0] = fmaxf(bloom_trail[ch_idx][0], inject);
+			// Seed an adjacent cell to improve initial spread
+			bloom_trail[ch_idx][1] = fmaxf(bloom_trail[ch_idx][1], inject * 0.6f);
+		}
+
+        extern bool audio_trace_enabled;
+        static uint32_t trace_counter_bloom = 0;
+        if (audio_trace_enabled && (++trace_counter_bloom % 60) == 0) {
+            float trail_mid = bloom_trail[ch_idx][NUM_LEDS / 4];
+            LOG_INFO(
+                TAG_TRACE,
+                "\x1b[35m[BLOOM]\x1b[0m ch=%u inject=%.4f vu=%.3f trail0=%.4f trail_mid=%.4f decay=%.3f spread=%.3f",
+                (unsigned)ch_idx,
+                inject,
+                vu,
+                bloom_trail[ch_idx][0],
+                trail_mid,
+                trail_decay,
+                spread_speed);
+        }
 	}
 
 	int half_leds = NUM_LEDS >> 1;
 	for (int i = 0; i < half_leds; ++i) {
-		float brightness = clip_float(bloom_trail[ch_idx][i]);
+		float brightness = response_sqrt(bloom_trail[ch_idx][i]) * 1.5f;
+		brightness = clip_float(brightness);
 		CRGBF color = color_from_palette(params.palette_id, static_cast<float>(i) / half_leds, brightness);
 
 		int left_index = (half_leds - 1) - i;
@@ -512,6 +536,7 @@ void draw_bloom_mirror(const PatternRenderContext& context) {
 	for (int i = 0; i < NUM_LEDS; ++i) bloom_buffer[ch_idx][i] = CRGBF{0.0f, 0.0f, 0.0f};
 	// Tuned decay to reduce washout; respect softness
 	float decay = 0.92f + 0.06f * clip_float(params.softness); // 0.92..0.98
+	// Draw sprite must not clear buffers; doing so wipes Bloom Mirror entirely.
 	draw_sprite(bloom_buffer[ch_idx], bloom_buffer_prev[ch_idx], NUM_LEDS, NUM_LEDS, scroll_speed, decay);
 
 	// Build chromagram-driven colour blend (Sensory Bridge style)
@@ -887,6 +912,13 @@ void draw_tempiscope(const PatternRenderContext& context) {
     // Render tempo bins using phase + magnitude (legacy parity)
     const int half_leds = NUM_LEDS >> 1;
     const float freshness = AUDIO_IS_STALE() ? 0.6f : 1.0f;
+    float max_bin_mag = 0.0001f;
+    for (int i = 0; i < NUM_TEMPI; ++i) {
+        max_bin_mag = fmaxf(max_bin_mag, audio.payload.tempo_magnitude[i]);
+    }
+    float inv_bin_mag = 1.0f / max_bin_mag;
+    float tempo_conf_scale = 0.5f + 0.5f * clip_float(audio.payload.tempo_confidence);
+
     for (int i = 0; i < half_leds; i++) {
         float progress = (half_leds > 1) ? ((float)i / (float)(half_leds - 1)) : 0.0f;
         // Map LED progress to tempo bin index
@@ -894,11 +926,12 @@ void draw_tempiscope(const PatternRenderContext& context) {
         if (bin < 0) bin = 0; if (bin >= NUM_TEMPI) bin = NUM_TEMPI - 1;
 
         float phase = audio.payload.tempo_phase[bin];
-        float mag   = clip_float(audio.payload.tempo_magnitude[bin]);
+        float mag   = clip_float(audio.payload.tempo_magnitude[bin] * inv_bin_mag);
         // Beat peak gate in [0,1]
         float peak = 0.5f * (sinf(phase) + 1.0f);
         // Perceptual brightness; favor clarity at low magnitudes
-        float brightness = response_sqrt(mag) * peak * freshness;
+        float brightness = response_sqrt(mag) * peak * freshness * tempo_conf_scale;
+        brightness = fmaxf(brightness, 0.05f * freshness);
         brightness = clip_float(brightness);
 
         CRGBF color = color_from_palette(params.palette_id, progress, brightness * params.saturation);
@@ -989,6 +1022,7 @@ void draw_beat_tunnel(const PatternRenderContext& context) {
 	float position = (0.125f + 0.875f * clip_float(params.speed)) * sinf(beat_tunnel_angle) * 0.5f;
 	// Respect global softness in persistence/decay
 	float decay = 0.90f + 0.08f * clip_float(params.softness); // 0.90..0.98
+	// Regression note: draw_sprite() must preserve history; never prep it with memset.
 	draw_sprite(beat_tunnel_image[ch_idx], beat_tunnel_image_prev[ch_idx], NUM_LEDS, NUM_LEDS, position, decay);
 
 	if (!AUDIO_IS_AVAILABLE()) {
@@ -1109,6 +1143,7 @@ void draw_beat_tunnel_variant(const PatternRenderContext& context) {
 
     // Use draw_sprite for proper scrolling motion effect!
     float decay = 0.6f + (0.38f * fmaxf(0.0f, fminf(1.0f, params.softness)));
+    // Preserve persistence (no memset) when shifting tunnel variant sprite.
     draw_sprite(beat_tunnel_variant_image[ch_idx], beat_tunnel_variant_image_prev[ch_idx], NUM_LEDS, NUM_LEDS, position, decay);
 
 	if (!AUDIO_IS_AVAILABLE()) {
@@ -1392,6 +1427,7 @@ void draw_tunnel_glow(const PatternRenderContext& context) {
     // ========================================================================
     // softness: 0.0-1.0 controls decay rate (0.90-0.98)
     float decay = 0.90f + (0.08f * fmaxf(0.0f, fminf(1.0f, params.softness)));
+    // draw_sprite() keeps tunnel_glow_image alive between frames; avoid memset regressions.
     draw_sprite(tunnel_glow_image, tunnel_glow_image_prev, NUM_LEDS, NUM_LEDS, position, decay);
 
     // ========================================================================
@@ -1595,6 +1631,8 @@ void draw_perlin(const PatternRenderContext& context) {
  * 
  * This pattern was broken because K1 lacked the draw_dot() helper function.
  * Now properly implemented with Emotiscope-compatible dot rendering.
+ * NOTE: draw_dot() maintains per-layer history; never memset those buffers or
+ * Analog/Metronome/Hype will collapse again.
  */
 void draw_analog(const PatternRenderContext& context) {
     const float time = context.time;
@@ -1848,32 +1886,20 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
     // --- CRITICAL: Only update from audio if available ---
     // Without this check, pattern produces garbage waveforms even with no audio
     if (AUDIO_IS_AVAILABLE()) {
-        // --- Phase 2: Calculate Waveform Envelope (Overall VU with spatial variation) ---
-        // Legacy code averaged 4 frames of per-LED waveform history.
-        // K1 exposes AUDIO_VU (overall amplitude). We create spatial variation by:
-        // - Using VU as base amplitude
-        // - Modulating across LEDs based on distance-from-center (creates visual flow)
-        // - Applying non-linear curve (legacy: bright^CONFIG.SQUARE_ITER)
-
-        float vu_envelope = clip_float(AUDIO_VU * 1.5f);  // Legacy scale factor
+        // --- Phase 2: Calculate Waveform Envelope using REAL samples ---
+        // Emotiscope pulled actual waveform slices; using memset here previously
+        // destroyed the entire visual. Sample from sample_history tail for parity.
+        extern float sample_history[SAMPLE_HISTORY_LENGTH];
+        const int history_tail = SAMPLE_HISTORY_LENGTH - 1;
+        const int samples_per_slot = fmax(1, SAMPLE_HISTORY_LENGTH / half_leds);
 
         for (int i = 0; i < half_leds; i++) {
-            // Calculate distance-based modulation (stronger at edges, softer at center)
-            // This creates the illusion of per-LED waveform data using spatial position
-            float position_progress = i / float(half_leds);  // 0.0 at center, 1.0 at edge
-
-            // Spatial variation: modulate envelope based on position
-            // Creates dynamic ripples/waves across the strip
-            float spatial_modulation = 0.5f + 0.5f * sinf(position_progress * 3.14159f);
-
-            // Combine VU envelope with spatial modulation
-            float waveform_brightness = vu_envelope * spatial_modulation;
-
-            // Apply non-linear curve (squaring for brightness emphasis)
+            int sample_idx = history_tail - i * samples_per_slot;
+            if (sample_idx < 0) sample_idx = 0;
+            float waveform_brightness = fabsf(sample_history[sample_idx]);
+            waveform_brightness = clip_float(waveform_brightness * 2.0f); // legacy scale
             waveform_brightness = waveform_brightness * waveform_brightness;
-            waveform_brightness = fminf(1.0f, waveform_brightness);
 
-            // Temporal smoothing of waveform (legacy: 5% new + 95% history)
             waveform_history[i] = waveform_brightness * smoothing + waveform_history[i] * (1.0f - smoothing);
         }
 
@@ -1933,6 +1959,10 @@ void draw_waveform_spectrum(const PatternRenderContext& context) {
     }
 
     apply_background_overlay(context);
+
+    #undef AUDIO_VU
+    #undef AUDIO_SPECTRUM
+    #undef AUDIO_IS_AVAILABLE
 }
 
 /**
@@ -1966,6 +1996,7 @@ void draw_snapwave(const PatternRenderContext& context) {
     const AudioDataSnapshot& audio = context.audio_snapshot;
     #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
     #define AUDIO_SPECTRUM (audio.payload.spectrogram)
+    #define AUDIO_VU (audio.payload.vu_level)
 
     // --- SETUP: Half-array buffer (index 0 = center, increases away from center) ---
     // This is the CENTER-ORIGIN CORRECT approach (modeled on draw_bloom)
@@ -2011,9 +2042,11 @@ void draw_snapwave(const PatternRenderContext& context) {
         float beat_phase = audio.payload.tempo_phase[dominant_tempo_bin];
         float beat_strength = sinf(beat_phase);  // -1.0 to 1.0
         float beat_confidence = audio.payload.tempo_magnitude[dominant_tempo_bin];
+        float tempo_conf = clip_float(audio.payload.tempo_confidence);
+        float beat_gate = tempo_conf * beat_confidence;
 
-        if (beat_strength > 0.3f && beat_confidence > 0.1f) {
-            float beat_brightness = beat_strength * beat_confidence * clip_float(params.speed + 0.5f);
+        if (beat_strength > 0.0f && beat_gate > 0.04f) {
+            float beat_brightness = beat_gate * clip_float(params.speed + 0.5f);
             beat_brightness = fminf(1.0f, beat_brightness);
             CRGBF beat_color = color_from_palette(
                 params.palette_id,
@@ -2021,6 +2054,14 @@ void draw_snapwave(const PatternRenderContext& context) {
                 beat_brightness
             );
             snapwave_buffer[0] = beat_color;
+        } else {
+            // Fallback: light pulses from overall VU so Snapwave never feels dead.
+            float vu_pulse = clip_float(AUDIO_VU * 0.6f);
+            if (vu_pulse > 0.02f) {
+                snapwave_buffer[0].r = fmaxf(snapwave_buffer[0].r, vu_pulse);
+                snapwave_buffer[0].g = fmaxf(snapwave_buffer[0].g, vu_pulse);
+                snapwave_buffer[0].b = fmaxf(snapwave_buffer[0].b, vu_pulse);
+            }
         }
 
         // --- Phase 4: Dominant Frequency Accent (GEOMETRIC POSITION) ---
@@ -2076,6 +2117,10 @@ void draw_snapwave(const PatternRenderContext& context) {
 
     // Apply uniform background overlay (handles background brightness param)
     apply_background_overlay(context);
+
+    #undef AUDIO_VU
+    #undef AUDIO_SPECTRUM
+    #undef AUDIO_IS_AVAILABLE
 }
 
 void draw_prism(const PatternRenderContext& context) {

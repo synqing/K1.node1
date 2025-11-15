@@ -7,6 +7,7 @@ export type FirmwarePattern = {
   name: string;
   description?: string;
   is_audio_reactive?: boolean;
+  audio_reactive?: boolean;
 };
 
 export type FirmwarePalette = {

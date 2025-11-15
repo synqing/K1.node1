@@ -31,15 +31,13 @@ async function loadParams() {
         const params = await res.json();
 
         // Update all slider elements with device parameters
-        Object.keys(params).forEach(key => {
+        for (const key of Object.keys(params)) {
             const elem = document.getElementById(key);
             if (elem && elem.type === 'range') {
-                // Set slider to actual device value
                 elem.value = params[key];
-                // Update display without triggering update back to device
                 updateDisplay(key, true);
             }
-        });
+        }
 
         // Update color mode indicator based on current color_range
         if (typeof params.color_range === 'number') {
@@ -49,6 +47,33 @@ async function loadParams() {
         console.log('[K1] Parameters loaded from device:', params);
     } catch (err) {
         console.error('[K1] Error loading parameters:', err);
+    }
+}
+
+async function applyBounds() {
+    try {
+        const res = await fetch('/api/params/bounds');
+        if (!res.ok) return;
+        const b = await res.json();
+        const setRange = (id, cfg) => {
+            const el = document.getElementById(id);
+            if (el && el.type === 'range' && cfg) {
+                if (typeof cfg.min === 'number') el.min = String(cfg.min);
+                if (typeof cfg.max === 'number') el.max = String(cfg.max);
+                if (typeof cfg.step === 'number') el.step = String(cfg.step);
+                el.title = `min ${el.min}, max ${el.max}, step ${el.step}`;
+            }
+        };
+        setRange('brightness', b.brightness);
+        setRange('softness', b.softness);
+        setRange('color', b.color);
+        setRange('color_range', b.color_range);
+        setRange('saturation', b.saturation);
+        setRange('warmth', b.warmth);
+        setRange('background', b.background);
+        setRange('speed', b.speed);
+    } catch (e) {
+        console.error('[K1] Failed to apply bounds', e);
     }
 }
 
@@ -65,15 +90,15 @@ function updateDisplay(id, skipUpdate) {
     const elem = document.getElementById(id);
     const val = document.getElementById(id + '-val');
     if (elem && val) {
-        val.textContent = parseFloat(elem.value).toFixed(2);
+        val.textContent = Number.parseFloat(elem.value).toFixed(2);
         if (id === 'color_range') {
-            updateColorModeIndicator(parseFloat(elem.value));
+            updateColorModeIndicator(Number.parseFloat(elem.value));
         }
         if (!skipUpdate) {
             if (id === 'brightness') {
                 scheduleBrightnessUpdate();
             } else {
-                updateParams();
+                scheduleParamsUpdate();
             }
         }
     }
@@ -81,7 +106,7 @@ function updateDisplay(id, skipUpdate) {
 
 // Debounce brightness changes to avoid flooding device with updates
 let brightnessDebounceTimer = null;
-const BRIGHTNESS_DEBOUNCE_MS = 150;
+const BRIGHTNESS_DEBOUNCE_MS = 350;
 function scheduleBrightnessUpdate() {
     if (brightnessDebounceTimer) {
         clearTimeout(brightnessDebounceTimer);
@@ -92,18 +117,31 @@ function scheduleBrightnessUpdate() {
     }, BRIGHTNESS_DEBOUNCE_MS);
 }
 
+// Debounce general parameter changes to reduce 429s
+let paramsDebounceTimer = null;
+const PARAMS_DEBOUNCE_MS = 300;
+function scheduleParamsUpdate() {
+    if (paramsDebounceTimer) {
+        clearTimeout(paramsDebounceTimer);
+    }
+    paramsDebounceTimer = setTimeout(() => {
+        updateParams();
+        paramsDebounceTimer = null;
+    }, PARAMS_DEBOUNCE_MS);
+}
+
 async function updateParams() {
     const paletteSelect = document.getElementById('palette-select');
     const params = {
-        brightness: parseFloat(document.getElementById('brightness').value),
-        softness: parseFloat(document.getElementById('softness').value),
-        color: parseFloat(document.getElementById('color').value),
-        color_range: parseFloat(document.getElementById('color_range').value),
-        saturation: parseFloat(document.getElementById('saturation').value),
-        warmth: parseFloat(document.getElementById('warmth').value),
-        background: parseFloat(document.getElementById('background').value),
-        speed: parseFloat(document.getElementById('speed').value),
-        palette_id: parseInt(paletteSelect.value)
+        brightness: Number.parseFloat(document.getElementById('brightness').value),
+        softness: Number.parseFloat(document.getElementById('softness').value),
+        color: Number.parseFloat(document.getElementById('color').value),
+        color_range: Number.parseFloat(document.getElementById('color_range').value),
+        saturation: Number.parseFloat(document.getElementById('saturation').value),
+        warmth: Number.parseFloat(document.getElementById('warmth').value),
+        background: Number.parseFloat(document.getElementById('background').value),
+        speed: Number.parseFloat(document.getElementById('speed').value),
+        palette_id: Number.parseInt(paletteSelect.value)
     };
     await fetch('/api/params', {
         method: 'POST',
@@ -138,7 +176,7 @@ async function updateMicrophoneGain() {
     const gainElem = document.getElementById('microphone-gain');
     const gainVal = document.getElementById('microphone-gain-val');
 
-    const gain = parseFloat(gainElem.value);
+    const gain = Number.parseFloat(gainElem.value);
     gainVal.textContent = gain.toFixed(2) + 'x';
 
     await fetch('/api/audio-config', {
@@ -212,22 +250,16 @@ async function initPalettes() {
         paletteSelect.innerHTML = '';
         paletteSelect.disabled = false;
 
-        // Populate dropdown with API data
-        paletteData.palettes.forEach(palette => {
+        for (const palette of paletteData.palettes) {
             const option = document.createElement('option');
             option.value = palette.id;
             option.textContent = palette.name;
-
-            // Add color preview as title attribute
             if (palette.colors && palette.colors.length > 0) {
-                const colorPreview = palette.colors.map(c =>
-                    `rgb(${c.r},${c.g},${c.b})`
-                ).join(', ');
+                const colorPreview = palette.colors.map(c => `rgb(${c.r},${c.g},${c.b})`).join(', ');
                 option.title = `Colors: ${colorPreview}`;
             }
-
             paletteSelect.appendChild(option);
-        });
+        }
 
         // Get current parameters and set selection
         const paramsRes = await fetch('/api/params');
@@ -258,7 +290,7 @@ async function updatePalette() {
     const paletteSelect = document.getElementById('palette-select');
     const paletteName = document.getElementById('palette-name');
 
-    const paletteId = parseInt(paletteSelect.value);
+    const paletteId = Number.parseInt(paletteSelect.value);
     if (paletteName && paletteCache) {
         const palette = paletteCache.palettes.find(p => p.id === paletteId);
         paletteName.textContent = palette ? palette.name : 'Unknown';
@@ -292,6 +324,12 @@ async function loadWifiLinkOptions() {
 async function updateWifiLinkOptions() {
     const bg = document.getElementById('bg-only').checked;
     const ht = document.getElementById('ht20').checked;
+    const confirmed = globalThis.confirm('Changing WiFi link options may disrupt connectivity. Proceed?');
+    if (!confirmed) {
+        document.getElementById('bg-only').checked = !bg;
+        document.getElementById('ht20').checked = !ht;
+        return;
+    }
     document.getElementById('bg-only-val').textContent = bg ? 'ON' : 'OFF';
     document.getElementById('ht20-val').textContent = ht ? 'ON' : 'OFF';
     try {
@@ -303,6 +341,38 @@ async function updateWifiLinkOptions() {
         console.log('[K1] WiFi link options updated:', {bg, ht});
     } catch (e) {
         console.error('[K1] Failed to update WiFi link options', e);
+    }
+}
+
+// WiFi Scan UX
+let scanPollTimer = null;
+async function startWifiScan() {
+    const statusEl = document.getElementById('wifi-scan-status');
+    const resultsEl = document.getElementById('wifi-scan-results');
+    statusEl.textContent = 'Starting scan...';
+    resultsEl.textContent = '';
+    try {
+        await fetch('/api/wifi/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        statusEl.textContent = 'Scan running...';
+        if (scanPollTimer) clearInterval(scanPollTimer);
+        scanPollTimer = setInterval(async () => {
+            try {
+                const res = await fetch('/api/wifi/scan/results/json');
+                if (!res.ok) return;
+                const j = await res.json();
+                if (j.status === 'pending') {
+                    statusEl.textContent = 'Scan running...';
+                } else if (j.status === 'complete') {
+                    statusEl.textContent = `Complete (${j.count})`;
+                    resultsEl.textContent = (j.results || []).map(r => `${r.ssid} (${r.rssi_dbm} dBm)`).join('\n');
+                    clearInterval(scanPollTimer);
+                } else {
+                    statusEl.textContent = 'Idle';
+                }
+            } catch (e) {}
+        }, 1000);
+    } catch (e) {
+        statusEl.textContent = 'Scan failed';
     }
 }
 
@@ -318,6 +388,7 @@ function updateColorModeIndicator(rangeValue) {
 (async () => {
     await loadPatterns();
     await loadParams();
+    await applyBounds();
     await loadAudioConfig();
     await initPalettes();
     await loadWifiLinkOptions();

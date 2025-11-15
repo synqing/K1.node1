@@ -8,6 +8,7 @@
 #include "audio/goertzel.h"  // For audio configuration (microphone gain)
 #include "palettes.h"        // For palette metadata API
 #include "wifi_monitor.h"    // For WiFi link options API
+#include <esp_wifi.h>
 #include "connection_state.h" // For connection state reporting
 #include <ArduinoJson.h>
 #include <ESPmDNS.h>
@@ -107,6 +108,34 @@ public:
     }
 };
 
+// GET /api/device-info - Alias for device information snapshot
+class GetDeviceInfoAliasHandler : public K1RequestHandler {
+public:
+    GetDeviceInfoAliasHandler() : K1RequestHandler(ROUTE_DEVICE_INFO_ALIAS, ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        StaticJsonDocument<384> doc;
+        doc["device"] = "K1.reinvented";
+        doc["uptime_ms"] = millis();
+        doc["ip"] = WiFi.localIP().toString();
+        doc["mac"] = WiFi.macAddress();
+        JsonObject build = doc.createNestedObject("build");
+        #ifdef ARDUINO
+        build["arduino"] = ARDUINO;
+        #endif
+        #ifdef ARDUINO_ESP32_RELEASE_3_0_0
+        build["arduino_release"] = ARDUINO_ESP32_RELEASE_3_0_0;
+        #endif
+        #ifdef IDF_VER
+        build["idf_ver"] = IDF_VER;
+        #endif
+        build["platformio_platform"] = "espressif32@6.12.0";
+        build["framework"] = "arduino@3.20017.241212";
+        String output;
+        serializeJson(doc, output);
+        ctx.sendJson(200, output);
+    }
+};
+
 // GET /api/device/performance - Performance metrics (FPS, timings, heap)
 class GetDevicePerformanceHandler : public K1RequestHandler {
 public:
@@ -152,6 +181,57 @@ public:
         doc["beat_overflows_total"] = beat_events_overflow_count();
 
         // Include FPS history samples (length 16)
+        JsonArray fps_history = doc.createNestedArray("fps_history");
+        for (int i = 0; i < 16; ++i) {
+            fps_history.add(FPS_CPU_SAMPLES[i]);
+        }
+
+        String output;
+        serializeJson(doc, output);
+        ctx.sendJson(200, output);
+    }
+};
+
+// GET /api/device-performance - Alias for device performance metrics
+class GetDevicePerformanceAliasHandler : public K1RequestHandler {
+public:
+    GetDevicePerformanceAliasHandler() : K1RequestHandler(ROUTE_DEVICE_PERFORMANCE_ALIAS, ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        float frames = FRAMES_COUNTED.load(std::memory_order_relaxed) > 0
+                         ? static_cast<float>(FRAMES_COUNTED.load(std::memory_order_relaxed))
+                         : 1.0f;
+        float avg_render_us = static_cast<float>(ACCUM_RENDER_US.load(std::memory_order_relaxed)) / frames;
+        float avg_quantize_us = static_cast<float>(ACCUM_QUANTIZE_US.load(std::memory_order_relaxed)) / frames;
+        float avg_rmt_wait_us = static_cast<float>(ACCUM_RMT_WAIT_US.load(std::memory_order_relaxed)) / frames;
+        float avg_rmt_tx_us = static_cast<float>(ACCUM_RMT_TRANSMIT_US.load(std::memory_order_relaxed)) / frames;
+        float frame_time_us = avg_render_us + avg_quantize_us + avg_rmt_wait_us + avg_rmt_tx_us;
+
+        uint32_t heap_free = ESP.getFreeHeap();
+        uint32_t heap_total = ESP.getHeapSize();
+        float memory_percent = ((float)(heap_total - heap_free) / (float)heap_total) * 100.0f;
+
+        cpu_monitor.update();
+        float cpu_percent = cpu_monitor.getAverageCPUUsage();
+
+        StaticJsonDocument<512> doc;
+        doc["fps"] = FPS_CPU;
+        doc["frame_time_us"] = frame_time_us;
+        doc["render_avg_us"] = avg_render_us;
+        doc["quantize_avg_us"] = avg_quantize_us;
+        doc["rmt_wait_avg_us"] = avg_rmt_wait_us;
+        doc["rmt_tx_avg_us"] = avg_rmt_tx_us;
+        doc["cpu_percent"] = cpu_percent;
+        doc["memory_percent"] = memory_percent;
+        doc["memory_free_kb"] = heap_free / 1024;
+        doc["memory_total_kb"] = heap_total / 1024;
+
+        extern uint16_t beat_events_count();
+        extern uint16_t beat_events_capacity();
+        extern uint32_t beat_events_overflow_count();
+        doc["beat_queue_depth"] = beat_events_count();
+        doc["beat_queue_capacity"] = beat_events_capacity();
+        doc["beat_overflows_total"] = beat_events_overflow_count();
+
         JsonArray fps_history = doc.createNestedArray("fps_history");
         for (int i = 0; i < 16; ++i) {
             fps_history.add(FPS_CPU_SAMPLES[i]);
@@ -1405,6 +1485,202 @@ public:
     }
 };
 
+// GET /api/metrics - Alias path returning Prometheus metrics
+class GetMetricsApiHandler : public K1RequestHandler {
+public:
+    GetMetricsApiHandler() : K1RequestHandler(ROUTE_METRICS_API, ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        float frames = FRAMES_COUNTED.load(std::memory_order_relaxed) > 0
+                         ? static_cast<float>(FRAMES_COUNTED.load(std::memory_order_relaxed))
+                         : 1.0f;
+        float avg_render_us = static_cast<float>(ACCUM_RENDER_US.load(std::memory_order_relaxed)) / frames;
+        float avg_quantize_us = static_cast<float>(ACCUM_QUANTIZE_US.load(std::memory_order_relaxed)) / frames;
+        float avg_rmt_wait_us = static_cast<float>(ACCUM_RMT_WAIT_US.load(std::memory_order_relaxed)) / frames;
+        float avg_rmt_tx_us = static_cast<float>(ACCUM_RMT_TRANSMIT_US.load(std::memory_order_relaxed)) / frames;
+        float frame_time_us = avg_render_us + avg_quantize_us + avg_rmt_wait_us + avg_rmt_tx_us;
+
+        String m;
+        m.reserve(512);
+        m += "k1_fps "; m += String(FPS_CPU); m += "\n";
+        m += "k1_frame_time_us "; m += String(frame_time_us); m += "\n";
+        m += "k1_cpu_percent "; m += String(cpu_monitor.getAverageCPUUsage()); m += "\n";
+        m += "k1_memory_free_kb "; m += String(ESP.getFreeHeap()/1024); m += "\n";
+        m += "k1_beat_events_count "; m += String(beat_events_count()); m += "\n";
+        m += "k1_tempo_confidence "; m += String(tempo_confidence); m += "\n";
+        ctx.sendText(200, m);
+    }
+};
+
+class GetWifiApModeHandler : public K1RequestHandler {
+public:
+    GetWifiApModeHandler() : K1RequestHandler(ROUTE_WIFI_AP_MODE, ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        bool ap = wifi_monitor_is_ap_mode_enabled();
+        StaticJsonDocument<64> d; d["ap_mode"] = ap; String o; serializeJson(d, o); ctx.sendJson(200, o);
+    }
+};
+
+class PostWifiReassociateHandler : public K1RequestHandler {
+public:
+    PostWifiReassociateHandler() : K1RequestHandler(ROUTE_WIFI_REASSOCIATE, ROUTE_POST) {}
+    void handle(RequestContext& ctx) override {
+        const char* reason = nullptr;
+        if (ctx.hasJson() && ctx.getJson().containsKey("reason") && ctx.getJson()["reason"].is<const char*>()) {
+            reason = ctx.getJson()["reason"].as<const char*>();
+        }
+        wifi_monitor_reassociate_now(reason ? reason : "api");
+        StaticJsonDocument<64> d; d["success"] = true; String o; serializeJson(d, o); ctx.sendJson(200, o);
+    }
+};
+
+class GetWifiScanResultsJsonHandler : public K1RequestHandler {
+public:
+    GetWifiScanResultsJsonHandler() : K1RequestHandler(ROUTE_WIFI_SCAN_JSON, ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        int state = WiFi.scanComplete();
+        DynamicJsonDocument d(4096);
+        if (state == WIFI_SCAN_RUNNING) {
+            d["status"] = "pending";
+        } else if (state >= 0) {
+            JsonArray arr = d.createNestedArray("results");
+            for (int i = 0; i < state; i++) {
+                JsonObject o = arr.createNestedObject();
+                o["ssid"] = WiFi.SSID(i);
+                o["rssi_dbm"] = WiFi.RSSI(i);
+                o["auth_mode"] = (int)WiFi.encryptionType(i);
+            }
+            d["count"] = state;
+            WiFi.scanDelete();
+            d["status"] = "complete";
+        } else {
+            d["status"] = "idle";
+        }
+        String out; serializeJson(d, out); ctx.sendJson(200, out);
+    }
+};
+
+class PostWifiTxPowerHandler : public K1RequestHandler {
+public:
+    PostWifiTxPowerHandler() : K1RequestHandler(ROUTE_WIFI_TX_POWER, ROUTE_POST) {}
+    void handle(RequestContext& ctx) override {
+        if (!ctx.hasJson() || !ctx.getJson().containsKey("power_dbm")) { ctx.sendError(400, "invalid_param", "power_dbm required"); return; }
+        float dbm = ctx.getJson()["power_dbm"].as<float>();
+        if (dbm < 8.0f) dbm = 8.0f; if (dbm > 19.5f) dbm = 19.5f;
+        int qdbm = (int)(dbm * 4.0f);
+        esp_wifi_set_max_tx_power(qdbm);
+        StaticJsonDocument<64> d; d["applied_dbm"] = dbm; String o; serializeJson(d, o); ctx.sendJson(200, o);
+    }
+};
+
+class PostWifiPowerSaveHandler : public K1RequestHandler {
+public:
+    PostWifiPowerSaveHandler() : K1RequestHandler(ROUTE_WIFI_POWER_SAVE, ROUTE_POST) {}
+    void handle(RequestContext& ctx) override {
+        if (!ctx.hasJson() || !ctx.getJson().containsKey("enable")) { ctx.sendError(400, "invalid_param", "enable required"); return; }
+        bool en = ctx.getJson()["enable"].as<bool>();
+        esp_wifi_set_ps(en ? WIFI_PS_MIN_MODEM : WIFI_PS_NONE);
+        StaticJsonDocument<64> d; d["power_save"] = en; String o; serializeJson(d, o); ctx.sendJson(200, o);
+    }
+};
+
+class GetWifiMetricsHandler : public K1RequestHandler {
+public:
+    GetWifiMetricsHandler() : K1RequestHandler(ROUTE_WIFI_METRICS, ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        DynamicJsonDocument d(512);
+        d["ssid"] = WiFi.SSID();
+        d["rssi_dbm"] = WiFi.RSSI();
+        int8_t q; esp_wifi_get_max_tx_power(&q); d["tx_power_dbm"] = ((float)q)/4.0f;
+        d["connected"] = (WiFi.status() == WL_CONNECTED);
+        String o; serializeJson(d, o); ctx.sendJson(200, o);
+    }
+};
+
+class PostWifiChannelHandler : public K1RequestHandler {
+public:
+    PostWifiChannelHandler() : K1RequestHandler(ROUTE_WIFI_CHANNEL, ROUTE_POST) {}
+    void handle(RequestContext& ctx) override {
+        if (!ctx.hasJson() || !ctx.getJson().containsKey("channel")) { ctx.sendError(400, "invalid_param", "channel required"); return; }
+        uint8_t ch = ctx.getJson()["channel"].as<uint8_t>();
+        if (ch < 1) ch = 1; if (ch > 13) ch = 13;
+        esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE);
+        StaticJsonDocument<64> d; d["channel"] = ch; String o; serializeJson(d, o); ctx.sendJson(200, o);
+    }
+};
+
+class PostWifiBandSteeringHandler : public K1RequestHandler {
+public:
+    PostWifiBandSteeringHandler() : K1RequestHandler(ROUTE_WIFI_BAND_STEERING, ROUTE_POST) {}
+    void handle(RequestContext& ctx) override {
+        bool en = false;
+        if (ctx.hasJson() && ctx.getJson().containsKey("enable")) en = ctx.getJson()["enable"].as<bool>();
+        StaticJsonDocument<64> d; d["enabled"] = en; String o; serializeJson(d, o); ctx.sendJson(200, o);
+    }
+};
+
+// Forward declarations for realtime WebSocket config (defined later in file)
+extern bool s_realtime_ws_enabled;
+extern uint32_t s_realtime_ws_interval_ms;
+
+class PostRealtimePresetHandler : public K1RequestHandler {
+public:
+    PostRealtimePresetHandler() : K1RequestHandler(ROUTE_REALTIME_PRESET, ROUTE_POST) {}
+    void handle(RequestContext& ctx) override {
+        const char* name = nullptr;
+        if (ctx.hasJson() && ctx.getJson().containsKey("name") && ctx.getJson()["name"].is<const char*>()) {
+            name = ctx.getJson()["name"].as<const char*>();
+        }
+        if (name && strcmp(name, "stress-low") == 0) {
+            s_realtime_ws_interval_ms = 150;
+            s_realtime_ws_enabled = true;
+        } else {
+            s_realtime_ws_interval_ms = REALTIME_WS_DEFAULT_INTERVAL_MS;
+            s_realtime_ws_enabled = true;
+        }
+        StaticJsonDocument<96> d; d["enabled"] = s_realtime_ws_enabled; d["interval_ms"] = s_realtime_ws_interval_ms; String o; serializeJson(d, o); ctx.sendJson(200, o);
+    }
+};
+
+// GET /api/params/bounds - Parameter bounds for UI validation
+class GetParamsBoundsHandler : public K1RequestHandler {
+public:
+    GetParamsBoundsHandler() : K1RequestHandler(ROUTE_PARAMS_BOUNDS, ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        StaticJsonDocument<1024> doc;
+        JsonObject brightness = doc.createNestedObject("brightness"); brightness["min"] = 0.0f; brightness["max"] = 1.0f; brightness["step"] = 0.01f;
+        JsonObject softness = doc.createNestedObject("softness"); softness["min"] = 0.0f; softness["max"] = 1.0f; softness["step"] = 0.01f;
+        JsonObject color = doc.createNestedObject("color"); color["min"] = 0.0f; color["max"] = 1.0f; color["step"] = 0.01f;
+        JsonObject color_range = doc.createNestedObject("color_range"); color_range["min"] = 0.0f; color_range["max"] = 1.0f; color_range["step"] = 0.01f;
+        JsonObject saturation = doc.createNestedObject("saturation"); saturation["min"] = 0.0f; saturation["max"] = 1.0f; saturation["step"] = 0.01f;
+        JsonObject warmth = doc.createNestedObject("warmth"); warmth["min"] = 0.0f; warmth["max"] = 1.0f; warmth["step"] = 0.01f;
+        JsonObject background = doc.createNestedObject("background"); background["min"] = 0.0f; background["max"] = 1.0f; background["step"] = 0.01f;
+        JsonObject dithering = doc.createNestedObject("dithering"); dithering["min"] = 0.0f; dithering["max"] = 1.0f; dithering["step"] = 0.01f;
+        JsonObject mirror_mode = doc.createNestedObject("mirror_mode"); mirror_mode["min"] = 0.0f; mirror_mode["max"] = 1.0f; mirror_mode["step"] = 0.01f;
+        JsonObject speed = doc.createNestedObject("speed"); speed["min"] = 0.0f; speed["max"] = 1.0f; speed["step"] = 0.01f;
+
+        JsonObject palette_id = doc.createNestedObject("palette_id"); palette_id["min"] = 0; palette_id["max"] = NUM_PALETTES - 1; palette_id["step"] = 1;
+
+        JsonObject custom_param_1 = doc.createNestedObject("custom_param_1"); custom_param_1["min"] = 0.0f; custom_param_1["max"] = 1.0f; custom_param_1["step"] = 0.01f;
+        JsonObject custom_param_2 = doc.createNestedObject("custom_param_2"); custom_param_2["min"] = 0.0f; custom_param_2["max"] = 1.0f; custom_param_2["step"] = 0.01f;
+        JsonObject custom_param_3 = doc.createNestedObject("custom_param_3"); custom_param_3["min"] = 0.0f; custom_param_3["max"] = 1.0f; custom_param_3["step"] = 0.01f;
+
+        JsonObject beat_threshold = doc.createNestedObject("beat_threshold"); beat_threshold["min"] = 0.0f; beat_threshold["max"] = 1.0f; beat_threshold["step"] = 0.01f;
+        JsonObject beat_squash_power = doc.createNestedObject("beat_squash_power"); beat_squash_power["min"] = 0.20f; beat_squash_power["max"] = 1.0f; beat_squash_power["step"] = 0.01f;
+
+        JsonObject audio_responsiveness = doc.createNestedObject("audio_responsiveness"); audio_responsiveness["min"] = 0.0f; audio_responsiveness["max"] = 1.0f; audio_responsiveness["step"] = 0.01f;
+        JsonObject audio_sensitivity = doc.createNestedObject("audio_sensitivity"); audio_sensitivity["min"] = 0.1f; audio_sensitivity["max"] = 4.0f; audio_sensitivity["step"] = 0.05f;
+        JsonObject bass_treble_balance = doc.createNestedObject("bass_treble_balance"); bass_treble_balance["min"] = -1.0f; bass_treble_balance["max"] = 1.0f; bass_treble_balance["step"] = 0.05f;
+        JsonObject color_reactivity = doc.createNestedObject("color_reactivity"); color_reactivity["min"] = 0.0f; color_reactivity["max"] = 1.0f; color_reactivity["step"] = 0.01f;
+        JsonObject brightness_floor = doc.createNestedObject("brightness_floor"); brightness_floor["min"] = 0.0f; brightness_floor["max"] = 0.3f; brightness_floor["step"] = 0.01f;
+        JsonObject frame_min_period_ms = doc.createNestedObject("frame_min_period_ms"); frame_min_period_ms["min"] = 4.0f; frame_min_period_ms["max"] = 20.0f; frame_min_period_ms["step"] = 0.5f;
+        JsonObject led_offset = doc.createNestedObject("led_offset"); led_offset["min"] = -NUM_LEDS; led_offset["max"] = NUM_LEDS; led_offset["step"] = 1;
+
+        String output;
+        serializeJson(doc, output);
+        ctx.sendJson(200, output);
+    }
+};
+
 // (Duplicate GetFrameMetricsHandler removed; see single definition above)
 
 // GET /api/beat-events/dump - Ring-buffer snapshot with attachment headers
@@ -1508,8 +1784,8 @@ public:
 };
 
 // GET /api/realtime/config - WebSocket realtime telemetry configuration
-static bool s_realtime_ws_enabled = (REALTIME_WS_ENABLED_DEFAULT != 0);
-static uint32_t s_realtime_ws_interval_ms = REALTIME_WS_DEFAULT_INTERVAL_MS;
+bool s_realtime_ws_enabled = (REALTIME_WS_ENABLED_DEFAULT != 0);
+uint32_t s_realtime_ws_interval_ms = REALTIME_WS_DEFAULT_INTERVAL_MS;
 // NVS persistence for realtime websocket config
 static void load_realtime_ws_config_from_nvs() {
     Preferences prefs;
@@ -1666,7 +1942,9 @@ void init_webserver() {
     registerGetHandler(server, ROUTE_PARAMS, new GetParamsHandler());
     registerGetHandler(server, ROUTE_PALETTES, new GetPalettesHandler());
     registerGetHandler(server, ROUTE_DEVICE_INFO, new GetDeviceInfoHandler());
+    registerGetHandler(server, ROUTE_DEVICE_INFO_ALIAS, new GetDeviceInfoAliasHandler());
     registerGetHandler(server, ROUTE_DEVICE_PERFORMANCE, new GetDevicePerformanceHandler());
+    registerGetHandler(server, ROUTE_DEVICE_PERFORMANCE_ALIAS, new GetDevicePerformanceAliasHandler());
     registerGetHandler(server, ROUTE_FRAME_METRICS, new GetFrameMetricsHandler());
     registerGetHandler(server, ROUTE_TEST_CONNECTION, new GetTestConnectionHandler());
     registerGetHandler(server, ROUTE_HEALTH, new GetHealthHandler());
@@ -1700,6 +1978,16 @@ void init_webserver() {
     registerGetHandler(server, "/api/wifi/scan/results", new GetWifiScanResultsHandler());
     registerGetHandler(server, ROUTE_PATTERN_CURRENT, new GetPatternCurrentHandler());
     registerGetHandler(server, ROUTE_METRICS, new GetMetricsHandler());
+    registerGetHandler(server, ROUTE_METRICS_API, new GetMetricsApiHandler());
+    registerGetHandler(server, ROUTE_WIFI_AP_MODE, new GetWifiApModeHandler());
+    registerPostHandler(server, ROUTE_WIFI_REASSOCIATE, new PostWifiReassociateHandler());
+    registerGetHandler(server, ROUTE_WIFI_SCAN_JSON, new GetWifiScanResultsJsonHandler());
+    registerPostHandler(server, ROUTE_WIFI_TX_POWER, new PostWifiTxPowerHandler());
+    registerPostHandler(server, ROUTE_WIFI_POWER_SAVE, new PostWifiPowerSaveHandler());
+    registerGetHandler(server, ROUTE_WIFI_METRICS, new GetWifiMetricsHandler());
+    registerPostHandler(server, ROUTE_WIFI_CHANNEL, new PostWifiChannelHandler());
+    registerPostHandler(server, ROUTE_WIFI_BAND_STEERING, new PostWifiBandSteeringHandler());
+    registerPostHandler(server, ROUTE_REALTIME_PRESET, new PostRealtimePresetHandler());
     registerGetHandler(server, ROUTE_AUDIO_METRICS, new GetAudioMetricsHandler());
     registerGetHandler(server, ROUTE_BEAT_EVENTS_DUMP, new GetBeatEventsDumpHandler());
     registerGetHandler(server, ROUTE_LED_TX_DUMP, new GetLedTxDumpHandler());
@@ -1710,6 +1998,7 @@ void init_webserver() {
 
     // Register remaining GET handlers
     registerGetHandler(server, ROUTE_AUDIO_CONFIG, new GetAudioConfigHandler());
+    registerGetHandler(server, ROUTE_PARAMS_BOUNDS, new GetParamsBoundsHandler());
     registerGetHandler(server, ROUTE_CONFIG_BACKUP, new GetConfigBackupHandler());
     registerGetHandler(server, ROUTE_WIFI_LINK_OPTIONS, new GetWifiLinkOptionsHandler());
     registerGetHandler(server, ROUTE_WIFI_CREDENTIALS, new GetWifiCredentialsHandler());
@@ -1864,6 +2153,17 @@ void init_webserver() {
     });
 
     // Static file serving is configured below with serveStatic()
+    // Mount SPIFFS and serve UI assets
+    if (SPIFFS.begin(true)) {
+        LOG_INFO(TAG_WEB, "SPIFFS mounted successfully");
+        // Serve device-hosted UI under /ui mapped to SPIFFS root
+        server.serveStatic("/ui", SPIFFS, "/").setDefaultFile("index.html");
+        // Serve CSS and JS asset paths from SPIFFS root
+        server.serveStatic("/css", SPIFFS, "/css");
+        server.serveStatic("/js", SPIFFS, "/js");
+    } else {
+        LOG_ERROR(TAG_WEB, "SPIFFS mount failed; static UI unavailable");
+    }
 
     // Initialize WebSocket server
     ws.onEvent(onWebSocketEvent);

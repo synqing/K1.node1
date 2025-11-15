@@ -94,38 +94,62 @@ void draw_dot(CRGBF* leds, uint16_t dot_index, CRGBF color, float position, floa
 		return;
 	}
 
+	constexpr uint16_t kMaxDotLayers = NUM_RESERVED_DOTS + 8;
+	static CRGBF dot_layers[kMaxDotLayers][NUM_LEDS];
+	static bool dot_layers_init = false;
+
+	if (!dot_layers_init) {
+		std::memset(dot_layers, 0, sizeof(dot_layers));
+		dot_layers_init = true;
+	}
+
 	float clamped_position = clip_float(position);
 	opacity = clip_float(opacity);
 	if (opacity <= 0.0f) {
 		return;
 	}
 
-	// Simplified dot rendering - just render at current position without state tracking
-	// This eliminates the expensive per-frame state management and memory access
-	// For light show patterns, instantaneous dot positioning is sufficient
-	
-	// Calculate LED index and sub-pixel position
+	uint16_t layer_idx = (dot_index < kMaxDotLayers) ? dot_index : (dot_index % kMaxDotLayers);
+	CRGBF* layer = dot_layers[layer_idx];
+
+	// Preserve per-dot history. A misguided memset wiped these layers before, breaking
+	// Analog/Metronome/Hype visuals. Apply decay instead so dots fade naturally.
+	const float layer_decay = 0.82f;
+	for (int i = 0; i < NUM_LEDS; ++i) {
+		layer[i].r *= layer_decay;
+		layer[i].g *= layer_decay;
+		layer[i].b *= layer_decay;
+	}
+
 	float led_pos = clamped_position * static_cast<float>(NUM_LEDS - 1);
 	int base_led = static_cast<int>(led_pos);
 	float frac = led_pos - static_cast<float>(base_led);
-	
-	// Apply Gaussian-like distribution across 3 LEDs for smooth dot appearance
-	const float dot_width = 1.5f; // Dot spans ~1.5 LEDs for smooth appearance
-	
+
+	const float dot_width = 1.5f;
+
 	for (int offset = -1; offset <= 1; offset++) {
 		int led_idx = base_led + offset;
 		if (led_idx >= 0 && led_idx < NUM_LEDS) {
 			float distance = std::abs(static_cast<float>(offset) - frac);
 			float intensity = std::max(0.0f, 1.0f - (distance / dot_width));
-			intensity *= intensity; // Quadratic falloff for smoother appearance
-			
+			intensity *= intensity;
+
 			float final_opacity = opacity * intensity;
 			if (final_opacity > 0.001f) {
-				leds[led_idx].r += color.r * final_opacity;
-				leds[led_idx].g += color.g * final_opacity;
-				leds[led_idx].b += color.b * final_opacity;
+				layer[led_idx].r += color.r * final_opacity;
+				layer[led_idx].g += color.g * final_opacity;
+				layer[led_idx].b += color.b * final_opacity;
 			}
 		}
+	}
+
+	for (int i = 0; i < NUM_LEDS; ++i) {
+		leds[i].r += layer[i].r;
+		leds[i].g += layer[i].g;
+		leds[i].b += layer[i].b;
+		leds[i].r = fminf(1.0f, leds[i].r);
+		leds[i].g = fminf(1.0f, leds[i].g);
+		leds[i].b = fminf(1.0f, leds[i].b);
 	}
 }
 
@@ -134,6 +158,8 @@ float get_color_range_hue(float progress) {
 	return progress * 0.66f;
 }
 
+// Sprite helpers MUST preserve existing data. A misguided memset here nukes
+// the persistence layers relied upon by Bloom, Beat Tunnel, Snapwave, etc.
 void draw_sprite(CRGBF* target, CRGBF* source, int target_size,
                  int source_size, float position, float alpha) {
 	if (target == nullptr || source == nullptr ||
@@ -173,23 +199,29 @@ void draw_sprite_float(float* target, const float* source, int target_size,
 		return;
 	}
 
-	std::memset(target, 0, static_cast<std::size_t>(target_size) * sizeof(float));
+	// IMPORTANT: Do not memset() the destination here. Earlier refactors zeroed the
+	// trail buffer every frame, which killed Bloom/Snapwave style persistence.
 
 	float position_whole_f = std::floor(position);
 	int position_whole = static_cast<int>(position_whole_f);
 	float position_fract = position - position_whole_f;
+	float mix_left = 1.0f - position_fract;
+	float mix_right = position_fract;
 
 	for (int i = 0; i < source_size; ++i) {
 		float sample = source[i] * alpha;
+		if (sample == 0.0f) {
+			continue;
+		}
 		int dst_idx = i + position_whole;
 
 		if (dst_idx >= 0 && dst_idx < target_size) {
-			target[dst_idx] += sample * (1.0f - position_fract);
+			target[dst_idx] += sample * mix_left;
 		}
 
 		int dst_idx_right = dst_idx + 1;
 		if (dst_idx_right >= 0 && dst_idx_right < target_size) {
-			target[dst_idx_right] += sample * position_fract;
+			target[dst_idx_right] += sample * mix_right;
 		}
 	}
 }

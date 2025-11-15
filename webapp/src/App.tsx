@@ -7,7 +7,6 @@ import { ControlPanelView } from './components/views/ControlPanelView';
 const ProfilingView = lazy(() => import('./components/views/ProfilingView').then(m => ({ default: m.ProfilingView })));
 const TerminalView = lazy(() => import('./components/views/TerminalView').then(m => ({ default: m.TerminalView })));
 const NodeEditorView = lazy(() => import('./components/views/NodeEditorView').then(m => ({ default: m.NodeEditorView })));
-const AnalysisView = lazy(() => import('./components/views/AnalysisView').then(m => ({ default: m.AnalysisView })));
 const ApiIndexView = lazy(() => import('./components/views/ApiIndexView').then(m => ({ default: m.ApiIndexView })));
 import { ConnectionState } from './lib/types';
 import { toast } from 'sonner';
@@ -15,7 +14,7 @@ import { testConnection } from './lib/api';
 import { getDefaultDeviceIp, shouldAutoConnect } from './lib/config';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'control' | 'analysis' | 'profiling' | 'terminal' | 'node' | 'api'>('control');
+  const [currentView, setCurrentView] = useState<'control' | 'profiling' | 'terminal' | 'node' | 'api'>('control');
   const [connectionState, setConnectionState] = useState<ConnectionState>({
     connected: false,
     deviceIp: '',
@@ -176,7 +175,6 @@ export default function App() {
             }
           >
             {currentView === 'control' && <ControlPanelView connectionState={connectionState} />}
-            {currentView === 'analysis' && <AnalysisView connectionState={connectionState} />}
             {currentView === 'profiling' && <ProfilingView />}
             {currentView === 'terminal' && <TerminalView />}
             {currentView === 'node' && <NodeEditorView />}

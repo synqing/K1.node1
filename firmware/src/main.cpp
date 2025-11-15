@@ -93,9 +93,10 @@ CRGBF leds[NUM_LEDS];
 // Global beat event rate limiter (shared across audio paths)
 static uint32_t g_last_beat_event_ms = 0;
 
-// Debug mode flags (toggle with keystrokes: 'd' = audio, 't' = tempo)
+// Debug mode flags (toggle with keystrokes: 'd' = audio, 't' = tempo, 'x' = trace)
 static bool audio_debug_enabled = false;
 bool tempo_debug_enabled = false;  // Non-static for visibility to tempo.cpp
+bool audio_trace_enabled = false;  // Non-static for visibility to audio TAG_TRACE logs
 
 // Forward declaration for single-core audio pipeline helper
 static inline void run_audio_pipeline_once();
@@ -135,10 +136,10 @@ float get_best_bpm() {
     if (!tempi_smooth || !tempi_bpm_values_hz) {
         return 120.0f; // Safe default BPM
     }
-    
+
+    // Find strongest bin
     float max_magnitude = 0.0f;
     uint16_t best_bin = 0;
-
     for (uint16_t i = 0; i < NUM_TEMPI; i++) {
         if (tempi_smooth[i] > max_magnitude) {
             max_magnitude = tempi_smooth[i];
@@ -151,9 +152,31 @@ float get_best_bpm() {
         best_bin = NUM_TEMPI - 1;
     }
 
-    // Convert bin index to BPM (32-192 BPM range across NUM_TEMPI bins)
-    // tempi_bpm_values_hz[i] stores frequency in Hz, convert to BPM
-    return tempi_bpm_values_hz[best_bin] * 60.0f;  // Hz to BPM
+    // Weighted average of best bin and immediate neighbours (for smoother BPM)
+    float weighted_hz_sum = 0.0f;
+    float weight_sum = 0.0f;
+    for (int8_t offset = -1; offset <= 1; ++offset) {
+        int32_t idx = static_cast<int32_t>(best_bin) + offset;
+        if (idx < 0 || idx >= static_cast<int32_t>(NUM_TEMPI)) {
+            continue;
+        }
+        float w = tempi_smooth[idx];
+        if (w <= 0.0f) {
+            continue;
+        }
+        weighted_hz_sum += w * tempi_bpm_values_hz[idx];
+        weight_sum += w;
+    }
+
+    float bpm = 120.0f;
+    if (weight_sum > 0.0f) {
+        float hz = weighted_hz_sum / weight_sum;
+        bpm = hz * 60.0f;
+    }
+
+    // Round for UX: nearest 0.5 BPM
+    bpm = roundf(bpm * 2.0f) / 2.0f;
+    return bpm;
 }
 
 void handle_wifi_connected() {
@@ -1141,6 +1164,10 @@ void loop() {
         } else if (ch == 't') { // Toggle tempo debug (direct toggle, no menu)
             tempo_debug_enabled = !tempo_debug_enabled;
             LOG_INFO(TAG_TEMPO, "Tempo debug: %s", tempo_debug_enabled ? "ON" : "OFF");
+        } else if (ch == 'x') { // Toggle low-level audio trace logs (PT1/PT2/PT3/PT5)
+            extern bool audio_trace_enabled;
+            audio_trace_enabled = !audio_trace_enabled;
+            LOG_INFO(TAG_TRACE, "Audio trace: %s", audio_trace_enabled ? "ON" : "OFF");
         } else if (ch == 'a') { // Toggle AGC (direct toggle, no menu)
             extern CochlearAGC* g_cochlear_agc;
             if (g_cochlear_agc) {

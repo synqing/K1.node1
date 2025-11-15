@@ -49,8 +49,8 @@
 #define BOTTOM_NOTE 12	// EMOTISCOPE VERBATIM: Quarter-step 12 = 58.27 Hz (restores low bass 58-116 Hz)
 #define NOTE_STEP 2 // Use half-steps anyways
 
-// Tempo detection configuration (50-150 BPM range, 0.78 BPM/bin resolution)
-#define NUM_TEMPI 128
+// Tempo detection configuration (50-150 BPM range, ~0.52 BPM/bin resolution)
+#define NUM_TEMPI 192
 
 // Goertzel processing
 #define MAX_AUDIO_RECORDING_SAMPLES 1024
