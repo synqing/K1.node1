@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Palette } from 'lucide-react';
 import type { ColorPalette, RgbColor } from '../../lib/types';
 import { COLOR_PALETTES } from '../../lib/mockData';
@@ -6,13 +6,7 @@ import { UI_PRESET_ORDER, getEffectivePresetMapping, setPresetMapping } from '..
 import { Button } from '../ui/button';
 import { Slider } from '../ui/slider';
 import { Label } from '../ui/label';
-
-// Lazily load Radix Select pieces only when mapping editor is opened
-const Select = lazy(() => import('../ui/select').then(m => ({ default: m.Select })));
-const SelectContent = lazy(() => import('../ui/select').then(m => ({ default: m.SelectContent })));
-const SelectItem = lazy(() => import('../ui/select').then(m => ({ default: m.SelectItem })));
-const SelectTrigger = lazy(() => import('../ui/select').then(m => ({ default: m.SelectTrigger })));
-const SelectValue = lazy(() => import('../ui/select').then(m => ({ default: m.SelectValue })));
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const DEFAULT_SWATCH: RgbColor[] = [
   { r: 153, g: 153, b: 153 },
@@ -165,21 +159,19 @@ export function ColorManagement({ palettes, initialPaletteId, initialHsv, onColo
               </div>
               {editMapping && firmwarePaletteOptions.length > 0 && (
                 <div className="mt-1">
-                  <Suspense fallback={<div className="h-8 w-full bg-[var(--prism-bg-elevated)]/50 rounded" />}> 
-                    <Select 
-                      value={String(presetMap[palette.name] ?? '')}
-                      onValueChange={(v: string) => handlePresetRemap(palette.name, v)}
-                    >
-                      <SelectTrigger size="sm">
-                        <SelectValue placeholder="Select firmware palette" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {firmwarePaletteOptions.map((opt) => (
-                          <SelectItem key={opt.id} value={opt.id}>{opt.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Suspense>
+                  <Select 
+                    value={String(presetMap[palette.name] ?? '')}
+                    onValueChange={(v: string) => handlePresetRemap(palette.name, v)}
+                  >
+                    <SelectTrigger size="sm">
+                      <SelectValue placeholder="Select firmware palette" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {firmwarePaletteOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id}>{opt.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
             </button>

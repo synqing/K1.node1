@@ -23,8 +23,10 @@ uint8_t raw_led_data_ch2[NUM_LEDS * 3];
 // Persistent error diffusion accumulator for temporal dithering parity
 CRGBF dither_error[NUM_LEDS];
 
-// Logging tag
+// Logging tag (only when ESP logging is available)
+#if __has_include(<esp_log.h>)
 static const char *TAG = "led_encoder";
+#endif
 
 // RMT globals (shared declarations so header externs stay valid)
 // Dual output: GPIO 5 (primary) and GPIO 4 (secondary)

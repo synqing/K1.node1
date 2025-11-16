@@ -504,7 +504,6 @@ CRGBF color_from_palette(uint8_t palette_index, float progress, float brightness
 	float g = (g1 * (1.0f - blend) + g2 * blend) / 255.0f;
 	float b = (b1 * (1.0f - blend) + b2 * blend) / 255.0f;
 
-	// Apply brightness
-	LOG_DEBUG(TAG_PALETTE, "color_from_palette: palette_index=%d, progress=%.2f, brightness=%.2f", palette_index, progress, brightness);
+	// Apply brightness (logging removed to avoid per-LED spam on serial)
 	return {r * brightness, g * brightness, b * brightness};
 }

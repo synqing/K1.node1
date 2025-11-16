@@ -6,9 +6,12 @@ import { Label } from '../ui/label';
 interface EffectParametersProps {
   effect: Effect;
   onParameterChange: (paramName: string, value: number) => void;
+  animationSpeed?: number;
+  onAnimationSpeedChange?: (value: number) => void;
+  isConnected?: boolean;
 }
 
-export function EffectParameters({ effect, onParameterChange }: EffectParametersProps) {
+export function EffectParameters({ effect, onParameterChange, animationSpeed, onAnimationSpeedChange, isConnected }: EffectParametersProps) {
   const [localValues, setLocalValues] = useState<Record<string, number>>({});
   
   useEffect(() => {
@@ -45,6 +48,36 @@ export function EffectParameters({ effect, onParameterChange }: EffectParameters
           {effect.description}
         </p>
       </div>
+
+      {isConnected && animationSpeed !== undefined && onAnimationSpeedChange && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="animation-speed" className="text-xs">
+              Animation Speed
+            </Label>
+            <span className="text-xs font-jetbrains text-[var(--prism-text-primary)]">
+              {animationSpeed}%
+            </span>
+          </div>
+          <input
+            id="animation-speed"
+            type="range"
+            min={0}
+            max={100}
+            value={animationSpeed}
+            className="w-full h-2 bg-[var(--prism-bg-canvas)] rounded-lg appearance-none cursor-pointer focus:outline-none"
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              onAnimationSpeedChange(v);
+            }}
+            aria-label="Animation speed"
+          />
+          <div className="flex justify-between text-xs text-[var(--prism-text-secondary)] font-jetbrains">
+            <span>0%</span>
+            <span>100%</span>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-5">
         {effect.parameters.length === 0 && (

@@ -18,7 +18,7 @@
   --prism-gold: #ffb84d;
   --prism-success: #22dd88;
   --prism-warning: #f59e0b;
-  --prism-error: #ef4444;
+  --prism-error: #ff5555;
   --prism-info: #6ee7f3;
   
   /* PRISM.node Data Type Colors */
@@ -253,4 +253,65 @@ html {
 
 .font-jetbrains {
   font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* WCAG Accessibility Fixes */
+/* Focus ring standard: 2px ring with offset for all interactive elements */
+input[type="range"]:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--prism-bg-surface), 0 0 0 4px var(--prism-info);
+}
+
+/* Ensure range inputs have proper focus indicators */
+input[type="range"] {
+  accent-color: var(--prism-gold);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--prism-gold);
+  cursor: pointer;
+  transition: background 200ms;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--prism-gold);
+  filter: brightness(1.1);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--prism-gold);
+  cursor: pointer;
+  border: none;
+  transition: background 200ms;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  background: var(--prism-gold);
+  filter: brightness(1.1);
+}
+
+/* Minimum touch target size (44x44px for mobile) */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a[role="button"],
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 10px 12px;
+  }
 }

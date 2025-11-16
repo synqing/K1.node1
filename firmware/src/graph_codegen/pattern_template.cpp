@@ -67,12 +67,12 @@ extern "C" void pattern_example_render(
 
     // Temporary buffers (pooled scratch, reused across frame)
     CRGBF temp_buf_0[PATTERN_NUM_LEDS];
-    CRGBF temp_buf_1[PATTERN_NUM_LEDS];
+    // CRGBF temp_buf_1[PATTERN_NUM_LEDS];
 
     // Scalar temporaries (for intermediate values)
-    float time_val;
-    float envelope_val;
-    float color_val;
+    // float time_val;
+    // float envelope_val;
+    // float color_val;
 
     // ========================================================================
     // COMPUTE NODES IN TOPOLOGICAL ORDER

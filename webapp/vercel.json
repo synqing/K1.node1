@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "buildCommand": "cd webapp && npm run build",
+  "outputDirectory": "webapp/dist",
+  "installCommand": "cd webapp && npm install",
+  "framework": "vite",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- webapp/",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://api.placeholder.com/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

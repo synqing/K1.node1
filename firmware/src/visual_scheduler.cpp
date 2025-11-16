@@ -6,6 +6,7 @@
 #include <Arduino.h>
 #include "render_channel.h"
 #include "pattern_registry.h"
+#include "pattern_execution.h"
 #include "parameters.h"
 #include "led_driver.h"
 #include "audio/goertzel.h"  // get_audio_snapshot

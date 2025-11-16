@@ -56,7 +56,7 @@ function getNavigatorSerial() {
 
 interface SidebarProps {
   connectionState: ConnectionState;
-  onConnect: (ip: string, port: string) => Promise<void> | void;
+  onConnect: (ip: string, port: string) => Promise<boolean>;
   onDisconnect: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -142,6 +142,7 @@ export function Sidebar({ connectionState, onConnect, onDisconnect, isCollapsed,
     }
   };
   
+
   if (isCollapsed) {
     return (
       <div className="w-12 bg-[var(--prism-bg-surface)] border-r border-[var(--prism-bg-elevated)] flex flex-col items-center py-4">

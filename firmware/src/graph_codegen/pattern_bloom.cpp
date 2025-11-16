@@ -19,9 +19,7 @@ extern "C" void pattern_bloom_render(
     static constexpr int PATTERN_NUM_LEDS = NUM_LEDS;
 
     // Buffers
-    float tmp_f0[PATTERN_NUM_LEDS] = {0.0f};
     CRGBF tmp_rgb0[PATTERN_NUM_LEDS];
-    CRGBF tmp_rgb1[PATTERN_NUM_LEDS];
 
     // Initialize RGB buffer to black
     

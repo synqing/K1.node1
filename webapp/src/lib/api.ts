@@ -49,6 +49,17 @@ async function getJson<T>(url: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function getWithProxyFallback<T>(ip: string, path: string): Promise<T> {
+  try {
+    return await getJson<T>(`${base(ip)}${path}`);
+  } catch (err: any) {
+    const msg = String(err?.message || err);
+    const isNetwork = msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkerror');
+    if (!isNetwork && !msg.includes('404')) throw err;
+    return await getJson<T>(`/api${path}`);
+  }
+}
+
 // Lightweight fetch with timeout for connectivity checks
 async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
   const controller = new AbortController();
@@ -62,23 +73,19 @@ async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
 }
 
 export async function getPatterns(ip: string): Promise<{ patterns: FirmwarePattern[]; current_pattern: number } | FirmwarePattern[] > {
-  // Some builds may return array only; handle both shapes
-  const data = await getJson<any>(`${base(ip)}/api/patterns`);
-  return data;
+  return getWithProxyFallback<any>(ip, '/api/patterns');
 }
 
 export async function getParams(ip: string): Promise<FirmwareParams> {
-  // Gate GET /api/params to avoid colliding with an in-flight POST
-  const url = `${base(ip)}/api/params`;
+  const path = '/api/params';
   if (postInFlight && postDonePromise) {
     await postDonePromise;
   }
-  return getJson<FirmwareParams>(url);
+  return getWithProxyFallback<FirmwareParams>(ip, path);
 }
 
 export async function getPalettes(ip: string): Promise<FirmwarePalette[] | { palettes: FirmwarePalette[] }> {
-  const data = await getJson<any>(`${base(ip)}/api/palettes`);
-  return data;
+  return getWithProxyFallback<any>(ip, '/api/palettes');
 }
 
 
@@ -203,7 +210,7 @@ export type FirmwareAudioConfig = {
 };
 
 export async function getAudioConfig(ip: string): Promise<FirmwareAudioConfig> {
-  return getJson<FirmwareAudioConfig>(`${base(ip)}/api/audio-config`);
+  return getWithProxyFallback<FirmwareAudioConfig>(ip, '/api/audio-config');
 }
 
 export async function postAudioConfig(
@@ -320,7 +327,7 @@ export type FirmwarePerformanceMetrics = {
 };
 
 export async function getPerformanceMetrics(ip: string): Promise<FirmwarePerformanceMetrics> {
-  return getJson(`${base(ip)}/api/device/performance`);
+  return getWithProxyFallback<FirmwarePerformanceMetrics>(ip, '/api/device/performance');
 }
 
 // Test device connectivity using the dedicated firmware endpoint with a short timeout

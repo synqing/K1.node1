@@ -1,46 +1,21 @@
 "use client";
 
-import * as React from "react";
-import { Suspense, lazy } from "react";
+import * as SelectFull from "./select.full";
 
-// Lazy-map each named export from the full implementation
-const SelectImpl = lazy(() => import("./select.full").then(m => ({ default: m.Select })));
-const SelectContentImpl = lazy(() => import("./select.full").then(m => ({ default: m.SelectContent })));
-const SelectGroupImpl = lazy(() => import("./select.full").then(m => ({ default: m.SelectGroup })));
-const SelectItemImpl = lazy(() => import("./select.full").then(m => ({ default: m.SelectItem })));
-const SelectLabelImpl = lazy(() => import("./select.full").then(m => ({ default: m.SelectLabel })));
-const SelectScrollDownButtonImpl = lazy(() => import("./select.full").then(m => ({ default: m.SelectScrollDownButton })));
-const SelectScrollUpButtonImpl = lazy(() => import("./select.full").then(m => ({ default: m.SelectScrollUpButton })));
-const SelectSeparatorImpl = lazy(() => import("./select.full").then(m => ({ default: m.SelectSeparator })));
-const SelectTriggerImpl = lazy(() => import("./select.full").then(m => ({ default: m.SelectTrigger })));
-const SelectValueImpl = lazy(() => import("./select.full").then(m => ({ default: m.SelectValue })));
+// Temporarily disable the lazy-loading wrapper to avoid Vite chunk warnings.
+// Once all consumers consistently use dynamic imports we can restore the
+// Suspense-based implementation.
 
-const fallbackEl = (
-  <div className="h-8 w-full rounded bg-[color-mix(in_oklab,var(--foreground)_15%,transparent)]/10" />
-);
-
-function withSuspense<P>(Comp: React.ComponentType<P>) {
-  const Wrapper: React.FC<P> = (props) => {
-    return (
-      <Suspense fallback={fallbackEl}>
-        <Comp {...props} />
-      </Suspense>
-    );
-  };
-  Wrapper.displayName = `WithSuspense(${(Comp as any).displayName ?? (Comp as any).name ?? 'Component'})`;
-  return Wrapper;
-}
-
-const Select = withSuspense(SelectImpl);
-const SelectContent = withSuspense(SelectContentImpl);
-const SelectGroup = withSuspense(SelectGroupImpl);
-const SelectItem = withSuspense(SelectItemImpl);
-const SelectLabel = withSuspense(SelectLabelImpl);
-const SelectScrollDownButton = withSuspense(SelectScrollDownButtonImpl);
-const SelectScrollUpButton = withSuspense(SelectScrollUpButtonImpl);
-const SelectSeparator = withSuspense(SelectSeparatorImpl);
-const SelectTrigger = withSuspense(SelectTriggerImpl);
-const SelectValue = withSuspense(SelectValueImpl);
+const Select = SelectFull.Select;
+const SelectContent = SelectFull.SelectContent;
+const SelectGroup = SelectFull.SelectGroup;
+const SelectItem = SelectFull.SelectItem;
+const SelectLabel = SelectFull.SelectLabel;
+const SelectScrollDownButton = SelectFull.SelectScrollDownButton;
+const SelectScrollUpButton = SelectFull.SelectScrollUpButton;
+const SelectSeparator = SelectFull.SelectSeparator;
+const SelectTrigger = SelectFull.SelectTrigger;
+const SelectValue = SelectFull.SelectValue;
 
 export {
   Select,

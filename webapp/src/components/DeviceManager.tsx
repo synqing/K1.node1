@@ -33,9 +33,49 @@ interface DiscoveredDevice {
   rssi?: number;
 }
 
+interface ManualDevice {
+  id: string;
+  name: string;
+  ip: string;
+  port?: number;
+}
+
+const MANUAL_DEVICES_KEY = 'deviceManager.manualDevices';
+const DEFAULT_FALLBACK_DISCOVERY_URL = 'http://localhost:8080/api/devices';
+const allowMockDiscovery = Boolean(import.meta.env.DEV || import.meta.env.VITE_DEVICE_DISCOVERY_FALLBACK_URL);
+
+function loadManualDevicesFromStorage(): ManualDevice[] {
+  try {
+    const raw = localStorage.getItem(MANUAL_DEVICES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry) => entry && typeof entry.ip === 'string')
+      .map((entry, idx) => ({
+        id: entry.id || `manual-${idx}`,
+        name: entry.name || entry.ip,
+        ip: entry.ip,
+        port: entry.port,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function persistManualDevices(devices: ManualDevice[]) {
+  try {
+    localStorage.setItem(MANUAL_DEVICES_KEY, JSON.stringify(devices));
+  } catch {}
+}
+
+function getFallbackDiscoveryUrl() {
+  return (import.meta.env.VITE_DEVICE_DISCOVERY_FALLBACK_URL as string) || DEFAULT_FALLBACK_DISCOVERY_URL;
+}
+
 interface DeviceManagerProps {
   connectionState: ConnectionState;
-  onConnect: (ip: string, port: string) => Promise<void> | void;
+  onConnect: (ip: string, port: string) => Promise<boolean>;
   onDisconnect: () => void;
 }
 
@@ -71,6 +111,32 @@ const discoverDevices = async (): Promise<DiscoveredDevice[]> => {
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Failed to discover devices';
     throw new Error(`Device discovery failed: ${errorMsg}`);
+  }
+};
+
+const discoverMockDevices = async (): Promise<DiscoveredDevice[]> => {
+  if (!allowMockDiscovery) return [];
+  try {
+    const res = await fetch(getFallbackDiscoveryUrl(), { method: 'GET' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const items: Array<{ id?: string; name?: string; ip?: string; port?: number; firmware?: string; rssi?: number }> =
+      Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+    return items
+      .filter((item) => typeof item.ip === 'string')
+      .map((device, index) => ({
+        id: device.id || `mock-${index}`,
+        name: device.name || device.ip || `Mock Device ${index + 1}`,
+        ip: device.ip as string,
+        port: device.port ?? 80,
+        firmware: device.firmware || 'mock-firmware',
+        rssi: device.rssi ?? -50,
+        lastSeen: new Date(),
+        discoveryCount: 1,
+      }));
+  } catch (error) {
+    console.warn('Mock device discovery failed', error);
+    return [];
   }
 };
 
@@ -113,7 +179,7 @@ class DeviceCache {
 }
 
 // Auto-reconnect hook with exponential backoff
-function useAutoReconnect(onConnect: (ip: string) => Promise<void>) {
+function useAutoReconnect(onConnect: (ip: string) => Promise<boolean>) {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [nextDelay, setNextDelay] = useState(0);
@@ -149,11 +215,14 @@ function useAutoReconnect(onConnect: (ip: string) => Promise<void>) {
       }
       
       try {
-        await onConnect(lastEndpointRef.current);
-        setIsReconnecting(false);
-        setAttempt(0);
-        toast.success('Reconnected successfully');
-        return;
+        const ok = await onConnect(lastEndpointRef.current);
+        if (ok) {
+          setIsReconnecting(false);
+          setAttempt(0);
+          toast.success('Reconnected successfully');
+          return;
+        }
+        throw new Error('Device unreachable');
       } catch (error) {
         // Calculate next delay with exponential backoff + jitter
         const baseDelay = Math.min(30000, 1000 * Math.pow(2, attemptNum - 1));
@@ -252,11 +321,12 @@ export function DeviceManager({ connectionState, onConnect, onDisconnect }: Devi
   const [validationError, setValidationError] = useState<string>('');
   const [lastError, setLastError] = useState<string>('');
   const [showAllDevices, setShowAllDevices] = useState(false);
+  const [manualDevices, setManualDevices] = useState<ManualDevice[]>([]);
+  const [manualDeviceName, setManualDeviceName] = useState('');
+  const [manualDeviceIpInput, setManualDeviceIpInput] = useState('');
   
   const deviceCacheRef = useRef(new DeviceCache());
-  const autoReconnect = useAutoReconnect(async (ip: string) => {
-    await onConnect(ip, '');
-  });
+  const autoReconnect = useAutoReconnect(async (ip: string) => onConnect(ip, ''));
   
   // Validate manual IP input
   useEffect(() => {
@@ -268,6 +338,68 @@ export function DeviceManager({ connectionState, onConnect, onDisconnect }: Devi
     const validation = validateEndpoint(manualIp);
     setValidationError(validation.error || '');
   }, [manualIp]);
+
+  const handleAddManualDevice = useCallback(() => {
+    if (!manualDeviceIpInput.trim()) {
+      toast.error('Invalid endpoint', { description: 'Device IP/hostname is required' });
+      return;
+    }
+    const validation = validateEndpoint(manualDeviceIpInput);
+    if (!validation.isValid) {
+      toast.error('Invalid endpoint', { description: validation.error });
+      return;
+    }
+    const entry: ManualDevice = {
+      id: `manual-${Date.now()}`,
+      name: manualDeviceName.trim() || validation.normalized!,
+      ip: validation.normalized!,
+    };
+    setManualDevices((prev) => [...prev, entry]);
+    toast.success('Device saved', { description: entry.name });
+    setManualDeviceName('');
+    setManualDeviceIpInput('');
+  }, [manualDeviceIpInput, manualDeviceName]);
+
+  const handleRemoveManualDevice = useCallback((id: string) => {
+    setManualDevices((prev) => prev.filter((device) => device.id !== id));
+  }, []);
+
+  const handleConnectSavedDevice = useCallback(async (device: ManualDevice) => {
+    const connectingToast = toast.loading(`Connecting to ${device.name}...`, {
+      description: `Testing connection to ${device.ip}`,
+    });
+    try {
+      const success = await onConnect(device.ip, '');
+      if (success) {
+        toast.success(`Connected to ${device.name}`, {
+          id: connectingToast,
+          description: device.ip,
+        });
+        try {
+          localStorage.setItem('deviceManager.lastEndpoint', device.ip);
+        } catch {}
+      } else {
+        toast.error(`Failed to connect to ${device.name}`, {
+          id: connectingToast,
+          description: 'Device did not respond',
+        });
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Connection failed';
+      toast.error(`Failed to connect to ${device.name}`, {
+        id: connectingToast,
+        description: errorMsg,
+      });
+    }
+  }, [onConnect]);
+
+  useEffect(() => {
+    setManualDevices(loadManualDevicesFromStorage());
+  }, []);
+
+  useEffect(() => {
+    persistManualDevices(manualDevices);
+  }, [manualDevices]);
 
   // Prefer mDNS/hostname defaults over specific IPs
   useEffect(() => {
@@ -302,33 +434,34 @@ export function DeviceManager({ connectionState, onConnect, onDisconnect }: Devi
     });
     
     try {
-      setLastError('');
-      await onConnect(validation.normalized!, '');
-      
-      // Save successful endpoint
-      try {
-        localStorage.setItem('deviceManager.lastEndpoint', validation.normalized!);
-      } catch {}
-      
-      toast.success('Connected successfully', {
-        id: connectingToast,
-        description: `Connected to ${validation.normalized}`
-      });
-      
-      // Start auto-reconnect for this endpoint
+      const success = await onConnect(validation.normalized!, '');
+      if (success) {
+        setLastError('');
+        try {
+          localStorage.setItem('deviceManager.lastEndpoint', validation.normalized!);
+        } catch {}
+        toast.success('Connected successfully', {
+          id: connectingToast,
+          description: `Connected to ${validation.normalized}`
+        });
+      } else {
+        const errMsg = 'Device did not respond';
+        setLastError(errMsg);
+        toast.error('Connection failed', {
+          id: connectingToast,
+          description: errMsg
+        });
+      }
       if (autoReconnect.enabled) {
         autoReconnect.start(validation.normalized!);
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Connection failed';
       setLastError(errorMsg);
-      
       toast.error('Connection failed', {
         id: connectingToast,
         description: errorMsg
       });
-      
-      // Start auto-reconnect on failure if enabled
       if (autoReconnect.enabled) {
         autoReconnect.start(validation.normalized!);
       }
@@ -339,21 +472,26 @@ export function DeviceManager({ connectionState, onConnect, onDisconnect }: Devi
   const handleDiscovery = useCallback(async () => {
     setIsDiscovering(true);
     try {
-      const newDevices = await discoverDevices();
-      
-      // Add to cache with deduplication
+      let source: 'registry' | 'mock' = 'registry';
+      let newDevices = await discoverDevices();
+      if ((!newDevices || newDevices.length === 0) && allowMockDiscovery) {
+        const fallbackDevices = await discoverMockDevices();
+        if (fallbackDevices.length) {
+          newDevices = fallbackDevices;
+          source = 'mock';
+        }
+      }
+
       deviceCacheRef.current.addDevices(newDevices);
-      
-      // Update displayed devices
       const allDevices = deviceCacheRef.current.getDevicesSortedByLastSeen();
       setDiscoveredDevices(allDevices);
-      
+
       const uniqueCount = newDevices.length;
       const totalCount = allDevices.length;
-      
+
       if (uniqueCount > 0) {
         toast.success(`Discovery complete`, {
-          description: `Found ${uniqueCount} device${uniqueCount !== 1 ? 's' : ''} (${totalCount} total cached)`
+          description: `Found ${uniqueCount} device${uniqueCount !== 1 ? 's' : ''} (${totalCount} total cached${source === 'mock' ? ', mock registry' : ''})`
         });
       } else {
         toast.info('No new devices found', {
@@ -361,9 +499,19 @@ export function DeviceManager({ connectionState, onConnect, onDisconnect }: Devi
         });
       }
     } catch (error) {
-      toast.error('Discovery failed', {
-        description: error instanceof Error ? error.message : 'Unknown error'
-      });
+      const fallbackDevices = await discoverMockDevices();
+      if (fallbackDevices.length) {
+        deviceCacheRef.current.addDevices(fallbackDevices);
+        const allDevices = deviceCacheRef.current.getDevicesSortedByLastSeen();
+        setDiscoveredDevices(allDevices);
+        toast.success('Discovery complete (mock)', {
+          description: `Loaded ${fallbackDevices.length} mock device${fallbackDevices.length !== 1 ? 's' : ''}`
+        });
+      } else {
+        toast.error('Discovery failed', {
+          description: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
     } finally {
       setIsDiscovering(false);
     }
@@ -376,24 +524,27 @@ export function DeviceManager({ connectionState, onConnect, onDisconnect }: Devi
     });
     
     try {
-      setLastError('');
-      await onConnect(device.ip, '');
-      
-      // Save successful endpoint
-      try {
-        localStorage.setItem('deviceManager.lastEndpoint', device.ip);
-      } catch {}
-      
-      toast.success(`Connected to ${device.name}`, {
-        id: connectingToast,
-        description: `${device.ip}:${device.port} • ${device.firmware || 'Unknown firmware'}`
-      });
-      
-      // Update device cache with successful connection
-      const updatedDevice = { ...device, lastSeen: new Date() };
-      deviceCacheRef.current.addDevices([updatedDevice]);
-      setDiscoveredDevices(deviceCacheRef.current.getDevicesSortedByLastSeen());
-      
+      const success = await onConnect(device.ip, '');
+      if (success) {
+        setLastError('');
+        try {
+          localStorage.setItem('deviceManager.lastEndpoint', device.ip);
+        } catch {}
+        toast.success(`Connected to ${device.name}`, {
+          id: connectingToast,
+          description: `${device.ip}:${device.port} • ${device.firmware || 'Unknown firmware'}`
+        });
+        const updatedDevice = { ...device, lastSeen: new Date() };
+        deviceCacheRef.current.addDevices([updatedDevice]);
+        setDiscoveredDevices(deviceCacheRef.current.getDevicesSortedByLastSeen());
+      } else {
+        const msg = 'Device did not respond';
+        setLastError(msg);
+        toast.error(`Failed to connect to ${device.name}`, {
+          id: connectingToast,
+          description: msg
+        });
+      }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Connection failed';
       setLastError(errorMsg);
@@ -418,7 +569,10 @@ export function DeviceManager({ connectionState, onConnect, onDisconnect }: Devi
     
     try {
       setLastError('');
-      await onConnect(lastEndpoint, '');
+      const ok = await onConnect(lastEndpoint, '');
+      if (!ok) {
+        setLastError('Device did not respond');
+      }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Connection failed';
       setLastError(errorMsg);
@@ -720,6 +874,79 @@ export function DeviceManager({ connectionState, onConnect, onDisconnect }: Devi
             Connect
           </Button>
         </form>
+      </div>
+      
+      {/* Saved Devices */}
+      <div className="bg-[var(--prism-bg-elevated)] border border-[var(--prism-bg-canvas)] rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-[var(--prism-text-primary)]">Saved Devices</h3>
+          <span className="text-[10px] text-[var(--prism-text-secondary)]">Stored locally</span>
+        </div>
+        <div className="space-y-2">
+          <div>
+            <Label htmlFor="manual-name" className="text-xs text-[var(--prism-text-secondary)]">Display Name</Label>
+            <Input
+              id="manual-name"
+              type="text"
+              value={manualDeviceName}
+              onChange={(e) => setManualDeviceName(e.target.value)}
+              placeholder="Studio Controller"
+              className="mt-1 text-xs"
+            />
+          </div>
+          <div>
+            <Label htmlFor="manual-device-ip" className="text-xs text-[var(--prism-text-secondary)]">Device IP / Hostname</Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                id="manual-device-ip"
+                type="text"
+                value={manualDeviceIpInput}
+                onChange={(e) => setManualDeviceIpInput(e.target.value)}
+                placeholder="192.168.1.50"
+                className="text-xs"
+              />
+              <Button type="button" size="sm" onClick={handleAddManualDevice} className="text-xs whitespace-nowrap">
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {manualDevices.length === 0 && (
+            <div className="text-[10px] text-[var(--prism-text-secondary)]">
+              No saved devices yet. Add one for quick access.
+            </div>
+          )}
+          {manualDevices.map((device) => (
+            <div
+              key={device.id}
+              className="flex items-center justify-between rounded border border-[var(--prism-bg-canvas)]/40 px-3 py-2 text-xs"
+            >
+              <div>
+                <div className="text-[var(--prism-text-primary)] font-medium">{device.name}</div>
+                <div className="text-[var(--prism-text-secondary)] font-jetbrains text-[11px]">{device.ip}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => handleConnectSavedDevice(device)}
+                  disabled={connectionState.connected}
+                >
+                  Connect
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-[10px] text-[var(--prism-text-secondary)] hover:text-red-500"
+                  onClick={() => handleRemoveManualDevice(device.id)}
+                >
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
       
       {/* Auto-reconnect Settings */}

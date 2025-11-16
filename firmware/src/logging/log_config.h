@@ -76,10 +76,10 @@
 // ============================================================================
 // BUFFER CONFIGURATION - Static buffers, no dynamic allocation
 // ============================================================================
-#define LOG_MESSAGE_BUFFER_SIZE 256   // Max message size (formatted output)
+#define LOG_MESSAGE_BUFFER_SIZE 768   // Max message size (formatted output)
 #define LOG_FORMAT_BUFFER_SIZE  512   // Temporary buffer for formatting
 #define LOG_MUTEX_WAIT_MS       20    // FreeRTOS mutex timeout (increased to reduce edge case timeouts)
-#define LOG_MAX_TIMESTAMP_LEN   12    // "HHHMMSS.mmm" + null
+#define LOG_MAX_TIMESTAMP_LEN   16    // "HH:MM:SS.mmm" + null (13 min), pad for safety
 
 // ============================================================================
 // PERFORMANCE TUNING

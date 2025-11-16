@@ -153,3 +153,4 @@ void apply_eq_curve(float* spectrum, int len, float balance);
 class BufferPersistNode;
 void adaptive_band_decay(BufferPersistNode& persist, const float* input, int len, float rise_rate, float fall_rate);
 void resample_history_to_leds(const float* history, int hist_len, float* out, int leds);
+CRGBF hsv_enhanced(float h, float s, float v);

@@ -34,6 +34,9 @@ struct PaletteInfo {
 extern const char* const palette_names[];
 extern const PaletteInfo palette_table[];
 
+// Prism trail buffer (defined in palettes.cpp, used by prism pattern)
+extern float prism_trail[];
+
 // ============================================================================
 // COLOR FROM PALETTE - Replaces hsv() function
 // ============================================================================

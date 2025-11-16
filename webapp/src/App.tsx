@@ -30,11 +30,11 @@ export default function App() {
     }
   });
   
-  const handleConnect = async (ip: string, port: string) => {
+  const handleConnect = async (ip: string, port: string): Promise<boolean> => {
     const target = (ip || '').trim();
     if (!target) {
       toast.error('Connection failed', { description: 'Device IP is empty' });
-      return;
+      return false;
     }
 
     const connectingToast = toast.loading('Connecting to device...', {
@@ -56,11 +56,13 @@ export default function App() {
           id: connectingToast,
           description: `${target}${port ? ` via ${port}` : ''}`,
         });
+        return true;
       } else {
         toast.error('Connection failed', {
           id: connectingToast,
           description: result.error || 'Unable to reach device',
         });
+        return false;
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
@@ -68,6 +70,7 @@ export default function App() {
         id: connectingToast,
         description: msg,
       });
+      return false;
     }
   };
   

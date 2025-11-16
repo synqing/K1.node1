@@ -7,7 +7,8 @@ namespace Logger {
 
 static char message_buffer[LOG_MESSAGE_BUFFER_SIZE];
 static char timestamp_buffer[LOG_MAX_TIMESTAMP_LEN];
-static uint8_t s_runtime_level = LOG_LEVEL_INFO;  // Default to runtime INFO to reduce boot-time DEBUG noise
+// Default runtime level keeps production logs at INFO unless toggled via serial.
+static uint8_t s_runtime_level = LOG_LEVEL_INFO;
 #if LOG_ENABLE_TAG_FILTERING
 static bool s_tag_enabled[128];
 static bool s_tag_init = false;
@@ -34,12 +35,14 @@ void init() {
 
 const char* get_timestamp() {
     uint32_t ms = millis();
-    uint32_t s = ms / 1000;
-    uint32_t h = (s / 3600) % 24;
-    uint32_t m = (s / 60) % 60;
-    uint32_t sec = s % 60;
-    uint32_t ms_rem = ms % 1000;
-    snprintf(timestamp_buffer, sizeof(timestamp_buffer), "%02lu:%02lu:%02lu.%03lu", h, m, sec, ms_rem);
+    uint32_t s = ms / 1000u;
+    uint32_t h = (s / 3600u) % 24u;
+    uint32_t m = (s / 60u) % 60u;
+    uint32_t sec = s % 60u;
+    uint32_t ms_rem = ms % 1000u;
+    // Use %u specifiers for uint32_t and ensure buffer is large enough (LOG_MAX_TIMESTAMP_LEN)
+    snprintf(timestamp_buffer, sizeof(timestamp_buffer), "%02u:%02u:%02u.%03u",
+             (unsigned)h, (unsigned)m, (unsigned)sec, (unsigned)ms_rem);
     return timestamp_buffer;
 }
 

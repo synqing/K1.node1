@@ -1,4 +1,23 @@
+// ---------------------------------------------------------------------------
+// Hue Wheel LUT (EXPERIMENTAL / UNUSED)
+//
+// This file defines a precomputed HSV hue wheel (S=1, V=1) intended for a
+// future LUT-based color pipeline. It is **NOT** wired into the live K1.node1
+// firmware: all active color currently comes from palettes and a few local
+// HSV helpers inside specific patterns.
+//
+// WARNING FOR FUTURE AGENTS:
+// - Do not assume this LUT is part of the production color path.
+// - Do not add calls to init_hue_wheel_lut() or hue_wheel[] in hot paths
+//   without explicit approval and a clear migration plan.
+// ---------------------------------------------------------------------------
+
 #include "pattern_helpers.h"
+
+// LUT resolution for hue wheel (matches LUT integration docs)
+#ifndef HSV_HUE_ENTRIES
+#define HSV_HUE_ENTRIES 256
+#endif
 
 CRGBF hue_wheel[HSV_HUE_ENTRIES];
 
@@ -35,4 +54,3 @@ void init_hue_wheel_lut() {
         hue_wheel[i] = hsv_math(h, 1.0f, 1.0f);
     }
 }
-

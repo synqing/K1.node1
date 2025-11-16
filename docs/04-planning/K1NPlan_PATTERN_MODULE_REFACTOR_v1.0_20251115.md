@@ -115,14 +115,14 @@ Longer-term, integrate with existing pattern generation tasks:
 
 - [x] Fix `draw_sprite` / `draw_sprite_float` to be purely additive (no internal `memset`) and document the earlier regression.
 - [x] Implement dot layer system in `draw_dot` with decay; document misuse impact.
-- [ ] Add short comments in patterns that rely heavily on these helpers (Bloom, tunnels, Snapwave, Analog/Metronome/Hype) pointing back to the helpers and calling out the `memset` failure mode.
-- [ ] Capture current behavior snapshots:
+- [x] Add short comments in patterns that rely heavily on these helpers (Bloom, tunnels, Snapwave, Analog/Metronome/Hype) pointing back to the helpers and calling out the `memset` failure mode.
+- [x] Capture current behavior snapshots:
   - Bloom, Bloom Mirror, Snapwave
   - Beat Tunnel + variant, Tunnel Glow
   - Analog, Metronome, Hype
   - Tempiscope, Waveform Spectrum
 
-*(Most items in this phase are already implemented; last bullet is about documenting visual expectations, not code.)*
+*(Most items in this phase are now implemented; the snapshot bullet is satisfied by concise behavior notes plus tempo/debug logs for each family, not by any new runtime code.)*
 
 ### Phase 1 – Introduce Pattern Modules (No Behavior Change)
 

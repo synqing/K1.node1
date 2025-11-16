@@ -17,7 +17,6 @@ extern "C" void pattern_spectrum_render(
     static constexpr int PATTERN_NUM_LEDS = 256;
 
     // Buffers
-    float tmp_f0[PATTERN_NUM_LEDS] = {0.0f};
     CRGBF tmp_rgb0[PATTERN_NUM_LEDS];
     CRGBF tmp_rgb1[PATTERN_NUM_LEDS];
 

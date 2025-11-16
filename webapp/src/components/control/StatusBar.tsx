@@ -58,7 +58,18 @@ export function StatusBar({ connectionState }: StatusBarProps) {
         });
       } catch (error) {
         console.warn('Failed to fetch performance metrics:', error);
-        // Keep previous metrics on error, don't reset to mock data
+        // On connection errors, show zeroed metrics instead of keeping stale data
+        setMetrics({
+          fps: 0,
+          frameTime: 0,
+          effectTime: 0,
+          gpuTime: 0,
+          driverTime: 0,
+          otherTime: 0,
+          cpuUsage: 0,
+          memoryUsage: 0,
+          timestamp: Date.now(),
+        });
       }
     };
 

@@ -145,7 +145,7 @@ void acquire_sample_chunk() {
             uint32_t i2s_block_us = micros() - i2s_start_us;
 
             if (i2s_block_us > 10000) {
-                LOG_DEBUG(TAG_I2S, "Block time: %lu us", i2s_block_us);
+                LOG_DEBUG(TAG_I2S, "Block time: %u us", (unsigned)i2s_block_us);
             }
 
             // ================================================================
@@ -161,14 +161,14 @@ void acquire_sample_chunk() {
                 // Map I2S error to error code
                 if (i2s_result == ESP_ERR_TIMEOUT) {
                     i2s_timeout_state.last_error_code = ERR_I2S_READ_TIMEOUT;
-                    LOG_ERROR(TAG_I2S, "[ERR_%d] I2S read timeout (%lu us), fail_streak=%lu",
-                              ERR_I2S_READ_TIMEOUT, i2s_block_us,
-                              i2s_timeout_state.consecutive_failures);
+                    LOG_ERROR(TAG_I2S, "[ERR_%d] I2S read timeout (%u us), fail_streak=%u",
+                        ERR_I2S_READ_TIMEOUT, i2s_block_us,
+                        i2s_timeout_state.consecutive_failures);
                 } else {
                     i2s_timeout_state.last_error_code = ERR_I2S_READ_OVERRUN;
-                    LOG_ERROR(TAG_I2S, "[ERR_%d] I2S read error %d (%lu us), fail_streak=%lu",
-                              ERR_I2S_READ_OVERRUN, i2s_result, i2s_block_us,
-                              i2s_timeout_state.consecutive_failures);
+                    LOG_ERROR(TAG_I2S, "[ERR_%d] I2S read error %d (%u us), fail_streak=%u",
+                        ERR_I2S_READ_OVERRUN, i2s_result, i2s_block_us,
+                        i2s_timeout_state.consecutive_failures);
                 }
 
                 // RECOVERY: Check if recovery is possible
@@ -238,12 +238,19 @@ void acquire_sample_chunk() {
         }
         chunk_vu /= static_cast<float>(AUDIO_CHUNK_SIZE);
 
-        // If audio reactivity is active and we have a non-silent chunk, mark input as active
-        // Heuristic value based on observed silence VU of 1-5
-        const float silence_threshold = 0.005f;  // ~-46 dBFS threshold after scaling
-        if (EMOTISCOPE_ACTIVE && chunk_vu > silence_threshold) {
-            g_audio_input_active.store(true, std::memory_order_relaxed);
-        } else if (chunk_vu <= silence_threshold * 0.5f) {
+        // If audio reactivity is active, mark input activity with hysteresis
+        // Use dual thresholds to avoid flicker near the boundary
+        static bool s_active = false;
+        const float high_th = 0.0030f;   // enter-active threshold (~-50 dBFS)
+        const float low_th  = 0.0015f;   // exit-active threshold  (~-56 dBFS)
+        if (EMOTISCOPE_ACTIVE) {
+            if (chunk_vu > high_th) {
+                s_active = true;
+            } else if (chunk_vu < low_th) {
+                s_active = false;
+            }
+            g_audio_input_active.store(s_active, std::memory_order_relaxed);
+        } else {
             g_audio_input_active.store(false, std::memory_order_relaxed);
         }
 

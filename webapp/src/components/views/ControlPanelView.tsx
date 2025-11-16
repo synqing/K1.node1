@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EffectType, VoidTrailMode, AudioReactivityMode, ConnectionState, Effect, ColorPalette } from '../../lib/types';
 import { EFFECTS, COLOR_PALETTES } from '../../lib/mockData';
 import { EffectSelector } from '../control/EffectSelector';
@@ -35,12 +35,29 @@ export function ControlPanelView({ connectionState }: Props) {
   const [selectedEffect, setSelectedEffect] = useState<EffectType>('Spectrum');
   const [isSyncing, setIsSyncing] = useState(false);
   
-  const currentEffect = effects.find((e) => e.id === selectedEffect) || effects[0] || EFFECTS[0];
-
+  const currentEffect = effects.find((e) => e.id === selectedEffect) ?? effects[0] ?? EFFECTS[0];
+  
   const [animationSpeed, setAnimationSpeed] = useState<number>(50);
   const [fwParams, setFwParams] = useState<FirmwareParams | null>(null);
   const [initialAudioReactivityMode, setInitialAudioReactivityMode] = useState<AudioReactivityMode | undefined>(undefined);
   const [initialVuFloorPct, setInitialVuFloorPct] = useState<number | undefined>(undefined);
+
+  const hydratedEffect = useMemo(() => {
+    if (!currentEffect) return currentEffect;
+    const params = currentEffect.parameters.map((param) => {
+      const binding = getBinding(String(currentEffect.id), param.name);
+      if (binding && fwParams) {
+        const raw = (fwParams as any)[binding.sendKey];
+        if (typeof raw === 'number') {
+          const value = binding.scale === 'percent' ? Math.round(raw * 100) : raw;
+          return { ...param, value };
+        }
+      }
+      return param;
+    });
+    return { ...currentEffect, parameters: params };
+  }, [currentEffect, fwParams]);
+  const effectForUi = hydratedEffect || currentEffect;
 
   // simple debounce utility
   function useDebouncedCallback<T extends (...args: any[]) => any>(fn: T, delayMs: number) {
@@ -59,15 +76,33 @@ export function ControlPanelView({ connectionState }: Props) {
   type PalettesResponse = Awaited<ReturnType<typeof getPalettes>>;
 
   const isFirmwarePattern = (value: unknown): value is FirmwarePattern =>
-    !!value && typeof value === 'object' && ('id' in (value as FirmwarePattern) || 'index' in (value as FirmwarePattern));
+    !!value && typeof value === 'object' && ('id' in (value as FirmwarePattern) || 'index' in (value as FirmwarePattern) || 'name' in (value as any));
 
   const isFirmwarePalette = (value: unknown): value is FirmwarePalette =>
     !!value && typeof value === 'object' && 'id' in (value as FirmwarePalette) && 'name' in (value as FirmwarePalette);
 
   const extractPatterns = (resp: PatternsResponse): FirmwarePattern[] => {
-    if (Array.isArray(resp)) return resp.filter(isFirmwarePattern);
-    if (resp && Array.isArray((resp as { patterns?: FirmwarePattern[] }).patterns)) {
-      return (resp as { patterns?: FirmwarePattern[] }).patterns!.filter(isFirmwarePattern);
+    if (Array.isArray(resp)) {
+      return resp.map((p, i) => {
+        const base = p as any;
+        return {
+          index: typeof (base?.index) === 'number' ? base.index : i,
+          id: typeof base?.id === 'string' ? base.id : String(base?.name ?? i),
+          name: String(base?.name ?? `Pattern ${i}`),
+          description: base?.description,
+          is_audio_reactive: base?.is_audio_reactive ?? base?.audio_reactive,
+        } as FirmwarePattern;
+      });
+    }
+    const arr = (resp as any)?.patterns;
+    if (Array.isArray(arr)) {
+      return arr.map((p: any, i: number) => ({
+        index: typeof p?.index === 'number' ? p.index : i,
+        id: typeof p?.id === 'string' ? p.id : String(p?.name ?? i),
+        name: String(p?.name ?? `Pattern ${i}`),
+        description: p?.description,
+        is_audio_reactive: p?.is_audio_reactive ?? p?.audio_reactive,
+      }));
     }
     return [];
   };
@@ -169,7 +204,7 @@ export function ControlPanelView({ connectionState }: Props) {
   const handleEffectChange = (effect: EffectType) => {
     setSelectedEffect(effect);
     if (isConnected) {
-      const eff = effects.find((e) => e.id === effect) || EFFECTS.find((e) => e.id === effect);
+      const eff = effects.find((e) => e.id === effect);
       if (eff) {
         setIsSyncing(true);
         // Prefer selecting by numeric index if the id is numeric; otherwise fall back to id
@@ -213,6 +248,8 @@ export function ControlPanelView({ connectionState }: Props) {
             toast.error('Failed to change effect', { description: msg });
           })
           .finally(() => setIsSyncing(false));
+      } else {
+        toast.error('Device effect not available', { description: 'Selected effect is not present on the connected device' });
       }
     }
   };
@@ -448,33 +485,30 @@ export function ControlPanelView({ connectionState }: Props) {
   return (
     <div className="flex-1 flex flex-col h-full">
       <div className="flex-1 overflow-y-auto">
-        <div className="grid grid-cols-[400px_1fr_320px] gap-6 p-6 h-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[400px_1fr_320px] gap-4 sm:gap-6 p-4 sm:p-6 h-full">
           {/* Left Column - Effect Selection */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <EffectSelector effects={effects} selectedEffect={selectedEffect} onSelectEffect={handleEffectChange} isSyncing={isSyncing} />
           </div>
-          
+
           {/* Center Column - Effect Parameters */}
-          <div className="bg-[var(--prism-bg-surface)] rounded-lg border border-[var(--prism-bg-elevated)] p-6">
-            {isConnected && (
-              <div className="mb-4">
-                <label className="block text-xs mb-1">Animation Speed</label>
-                <input type="range" min={0} max={100} value={animationSpeed}
-                       onChange={(e) => {
-                         const v = Number(e.target.value);
-                         setAnimationSpeed(v);
-                         handleParameterChange('animation_speed', v);
-                       }} />
-              </div>
-            )}
-            <EffectParameters
-              effect={currentEffect}
+          <div className="space-y-4 sm:space-y-6">
+            <div className="bg-[var(--prism-bg-surface)] rounded-lg border border-[var(--prism-bg-elevated)] p-4 sm:p-6">
+              <EffectParameters
+              effect={effectForUi}
               onParameterChange={handleParameterChange}
+              animationSpeed={animationSpeed}
+              onAnimationSpeedChange={(value) => {
+                setAnimationSpeed(value);
+                handleParameterChange('animation_speed', value);
+              }}
+              isConnected={isConnected}
             />
+            </div>
           </div>
-          
+
           {/* Right Column - Colors & Settings */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <div className="bg-[var(--prism-bg-surface)] rounded-lg border border-[var(--prism-bg-elevated)] p-4">
               <ColorManagement 
                 palettes={palettes} 

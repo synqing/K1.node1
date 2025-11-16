@@ -161,7 +161,9 @@ inline void draw_bloom_mirror(const PatternRenderContext& context) {
 	CRGBF (&bloom_buffer_prev)[2][NUM_LEDS] = shared_pattern_buffers.shared_image_buffer_prev;
 
 	float scroll_speed = 0.25f + 1.75f * clip_float(params.speed);
-	float decay = 0.92f + 0.06f * clip_float(params.softness); // 0.92..0.98
+	// Sensory Bridge parity: very high persistence via alpha≈0.99
+	// Earlier lower decay (0.92..0.98) made Bloom Mirror too faint
+	float decay = 0.99f;
 	
 	// CRITICAL: draw_sprite ADDS to target, so we must start with zeros
 	// The decay happens INSIDE draw_sprite via the alpha parameter (decay)
@@ -190,24 +192,35 @@ inline void draw_bloom_mirror(const PatternRenderContext& context) {
 	bool chromatic_mode = false;
 
 	if (AUDIO_IS_AVAILABLE()) {
+		// Sensory Bridge parity path:
+		// - Build an HSV-summed color from chromagram^2 scaled by 1/6 share
+		// - For non-chromatic mode, derive injection brightness from the resulting V
 		const float energy_gate = fminf(1.0f, (AUDIO_VU * 0.7f) + (AUDIO_NOVELTY * 0.4f));
 		const float share = 1.0f / 6.0f;
+		CRGBF sum_color = {0.0f, 0.0f, 0.0f};
 		for (int i = 0; i < 12; ++i) {
+			float prog = (float)i / 12.0f;
 			float bin = clip_float(AUDIO_CHROMAGRAM[i]);
 			bin = clip_float(bin * bin);
 			bin *= (0.25f + energy_gate * 0.75f);
-			float energy = clip_float(bin * share);
+			float v = clip_float(bin * share);
+			CRGBF add = hsv_enhanced(prog, 1.0f, v);
+			sum_color.r += add.r; sum_color.g += add.g; sum_color.b += add.b;
+		}
+		sum_color.r = fminf(1.0f, sum_color.r);
+		sum_color.g = fminf(1.0f, sum_color.g);
+		sum_color.b = fminf(1.0f, sum_color.b);
+		// Legacy square-iter shaping (approx 1 iteration)
+		sum_color.r *= sum_color.r;
+		sum_color.g *= sum_color.g;
+		sum_color.b *= sum_color.b;
 
-			if (chromatic_mode) {
-				float progress = (static_cast<float>(i) + 0.5f) / 12.0f;
-				CRGBF add = color_from_palette(params.palette_id, progress, energy);
-				wave_color.r += add.r;
-				wave_color.g += add.g;
-				wave_color.b += add.b;
-			}
-			else {
-				brightness_accum += energy;
-			}
+		if (chromatic_mode) {
+			wave_color = sum_color;
+		} else {
+			// Derive brightness from V channel of summed color
+			HSVF hsv_sum = rgb_to_hsv(sum_color);
+			brightness_accum = clip_float(hsv_sum.v);
 		}
 	}
 	else if (chromatic_mode) {

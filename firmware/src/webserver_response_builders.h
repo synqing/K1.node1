@@ -27,7 +27,7 @@ class AsyncWebServerRequest;
  * Attach CORS headers to response for cross-origin browser requests
  * Allows local dev tools and browsers to interact with the API
  */
-static void attach_cors_headers(AsyncWebServerResponse *response) {
+[[maybe_unused]] static inline void attach_cors_headers(AsyncWebServerResponse *response) {
     if (!response) return;
     response->addHeader("Access-Control-Allow-Origin", "*");
     response->addHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
@@ -48,7 +48,7 @@ static void attach_cors_headers(AsyncWebServerResponse *response) {
  * @param message Optional human-readable error message
  * @return Properly formatted AsyncWebServerResponse with CORS headers
  */
-static AsyncWebServerResponse* create_error_response(
+[[maybe_unused]] static inline AsyncWebServerResponse* create_error_response(
     AsyncWebServerRequest *request,
     int status_code,
     const char* error_code,
@@ -89,7 +89,7 @@ String build_palettes_json();
  *
  * @param root ArduinoJson JsonObject containing parameter updates
  */
-static void apply_params_json(const JsonObjectConst& root) {
+[[maybe_unused]] static inline void apply_params_json(const JsonObjectConst& root) {
     PatternParameters updated = get_params();
 
     if (root.containsKey("brightness")) {

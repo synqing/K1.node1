@@ -136,6 +136,16 @@ inline void draw_octave(const PatternRenderContext& context) {
         }
         return;
     }
+    // Optional optimization: skip render if no new audio frame
+    static uint32_t s_last_update_counter_oct = UINT32_MAX;
+    bool audio_fresh = true;
+    if (s_last_update_counter_oct != UINT32_MAX) {
+        audio_fresh = (audio.payload.update_counter != s_last_update_counter_oct);
+    }
+    s_last_update_counter_oct = audio.payload.update_counter;
+    if (!audio_fresh) {
+        return;
+    }
 
 	// Energy emphasis (boost brightness on strong audio activity)
     float energy_gate = fminf(1.0f, (AUDIO_VU * 0.7f) + (AUDIO_NOVELTY * 0.4f));

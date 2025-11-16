@@ -100,6 +100,15 @@ const server = http.createServer((req, res) => {
       uptime_seconds: Math.floor(process.uptime()),
     });
   }
+  if (path === '/api/devices') {
+    if (method !== 'GET') return methodNotAllowed(res);
+    const items = [
+      { id: 'mock-primary', name: 'Mock PRISM.node', ip: '127.0.0.1', port: PORT, firmware: 'mock-1.0.0', rssi: -45 },
+      { id: 'mock-secondary', name: 'Studio Bridge', ip: '192.168.1.201', port: 80, firmware: 'mock-1.0.0', rssi: -60 },
+      { id: 'mock-stage', name: 'Stage Rig', ip: '192.168.50.25', port: 80, firmware: 'mock-1.0.0', rssi: -70 },
+    ];
+    return ok(res, { items, total: items.length });
+  }
 
   // Palettes: minimal set for UI validation
   if (path === '/api/palettes') {
@@ -310,6 +319,23 @@ const server = http.createServer((req, res) => {
     global.__k1_current_pattern = { index: 0, id: 'pattern_0', name: 'Prototype', is_audio_reactive: false };
   }
 
+  if (path === '/api/patterns') {
+    if (method !== 'GET') return methodNotAllowed(res);
+    const patterns = Array.from({ length: 20 }).map((_, i) => ({
+      index: i,
+      id: `pattern_${i}`,
+      name: i === 0 ? 'Prototype' : `Pattern ${i}`,
+      description: i % 2 === 0 ? 'Static' : 'Audio reactive',
+      audio_reactive: i % 2 === 1,
+    }));
+    return ok(res, { patterns, current_pattern: global.__k1_current_pattern.index });
+  }
+
+  if (path === '/api/pattern/current') {
+    if (method !== 'GET') return methodNotAllowed(res);
+    return ok(res, global.__k1_current_pattern);
+  }
+
   if (path === '/api/params') {
     if (method === 'GET') {
       return ok(res, global.__k1_params);
@@ -413,4 +439,3 @@ function contentTypeFor(filePath) {
   if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) return 'image/jpeg';
   return 'application/octet-stream';
 }
-

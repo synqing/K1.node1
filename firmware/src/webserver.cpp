@@ -5,6 +5,7 @@
 #include "led_tx_events.h"
 #include "parameters.h"
 #include "pattern_registry.h"
+#include "pattern_execution.h"
 #include "audio/goertzel.h"  // For audio configuration (microphone gain)
 #include "palettes.h"        // For palette metadata API
 #include "wifi_monitor.h"    // For WiFi link options API
@@ -1296,7 +1297,8 @@ public:
         // Optional: include novelty curve (normalized), newest→oldest or oldest→newest
         if (include_novelty) {
             // Default and clamp novelty_count to safe range for JSON size
-            uint16_t max_nov = NOVELTY_HISTORY_LENGTH;
+            // max_nov retained for potential bounds checks (unused in compact path)
+            // uint16_t max_nov = NOVELTY_HISTORY_LENGTH;
             if (novelty_count == 0) novelty_count = 64; // default window
             if (novelty_count < 16) novelty_count = 16;
             if (novelty_count > 256) novelty_count = 256;
@@ -1565,7 +1567,12 @@ public:
     void handle(RequestContext& ctx) override {
         if (!ctx.hasJson() || !ctx.getJson().containsKey("power_dbm")) { ctx.sendError(400, "invalid_param", "power_dbm required"); return; }
         float dbm = ctx.getJson()["power_dbm"].as<float>();
-        if (dbm < 8.0f) dbm = 8.0f; if (dbm > 19.5f) dbm = 19.5f;
+        if (dbm < 8.0f) {
+            dbm = 8.0f;
+        }
+        if (dbm > 19.5f) {
+            dbm = 19.5f;
+        }
         int qdbm = (int)(dbm * 4.0f);
         esp_wifi_set_max_tx_power(qdbm);
         StaticJsonDocument<64> d; d["applied_dbm"] = dbm; String o; serializeJson(d, o); ctx.sendJson(200, o);
@@ -1602,7 +1609,12 @@ public:
     void handle(RequestContext& ctx) override {
         if (!ctx.hasJson() || !ctx.getJson().containsKey("channel")) { ctx.sendError(400, "invalid_param", "channel required"); return; }
         uint8_t ch = ctx.getJson()["channel"].as<uint8_t>();
-        if (ch < 1) ch = 1; if (ch > 13) ch = 13;
+        if (ch < 1) {
+            ch = 1;
+        }
+        if (ch > 13) {
+            ch = 13;
+        }
         esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE);
         StaticJsonDocument<64> d; d["channel"] = ch; String o; serializeJson(d, o); ctx.sendJson(200, o);
     }
@@ -2249,6 +2261,7 @@ static void onWebSocketEvent(AsyncWebSocket *server, AsyncWebSocketClient *clien
             }
             break;
             
+        case WS_EVT_PING:
         case WS_EVT_PONG:
         case WS_EVT_ERROR:
             break;

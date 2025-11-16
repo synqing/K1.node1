@@ -75,7 +75,7 @@ String build_patterns_json() {
  * Build JSON response for available color palettes
  */
 String build_palettes_json() {
-    DynamicJsonDocument doc(24576);  // Increased capacity for 33 palettes with colors
+    DynamicJsonDocument doc(24576);
     JsonArray palettes = doc.createNestedArray("palettes");
 
     for (uint8_t i = 0; i < NUM_PALETTES; i++) {
