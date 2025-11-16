@@ -177,6 +177,18 @@ void heartbeat_logger_poll() {
 
   store_entry(entry);
 
+  // Console heartbeat (once per interval): make snapshot + audio deltas visible
+  LOG_INFO(TAG_TRACE,
+           "[HEARTBEAT] frames=+%u audio=+%u snap=%u(+%u) pat=%u vu=%.3f tempo=%.3f silence=%u",
+           (unsigned)entry.frame_delta,
+           (unsigned)entry.audio_delta,
+           (unsigned)entry.audio_snapshot,
+           (unsigned)entry.snapshot_delta,
+           (unsigned)entry.pattern_index,
+           entry.vu_level,
+           entry.tempo_confidence,
+           (unsigned)entry.silence);
+
   String line;
   line.reserve(160);
   line += "ts="; line += entry.timestamp_ms;

@@ -56,13 +56,20 @@ const PatternInfo g_pattern_registry[] = {
 		draw_bloom,
 		true
 	},
-	{
-		"Bloom Mirror",
-		"bloom_mirror",
-		"Chromagram-fed bidirectional bloom",
-		draw_bloom_mirror,
-		true
-	},
+    {
+        "Bloom Mirror",
+        "bloom_mirror",
+        "Chromagram-fed bidirectional bloom",
+        draw_bloom_mirror,
+        true
+    },
+    {
+        "Bloom (SB Parity)",
+        "bloom_sb",
+        "Strict SB 4.0.0 bloom parity (A/B validation)",
+        draw_bloom_sb,
+        true
+    },
 	// Domain 3: Beat/Tempo Reactive Patterns (Ported from Emotiscope)
 	{
 		"Pulse",

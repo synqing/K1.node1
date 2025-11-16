@@ -24,6 +24,9 @@
 #include "audio/goertzel.h"
 #include "pattern_helpers.h"
 #include "led_driver.h"
+// Debug toggles (defined in main.cpp)
+extern bool audio_debug_enabled;
+extern bool tempo_debug_enabled;
 
 inline void draw_spectrum(const PatternRenderContext& context) {
     const PatternParameters& params = context.params;
@@ -275,6 +278,16 @@ inline void draw_waveform_spectrum(const PatternRenderContext& context) {
             // The decayed buffer provides persistence; new chromagram colors replace old ones
             // but brightness is modulated by waveform envelope for proper visual effect
             spectrum_buffer[buffer_idx] = freq_color;
+        }
+
+        // Throttled debug: envelope + chroma mapping summary
+        static uint32_t last_log_ms_ws = 0; uint32_t now_ms_ws = millis();
+        if ((audio_debug_enabled || tempo_debug_enabled) && (now_ms_ws - last_log_ms_ws) > 500) {
+            last_log_ms_ws = now_ms_ws;
+            float max_env = 0.0f; float avg_env = 0.0f;
+            for (int i = 0; i < half_leds; ++i) { max_env = fmaxf(max_env, waveform_history[i]); avg_env += waveform_history[i]; }
+            avg_env /= (float)half_leds;
+            LOG_DEBUG(TAG_GPU, "[WAVE_SPECTRUM] env_avg=%.3f env_max=%.3f", avg_env, max_env);
         }
     } else {
         // Silence fallback: gentle breathing animation to prevent black screen

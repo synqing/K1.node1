@@ -25,6 +25,9 @@
 #include "pattern_channel.h"
 #include "shared_pattern_buffers.h"
 #include "led_driver.h"
+// Debug flags
+extern bool audio_debug_enabled;
+extern bool tempo_debug_enabled;
 
 // Shared buffers & state (matches Emotiscope/Sensory Bridge baseline)
 static float beat_tunnel_variant_angle = 0.0f;
@@ -87,9 +90,11 @@ inline void draw_beat_tunnel(const PatternRenderContext& context) {
     } else {
         const int half_leds = NUM_LEDS >> 1;
         const float sigma = 0.02f + 0.06f * clip_float(params.softness);
+        float sum_mag = 0.0f; uint16_t max_idx = 0; float max_mag = 0.0f;
         for (int t = 0; t < NUM_TEMPI; ++t) {
             float phase = audio.payload.tempo_phase[t];
             float mag = clip_float(audio.payload.tempo_magnitude[t]);
+            sum_mag += mag; if (mag > max_mag) { max_mag = mag; max_idx = (uint16_t)t; }
             float peak = 0.5f * (sinf(phase) + 1.0f);
             float strength = response_square(mag) * peak;
             if (strength < 0.02f) continue;
@@ -113,6 +118,13 @@ inline void draw_beat_tunnel(const PatternRenderContext& context) {
                 beat_tunnel_image[ch_idx][right_index].g += c.g * b;
                 beat_tunnel_image[ch_idx][right_index].b += c.b * b;
             }
+        }
+
+        // Throttled debug: tempo energy snapshot
+        static uint32_t last_log_ms_bt = 0; uint32_t now_ms_bt = millis();
+        if ((audio_debug_enabled || tempo_debug_enabled) && (now_ms_bt - last_log_ms_bt) > 500) {
+            last_log_ms_bt = now_ms_bt;
+            LOG_DEBUG(TAG_GPU, "[BEAT_TUNNEL] sum_mag=%.3f max=%.3f idx=%u", sum_mag, max_mag, (unsigned)max_idx);
         }
     }
 
@@ -182,9 +194,11 @@ inline void draw_beat_tunnel_variant(const PatternRenderContext& context) {
     } else {
         const int half_leds = NUM_LEDS >> 1;
         const float sigma = 0.02f + 0.06f * clip_float(params.softness);
+        float sum_mag = 0.0f; uint16_t max_idx = 0; float max_mag = 0.0f;
         for (int t = 0; t < NUM_TEMPI; ++t) {
             float phase = audio.payload.tempo_phase[t];
             float mag = clip_float(audio.payload.tempo_magnitude[t]);
+            sum_mag += mag; if (mag > max_mag) { max_mag = mag; max_idx = (uint16_t)t; }
             float peak = 0.5f * (sinf(phase) + 1.0f);
             float strength = response_square(mag) * peak;
             if (strength < 0.02f) continue;
@@ -208,6 +222,12 @@ inline void draw_beat_tunnel_variant(const PatternRenderContext& context) {
                 beat_tunnel_variant_image[ch_idx][right_index].g += c.g * b;
                 beat_tunnel_variant_image[ch_idx][right_index].b += c.b * b;
             }
+        }
+
+        static uint32_t last_log_ms_btv = 0; uint32_t now_ms_btv = millis();
+        if ((audio_debug_enabled || tempo_debug_enabled) && (now_ms_btv - last_log_ms_btv) > 500) {
+            last_log_ms_btv = now_ms_btv;
+            LOG_DEBUG(TAG_GPU, "[BEAT_TUNNEL_V] sum_mag=%.3f max=%.3f idx=%u", sum_mag, max_mag, (unsigned)max_idx);
         }
     }
 

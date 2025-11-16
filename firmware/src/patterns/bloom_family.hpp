@@ -140,6 +140,78 @@ inline void draw_bloom(const PatternRenderContext& context) {
 	#undef AUDIO_VU
 }
 
+// Strict SB Bloom parity variant for A/B validation (center-injected chroma-sum,
+// high-persistence sprite, tail fade and mirror). This keeps K1 palettes but
+// mirrors SB’s summed-HSV brightness shaping and alpha≈0.99 persistence.
+inline void draw_bloom_sb(const PatternRenderContext& context) {
+    const PatternParameters& params = context.params;
+    CRGBF* leds = context.leds;
+    const AudioDataSnapshot& audio = context.audio_snapshot;
+    #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
+    #define AUDIO_CHROMAGRAM (audio.payload.chromagram)
+
+    static int sb_buffer_id = -1;
+    if (sb_buffer_id == -1) {
+        acquire_dual_channel_buffer(sb_buffer_id);
+    }
+    const uint8_t ch_idx = get_pattern_channel_index();
+    CRGBF (&img)[2][NUM_LEDS] = shared_pattern_buffers.shared_image_buffer;
+    CRGBF (&img_prev)[2][NUM_LEDS] = shared_pattern_buffers.shared_image_buffer_prev;
+
+    // 1) Clear and scroll previous with high persistence (alpha≈0.99)
+    for (int i = 0; i < NUM_LEDS; ++i) img[ch_idx][i] = CRGBF{0.0f,0.0f,0.0f};
+    float position = 0.250f + 1.750f * clip_float(params.speed);
+    float alpha = 0.99f;
+    draw_sprite(img[ch_idx], img_prev[ch_idx], NUM_LEDS, NUM_LEDS, position, alpha);
+
+    // 2) Sum 12-bin chromagram in HSV, square once (SB CONFIG.SQUARE_ITER≈1)
+    CRGBF sum_color = {0.0f,0.0f,0.0f};
+    if (AUDIO_IS_AVAILABLE()) {
+        const float share = 1.0f / 6.0f;
+        for (int i = 0; i < 12; ++i) {
+            float prog = (float)i / 12.0f;
+            float v = clip_float(AUDIO_CHROMAGRAM[i]);
+            v = clip_float(v * v) * share;
+            CRGBF add = hsv_enhanced(prog, 1.0f, v);
+            sum_color.r += add.r; sum_color.g += add.g; sum_color.b += add.b;
+        }
+        sum_color.r = fminf(1.0f, sum_color.r);
+        sum_color.g = fminf(1.0f, sum_color.g);
+        sum_color.b = fminf(1.0f, sum_color.b);
+        sum_color.r *= sum_color.r;
+        sum_color.g *= sum_color.g;
+        sum_color.b *= sum_color.b;
+    }
+
+    // 3) Map to palette using V for brightness (K1 palette system)
+    HSVF hsv_sum = rgb_to_hsv(sum_color);
+    float brightness = clip_float(hsv_sum.v);
+    CRGBF inject = color_from_palette(params.palette_id, clip_float(params.color), brightness);
+
+    int mid_r = NUM_LEDS/2;
+    int mid_l = mid_r - 1;
+    if (mid_l >= 0) img[ch_idx][mid_l] = inject;
+    if (mid_r < NUM_LEDS) img[ch_idx][mid_r] = inject;
+
+    // 4) Copy to prev, tail fade, mirror
+    std::memcpy(img_prev[ch_idx], img[ch_idx], sizeof(CRGBF)*NUM_LEDS);
+    int half = NUM_LEDS/2;
+    for (int i = 0; i < half; ++i) {
+        float prog = (half>1) ? (float)i/(float)(half-1) : 0.0f;
+        float s = prog*prog;
+        int idx = NUM_LEDS-1-i;
+        img[ch_idx][idx].r *= s; img[ch_idx][idx].g *= s; img[ch_idx][idx].b *= s;
+    }
+    for (int i = 0; i < half; ++i) {
+        img[ch_idx][i] = img[ch_idx][NUM_LEDS-1-i];
+    }
+
+    for (int i = 0; i < NUM_LEDS; ++i) leds[i] = img[ch_idx][i];
+    apply_background_overlay(context);
+
+    #undef AUDIO_IS_AVAILABLE
+    #undef AUDIO_CHROMAGRAM
+}
 inline void draw_bloom_mirror(const PatternRenderContext& context) {
     const PatternParameters& params = context.params;
     CRGBF* leds = context.leds;
