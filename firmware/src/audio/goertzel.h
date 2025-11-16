@@ -1,13 +1,15 @@
-// -----------------------------------------------------------------
-//                                 _                  _       _
-//                                | |                | |     | |
-//    __ _    ___     ___   _ __  | |_   ____   ___  | |     | |__
-//   / _` |  / _ \   / _ \ | '__| | __| |_  /  / _ \ | |     | '_ \
-//  | (_| | | (_) | |  __/ | |    | |_   / /  |  __/ | |  _  | | | |
-//   \__, |  \___/   \___| |_|     \__| /___|  \___| |_| (_) |_| |_|
-//    __/ |
-//   |___/
-//
+/*
+-----------------------------------------------------------------
+                                _                  _       _
+                               | |                | |     | |
+   __ _    ___     ___   _ __  | |_   ____   ___  | |     | |__
+  / _` |  / _ \   / _ \ | '__| | __| |_  /  / _ \ | |     | '_ \
+ | (_| | | (_) | |  __/ | |    | |_   / /  |  __/ | |  _  | | | |
+  \__, |  \___/   \___| |_|     \__| /___|  \___| |_| (_) |_| |_|
+   __/ |
+  |___/
+*/
+
 // Goertzel Algorithm - Frequency Domain Analysis via Constant-Q Transform
 // https://en.wikipedia.org/wiki/Goertzel_algorithm
 //
@@ -120,6 +122,7 @@ typedef struct {
 	uint32_t update_counter;                // Increments with each audio frame
 	uint32_t timestamp_us;                  // Microsecond timestamp (esp_timer)
 	bool is_valid;                          // True if data has been written at least once
+	bool is_silence;                        // True if current frame considered silence
 } AudioDataPayload;
 
 // Sequenced audio buffer - atomic sequence counters + data payload

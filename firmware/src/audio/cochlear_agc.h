@@ -106,7 +106,7 @@ public:
     // PUBLIC INTERFACE
     // ========================================================================
 
-    CochlearAGC() : initialized(false), enabled(false), fft_size(0), processing_fps(0.0f) {}
+    CochlearAGC() : initialized(false), fft_size(0), processing_fps(0.0f), enabled(false) {}
 
     /**
      * Initializes the AGC system.
@@ -169,6 +169,8 @@ public:
     // ========================================================================
 
     void enable(bool state) { enabled = state; }
+
+    bool is_enabled() const { return initialized && enabled; }
 
     // Diagnostic access
     float get_global_gain() const { return global_gain; }

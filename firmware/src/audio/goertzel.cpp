@@ -1,13 +1,15 @@
-// -----------------------------------------------------------------
-//                                 _                  _       _
-//                                | |                | |     | |
-//    __ _    ___     ___   _ __  | |_   ____   ___  | |     | |__
-//   / _` |  / _ \   / _ \ | '__| | __| |_  /  / _ \ | |     | '_ \
-//  | (_| | | (_) | |  __/ | |    | |_   / /  |  __/ | |  _  | | | |
-//   \__, |  \___/   \___| |_|     \__| /___|  \___| |_| (_) |_| |_|
-//    __/ |
-//   |___/
-//
+/*
+-----------------------------------------------------------------
+                                _                  _       _
+                               | |                | |     | |
+   __ _    ___     ___   _ __  | |_   ____   ___  | |     | |__
+  / _` |  / _ \   / _ \ | '__| | __| |_  /  / _ \ | |     | '_ \
+ | (_| | | (_) | |  __/ | |    | |_   / /  |  __/ | |  _  | | | |
+  \__, |  \___/   \___| |_|     \__| /___|  \___| |_| (_) |_| |_|
+   __/ |
+  |___/
+*/
+
 // Goertzel Algorithm Implementation
 // Frequency domain analysis via constant-Q Goertzel filter
 
@@ -70,6 +72,8 @@ AudioDataSnapshot audio_back;
 SemaphoreHandle_t audio_swap_mutex = NULL;
 SemaphoreHandle_t audio_read_mutex = NULL;
 static bool audio_sync_initialized = false;
+static uint32_t g_last_sync_warn_writer_ms = 0;
+static uint32_t g_last_sync_warn_torn_ms = 0;
 
 // Lookup tables
 const float notes[] = {
@@ -157,9 +161,14 @@ bool get_audio_snapshot(AudioDataSnapshot* snapshot) {
 		// If sequence is ODD, writer is in progress - retry immediately
 		if (seq1 & 1) {
 			if (++retry_count > max_retries) {
-				LOG_WARN(TAG_SYNC, "Max retries exceeded (writer in progress)");
+				uint32_t now_ms = millis();
+				if (now_ms - g_last_sync_warn_writer_ms >= 1000) {
+					LOG_WARN(TAG_SYNC, "Max retries exceeded (writer in progress)");
+					g_last_sync_warn_writer_ms = now_ms;
+				}
 				return audio_front.payload.is_valid;
 			}
+			delayMicroseconds(3);
 			continue;  // Don't copy - writer is actively writing
 		}
 
@@ -182,7 +191,11 @@ bool get_audio_snapshot(AudioDataSnapshot* snapshot) {
 
 		// Torn read detected - retry
 		if (++retry_count > max_retries) {
-			LOG_WARN(TAG_SYNC, "Max retries exceeded (torn read)");
+			uint32_t now_ms = millis();
+			if (now_ms - g_last_sync_warn_torn_ms >= 1000) {
+				LOG_WARN(TAG_SYNC, "Max retries exceeded (torn read)");
+				g_last_sync_warn_torn_ms = now_ms;
+			}
 			return audio_front.payload.is_valid;
 		}
 	} while (true);
@@ -255,7 +268,7 @@ void init_goertzel(uint16_t frequency_slot, float frequency, float bandwidth) {
 	float k = (int)(0.5 + ((frequencies_musical[frequency_slot].block_size * frequencies_musical[frequency_slot].target_freq) / AUDIO_SAMPLE_RATE_HZ));
 	float w = (2.0 * PI * k) / frequencies_musical[frequency_slot].block_size;
 	float cosine = cos(w);
-	float sine = sin(w);
+    (void)sin(w);
 	frequencies_musical[frequency_slot].coeff = 2.0 * cosine;
 }
 
@@ -293,7 +306,9 @@ void init_window_lookup() {
     float sigma = 0.8; // For gaussian window
 
     for (uint16_t i = 0; i < 2048; i++) {
-        float ratio = i / 2047.0;
+        // precomputed ratio not used; keep calculation folded by compiler if needed
+        // (void) to silence warnings on some toolchains
+        (void)i;
 
         float n_minus_halfN = i - 2048 / 2;
         float gaussian_weighing_factor = exp(-0.5 * pow((n_minus_halfN / (sigma * 2048 / 2)), 2));
@@ -428,10 +443,13 @@ float collect_and_filter_noise(float input_magnitude, uint16_t bin) {
 
 void calculate_magnitudes() {
 	// TRACE POINT STORAGE (outside profile_function to avoid preprocessor issues)
-	static uint32_t trace_counter_avg = 0;
-	static uint32_t trace_counter_agc = 0;
-	static uint32_t trace_counter_final = 0;
-	float trace_smooth_bins[3], trace_agc_input[3], trace_spect32, trace_vu;
+    static uint32_t trace_counter_avg = 0;
+    static uint32_t trace_counter_agc = 0;
+    static uint32_t trace_counter_final = 0;
+    float trace_smooth_bins[3] = {0.0f,0.0f,0.0f};
+    float trace_agc_input[3] = {0.0f,0.0f,0.0f};
+    float trace_spect32 = 0.0f;
+    float trace_vu = 0.0f;
 
 	profile_function([&]() {
 		magnitudes_locked.store(true, std::memory_order_relaxed);
@@ -439,7 +457,8 @@ void calculate_magnitudes() {
 		const uint16_t NUM_AVERAGE_SAMPLES = 2;  // EMOTISCOPE VERBATIM (was 6)
 
 		static float magnitudes_raw[NUM_FREQS];
-		static float magnitudes_unfiltered[NUM_FREQS];  // CRITICAL: Save values BEFORE noise filtering
+        static float magnitudes_unfiltered[NUM_FREQS];  // CRITICAL: Save values BEFORE noise filtering
+        (void)magnitudes_unfiltered;
 		static float magnitudes_avg[NUM_AVERAGE_SAMPLES][NUM_FREQS];
 		static float magnitudes_smooth[NUM_FREQS];
 
@@ -469,6 +488,10 @@ void calculate_magnitudes() {
 
 			// Store averaged value
 			magnitudes_smooth[i] = magnitudes_avg_result;
+		}
+
+		if (g_cochlear_agc && g_cochlear_agc->is_enabled()) {
+			g_cochlear_agc->process(magnitudes_smooth);
 		}
 
 		// EMOTISCOPE VERBATIM: Find max magnitude for auto-ranging

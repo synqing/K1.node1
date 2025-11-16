@@ -54,9 +54,9 @@ void init_rmt_driver();
 #include "easing_functions.h"
 #include "parameters.h"
 #include "pattern_registry.h"
+#include "pattern_execution.h"
 #include "pattern_render_context.h"
 #include "pattern_codegen_bridge.h"
-#include "generated_patterns.h"
 #include "pattern_helpers.h"
 #include "shared_pattern_buffers.h"
 // #include "pattern_optimizations.h"  // Disabled: legacy optimization header with mismatched signatures
@@ -69,6 +69,7 @@ void init_rmt_driver();
 #include "diagnostics.h"
 #include "diagnostics/heartbeat_logger.h"
 #include "audio/validation/tempo_validation.h"
+#include "feature_flags.h"
 // (removed duplicate include of audio/goertzel.h)
 #include "udp_echo.h"      // UDP echo server for RTT measurements
 #include "led_tx_events.h"  // Rolling buffer of LED transmit timestamps
@@ -94,7 +95,7 @@ CRGBF leds[NUM_LEDS];
 static uint32_t g_last_beat_event_ms = 0;
 
 // Debug mode flags (toggle with keystrokes: 'd' = audio, 't' = tempo, 'x' = trace)
-static bool audio_debug_enabled = false;
+bool audio_debug_enabled = false;
 bool tempo_debug_enabled = false;  // Non-static for visibility to tempo.cpp
 bool audio_trace_enabled = false;  // Non-static for visibility to audio TAG_TRACE logs
 
@@ -109,7 +110,8 @@ static TempoResult s_last_enhanced_result{};
 static bool s_last_enhanced_valid = false;
 
 static inline bool enhanced_locked_trustworthy() {
-    return s_enhanced_tempo_active &&
+    return g_feature_flags.enhanced_tempo &&
+           s_enhanced_tempo_active &&
            s_etd &&
            s_etd->is_locked() &&
            s_last_enhanced_valid &&
@@ -201,7 +203,7 @@ void handle_wifi_connected() {
         network_services_started = true;
     }
 
-    LOG_INFO(TAG_WEB, "Control UI: http://%s.local", ArduinoOTA.getHostname());
+    LOG_INFO(TAG_WEB, "Control UI: http://%s.local", ArduinoOTA.getHostname().c_str());
 #else
     LOG_INFO(TAG_WIFI, "Connected (WiFi/OTA headers unavailable in this build)");
 #endif
@@ -304,6 +306,7 @@ void audio_task(void* param) {
             memset(audio_back.payload.tempo_phase, 0, sizeof(float) * NUM_TEMPI);
             audio_back.payload.tempo_confidence = 0.0f;
             audio_back.payload.is_valid = false;
+            audio_back.payload.is_silence = true;
             audio_back.payload.timestamp_us = micros();
             commit_audio_data();
             vTaskDelay(pdMS_TO_TICKS(10));
@@ -394,7 +397,8 @@ void audio_task(void* param) {
         static portMUX_TYPE audio_spinlock = portMUX_INITIALIZER_UNLOCKED;
         portENTER_CRITICAL(&audio_spinlock);
         audio_back.payload.tempo_confidence = tempo_confidence;
-        audio_back.payload.is_valid = !silence_frame;
+        audio_back.payload.is_valid = true;
+        audio_back.payload.is_silence = silence_frame;
         audio_back.payload.locked_tempo_bpm = tempo_lock_tracker.locked_tempo_bpm;
         audio_back.payload.tempo_lock_state = tempo_lock_tracker.state;
         portEXIT_CRITICAL(&audio_spinlock);
@@ -644,6 +648,7 @@ void audio_task(void* param) {
 
         // Lock-free buffer synchronization with Core 1
         finish_audio_frame();          // ~0-5ms buffer swap
+        heartbeat_logger_note_audio(audio_back.payload.update_counter);
 
         // Yield to prevent CPU starvation
         // 1ms yield allows 40-50 Hz audio processing rate
@@ -758,7 +763,6 @@ static inline void run_audio_pipeline_once() {
     // Lock-free buffer synchronization with Core 0
     finish_audio_frame();
     heartbeat_logger_note_audio(audio_back.payload.update_counter);
-    heartbeat_logger_note_audio(audio_back.payload.update_counter);
 }
 
 // ============================================================================
@@ -795,7 +799,7 @@ void loop_gpu(void* param) {
         global_brightness = 1.0f;
 
         // Draw current pattern with audio-reactive data (lock-free read from audio_front)
-        uint32_t t_render = micros();
+        uint32_t t_render = micros(); (void)t_render;
 
         // Create the render context
         AudioDataSnapshot audio_snapshot;
@@ -812,10 +816,10 @@ void loop_gpu(void* param) {
         ACCUM_RENDER_US.fetch_add(render_us, std::memory_order_relaxed);
 
         // Quantize (built into transmit_leds, measured separately)
-        uint32_t t_quantize = micros();
+        uint32_t t_quantize = micros(); (void)t_quantize;
         // Transmit to LEDs via RMT (non-blocking DMA)
         transmit_leds();
-        uint32_t t_post_tx = micros();
+        uint32_t t_post_tx = micros(); (void)t_post_tx;
         heartbeat_logger_note_frame();
 
 #if FRAME_METRICS_ENABLED
@@ -851,6 +855,7 @@ void setup() {
     Serial.begin(250000);  // Match serial monitor max baud rate (was 2000000 - 8× too fast!)
     Serial.setRxBufferSize(1024);  // Increase RX buffer from 256 to 1024 bytes
     LOG_INFO(TAG_CORE0, "=== K1.reinvented Starting ===");
+    set_feature_phase(FeaturePhase::Baseline);
 
     // Print build environment and IDF/Arduino versions up front (so we catch cursed mismatches early)
 #ifdef ARDUINO_ESP32_RELEASE_3_0_0
@@ -1102,7 +1107,7 @@ void setup() {
     LOG_DEBUG(TAG_SYNC, "Synchronization: Lock-free with sequence counters + memory barriers");
     LOG_INFO(TAG_CORE0, "Ready!");
     LOG_INFO(TAG_CORE0, "Upload new effects with:");
-    LOG_INFO(TAG_CORE0, "pio run -t upload --upload-port %s.local", ArduinoOTA.getHostname());
+    LOG_INFO(TAG_CORE0, "pio run -t upload --upload-port %s.local", ArduinoOTA.getHostname().c_str());
 }
 
 // ============================================================================
