@@ -1,124 +1,127 @@
-# Sensory Bridge vs. Emotiscope: Audio + Visual Pipeline Comparative Analysis
+# Sensory Bridge vs. Emotiscope: Audio + Visual Pipeline Comparative Analysis (Legacy Code)
 
-This document compares Sensory Bridge (SB) and Emotiscope across audio and visual pipelines, with explicit selection scenarios. It emphasizes long‑term maintainability, parity, and operational robustness.
+This compares the original Sensory Bridge (SB) firmware vs. the original Emotiscope firmware (as provided under `zref/`). It focuses strictly on how each implemented audio and visual pipelines — no mixing and no modern additions like Cochlear AGC.
 
 ## Executive Summary
-- SB excels at deterministic visuals with minimal moving parts. Bloom/trails use additive sprite (alpha≈0.99) and chroma‑sum shaping; looks are battle‑tested but infra‑light.
-- Emotiscope delivers modern infrastructure: seqlock snapshots, Cochlear AGC, robust logging/heartbeat, OTA/web APIs, dual‑core separation. More moving parts; higher maintainability and observability.
-- Recommended architecture: Emotiscope core pipeline + SB‑exact per‑family algorithms (no hybrid inside a family). This yields parity + ops.
+- Both SB and Emotiscope share a broadly similar structure: Goertzel bins → smoothing/autoranging → chromagram/VU/tempo → pattern rendering with strong reliance on additive sprite persistence and center‑origin symmetry.
+- Differences are in numeric representation and a few shaping details: SB uses fixed‑point CRGB16 utilities and explicit LED quantization/dithering paths; Emotiscope uses float CRGBF utilities, a slightly different VU autorange and chromagram scale, and simpler quantization.
+- Neither legacy codebase uses Cochlear AGC. Loudness adaptation is via auto‑range/auto‑scale (IIR max tracking) and a VU floor calibration.
 
-## Pipeline Breakdown
+## Pipeline Breakdown (as implemented in zref)
 
 ### Audio Chain
-- SB: Goertzel bins → simple averaging → chromagram → VU/tempo → pattern logic. Lightweight, fewer guards, minimal diagnostics.
-- Emotiscope: Goertzel (64 bins) → averaging buffer → Cochlear AGC → autorange → VU/novelty/tempo/chromagram → seqlock snapshot → pattern. Includes I2S timeout fallback, heartbeat, counters.
+- Sensory Bridge (SB)
+  - Goertzel (musical bins) with per‑frame calculation; moving averages for smoothing.
+  - Auto‑ranger: IIR max tracker (`max_val_smooth`) to compute `autoranger_scale`; clamps below a floor.
+  - Chromagram: 12‑bin pitch‑class sum from smoothed spectrum; brightness shaping typically uses squared magnitudes.
+  - VU: RMS/peak‑style level; simple gating/flooring; no AGC.
+  - Tempo: Goertzel‑style beat bins with their own autoranger and phase.
 
-Key Ordering (must‑keep):
-1) Goertzel + smoothing
-2) AGC (if enabled)
-3) Autorange
-4) Derive VU/chromagram/tempo
-5) Copy to snapshot exactly once; patterns never re‑read
+- Emotiscope (legacy)
+  - Goertzel (musical bins) with `NUM_SPECTROGRAM_AVERAGE_SAMPLES` (default 8) circular averaging to form `spectrogram_smooth`.
+  - Auto‑ranger: IIR `max_val_smooth` normalization (same principle as SB) with a minimum floor; `autoranger_scale = 1/max_val_smooth`.
+  - Chromagram: simple sum of `spectrogram_smooth[i]/5.0` into 12 bins; often squared later for brightness.
+  - VU: measurement over recent audio chunk, subtract configurable `vu_floor`, then auto‑scale by capped max amplitude (`max_amplitude_cap`) — no AGC.
+  - Tempo: similar to SB — normalized magnitudes with IIR peak tracking and a separate autoranger.
+
+Key Shared Ordering
+1) Goertzel → smoothing (moving average)
+2) Auto‑ranging (IIR max)
+3) Derive VU/chromagram/tempo
+4) Render patterns
 
 ### Visual Chain
-- SB: persistence via additive sprite α≈0.99; memcpy prev; tail fade; mirror; chroma‑sum → HSV shaping → optional hue forcing; strict center‑origin symmetry.
-- Emotiscope: same primitives available, but must be applied exactly (no memset of trail buffers; correct alpha; strict mirror from center; sub‑pixel interpolation for spectrum/chroma mapping).
+- Shared ideas
+  - Persistence via additive sprite scrolling with high alpha (~0.99) for Bloom‑style trails.
+  - Center injection then tail fade and mirroring to enforce center‑origin symmetry.
+  - Hue/brightness mapping in HSV; several modes square brightness for “pop”.
 
-## Evaluation Dimensions
+- SB specifics
+  - CRGB16 fixed‑point utilities in `led_utilities.h`: `hsv`, `lerp_led_16`, `quantize_color`, temporal dither tables, `apply_brightness` (master brightness ramp), and `draw_sprite(CRGB16)` with alpha.
+  - Bloom center color via chromagram^2 × share summed in HSV; then optional force hue; memcpy previous frame; tail fade; mirror.
+
+- Emotiscope specifics
+  - CRGBF float utilities in `leds.h`: `hsv(float)`, `draw_sprite(float[])` with alpha, float trail images for novelty Bloom, etc.
+  - Bloom (“novelty”) uses `draw_sprite(novelty_image, novelty_image_prev, ..., 0.99)` and squares brightness for the palette color — nearly the same persistence behavior as SB.
+
+## Evaluation Dimensions (Legacy vs. Legacy)
 
 - Computational Resources
-  - SB: lower CPU/RAM; fixed‑point friendly; simpler frame loop.
-  - Emotiscope: higher CPU/RAM (buffers, web, logs) but acceptable for ESP32‑S3 when profiled.
+  - SB: More fixed‑point in the visual layer → predictable CPU, minimal float in pattern draws; Goertzel math still float. Low working‑set RAM thanks to CRGB16 buffers.
+  - Emotiscope: Float CRGBF buffers for many visuals (novelty, spectrum, etc.), 8‑frame spectral averaging buffers, VU/spectrum histories → higher RAM but still within ESP32‑class limits.
 
-- Data Throughput
-  - SB: steady visual rate, minimal instrumentation.
-  - Emotiscope: audio ~40–50 Hz, LED 120–160 FPS; telemetry makes throughput tunable.
+- Throughput
+  - Both: Designed to render smoothly at LED frame rates with audio updates in the tens of Hz. Emotiscope’s circular averages add small overhead.
 
-- Error Handling/Recovery
-  - SB: minimal explicit recovery; simplicity as prevention.
-  - Emotiscope: I2S timeouts → silence fallback; heartbeat; seqlock snapshot; freshness guards.
+- Error Handling
+  - Neither legacy code has modern watchdog/heartbeat; they assume steady I2S/audio. Emotiscope exposes configuration (e.g., `vu_floor`) to compensate environments; SB uses similar floors and calibration.
 
 - Development Complexity
-  - SB: low; visuals precise but fewer layers. Risk: small deviations cause obvious drift.
-  - Emotiscope: higher; more infra to understand; safer boundaries once learned.
+  - SB: Slightly lower cognitive load in visuals via CRGB16 helpers; pattern logic tightly coupled to those utilities.
+  - Emotiscope: Slightly more moving parts (float buffers, averaging, histogram‑like state) but straightforward once the moving average and autoranger are understood.
 
 - Maintainability
-  - SB: strong if static; harder to evolve safely; limited ops.
-  - Emotiscope: excellent — clearer APIs, diagnostics, testing, remote ops.
+  - SB: Easy to keep static; evolving visuals safely requires discipline around fixed‑point conversions and quantization.
+  - Emotiscope: Easy to tweak visuals numerically in float; risk of drift if you change squared/scale factors casually.
 
 - Scalability
-  - SB: scales visually; not infra‑scalable.
-  - Emotiscope: scales in features, ops, and multi‑device integration.
+  - Both: Primarily single‑device firmware; neither legacy codebase provides production‑grade APIs/telemetry out of the box. Emotiscope includes some WebSocket notes/examples for local tooling.
 
 - Integration
-  - SB: embedded integration only.
-  - Emotiscope: REST/WS APIs, OTA, metrics — fits modern infra.
+  - SB: Minimal integration; typical Arduino/FastLED style.
+  - Emotiscope: Slightly better developer ergonomics (preferences, UI notes, websocket tooling), but still not a full ops stack.
 
-- Unique Features
-  - SB: proven bloom persistence, chroma shaping, quantization; visually “right”.
-  - Emotiscope: AGC normalization across loudness; heartbeat/logs; shared buffers; palette system.
+- Unique Advantages
+  - SB: Tight quantization/dithering, master brightness handling, proven bloom/trail “feel”.
+  - Emotiscope: Simpler float‑based visuals; clean novelty Bloom implementation; often easier to prototype visual math changes.
 
 - Robustness Under Load
-  - SB: survives due to simplicity; lacks safety rails.
-  - Emotiscope: detects stalls/failures; DSP optimizations for hotspots.
+  - Both: Robust by simplicity; lack of advanced error recovery/telemetry means failures are opaque.
 
 - Downstream Challenges
-  - SB: extending or integrating telemetry/AGC is invasive.
-  - Emotiscope: must enforce invariants to avoid regressions; larger toolchain.
+  - SB: Extending with new features must respect fixed‑point pipelines and quantization; porting visuals to float risks parity loss.
+  - Emotiscope: Changes to averaging or scale factors will alter look quickly; must document those factors carefully.
 
 - Upgrade Path
-  - SB: modest; risk of altering look when expanding.
-  - Emotiscope: strong; feature growth behind stable APIs.
+  - Both: Limited. Adding modern ops (telemetry, OTA, heartbeat) requires architectural additions beyond the legacy code.
 
-- Ecosystem/Community
-  - SB: smaller infra footprint; relies on Arduino/FastLED.
-  - Emotiscope: broader ecosystem (PlatformIO, AsyncWebServer, ArduinoJson, RMTv2).
+## Selection Scenarios (Legacy‑only)
 
-## Selection Scenarios
-
-### 1) Building This Application (Parity + Ops)
-Pick Emotiscope pipeline + SB‑exact per‑family visual algorithms.
-- Audio/ops: Emotiscope (seqlock snapshot; heartbeat; I2S fallback; AGC before autorange; REST/WS).
-- Visuals: SB‑parity for Bloom/Tunnel and any legacy‑defined families; Emotiscope/K1 styles where SB has no baseline.
+### 1) Building This Application (strict visual parity, minimal complexity)
+Choose SB end‑to‑end if the priority is: identical Bloom feel, established quantization/dithering, and minimal changes. SB’s CRGB16 utilities lock in the intended behavior and make it harder to accidentally change persistence/brightness.
 
 Justification
-- Guarantees 1:1 visual parity by locking family algorithms.
-- Provides professional diagnostics/observability and remote control.
-- Decouples ops evolution from look fidelity (patterns remain canonical).
-
-Risks & Mitigations
-- Drift from future changes → Keep “SB Parity” variants; add CI parity metrics.
-- Developer errors (memset/ordering) → Enforce invariants (see FAMILY_INVARIANTS.md); code asserts; checklist.
-
-### 2) Case for Sensory Bridge
-Choose SB end‑to‑end when:
-- You want lowest footprint; no web/telemetry; fixed visuals forever.
-- You prefer deterministic simplicity and accept minimal diagnostics.
-
-Why SB wins
-- Fewer moving parts, fixed‑point friendliness, known visual correctness. Easier to meet tight timing on smaller MCUs.
+- SB’s Bloom/Trail is canonical and matches the expected look: draw_sprite alpha≈0.99, chromagram^2 sum, memcpy prev, tail fade, mirror.
+- CRGB16 + quantization reproduces the on‑wire “glow”.
 
 Tradeoffs
-- Harder integration, weaker ops, challenging to add AGC/tempo upgrades without changing the look.
+- Less flexible for rapid visual math experimentation compared to Emotiscope’s float math.
+- Still lacks modern ops unless you add them.
 
-### 3) Case for Emotiscope
-Choose Emotiscope when:
-- You need production‑grade telemetry, OTA, structured concurrency, and future expansions.
-- Multiple patterns/families and fleet ops are in scope.
+### 2) Case for Sensory Bridge (why it can be better)
+- Determinism: fixed‑point quantization + defined dithering → consistent look across environments.
+- Bloom parity: the center‑inject + trail pipeline is encoded verbatim.
+- Simplicity: fewer float buffers/state — easier to reason about persistence and mirror rules.
 
-Why Emotiscope wins
-- Observability, structured audio pipeline, safety (seqlock & guards), CI/testability, and better integration options.
+Costs
+- Harder to add novel visual computations; integer paths make some experiments clunkier.
+- Minimal infra for error visibility.
 
-Tradeoffs
-- Requires discipline to avoid visual drift; enforce family invariants and pipeline ordering.
+### 3) Case for Emotiscope (why it can be better)
+- Visual prototyping: float CRGBF math and novelty images make it easy to tune curves (e.g., squaring, palette brightness) without fighting fixed‑point.
+- Spectrum averaging: the 8‑frame spectral average is explicit and easy to tweak for responsiveness vs. stability.
+- VU autorange knobs: `vu_floor` and `max_amplitude_cap` provide practical adaptation in various rooms.
 
-## Expert Notes & Long‑Term Considerations
-- Never hybridize algorithms inside a family. SB bloom rules (alpha=0.99, additive sprite, chroma‑sum shaping) must remain intact.
-- Treat pipeline ordering as a contract: AGC before autorange; derive VU/chromagram/tempo from AGC‑processed values; snapshot once; patterns only consume the snapshot.
-- Bake invariants into code (asserts/lints) and docs. Add a parity harness for Bloom/Tunnel with “golden frame” metrics.
+Costs
+- Easy to introduce drift: small scale/curve changes alter look; requires strict documentation and review.
+- No built‑in ops; any telemetry/OTA must be added.
 
-References (repo)
-- SB bloom: `zref/Sensorybridge.sourcecode/.../lightshow_modes.h` (draw_sprite α≈0.99, chroma sum)
-- Emotiscope audio: `firmware/src/audio/goertzel.*` (AGC → autorange → snapshot)
-- Pattern rules: `firmware/src/patterns/*`, `firmware/src/emotiscope_helpers.*`
+## Expert Notes
+- The two codebases converge on the same visual truths: additive sprite persistence (alpha≈0.99), center‑origin symmetry, chromagram‑driven color/brightness shaping, squared brightness for pop, and moving‑average autoranging. That’s why you can port between them if you preserve these invariants.
+- The biggest practical difference is numeric representation and helper ecosystems (CRGB16+quantization vs. CRGBF floats). Pick the one that matches your maintenance style and parity targets.
 
+References (zref paths)
+- SB Bloom/trails/quantization: `zref/Sensorybridge.sourcecode/SensoryBridge-4.0.0/SENSORY_BRIDGE_FIRMWARE/lightshow_modes.h`, `.../led_utilities.h`
+- Emotiscope Bloom/novelty + sprite: `zref/Emotiscope.sourcecode/Emotiscope-1.0/src/lightshow_modes/bloom.h`, `.../leds.h`
+- Emotiscope VU autorange/floor: `zref/Emotiscope.sourcecode/Emotiscope-1.0/src/vu.h`
+- Emotiscope spectrogram averaging + autoranger: `zref/Emotiscope.sourcecode/Emotiscope-1.0/src/goertzel.h`
