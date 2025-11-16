@@ -228,9 +228,12 @@ The rest of this file is grouped by pattern family. Each entry lists (1) the ori
    - **Phase 1:** Color post-processing lived inline with FastLED quantization.
    - **Phase 2:** Starting around 2025-11-11, `firmware/src/color_pipeline.{h,cpp}` applies LPF → tone-map → warmth → white balance → gamma before quantization. This change affects **all** patterns; double brightness bugs on 2025-11-14 were a symptom of integrating this pipeline.
 
-3. **Pattern Dispatch**
-   - **Phase 1:** `draw_current_pattern()` called inline implementations in `generated_patterns.h`.
-   - **Phase 2:** `pattern_execution.cpp` constructs a `PatternRenderContext` and includes modular headers from `firmware/src/patterns/`. The modularization enabled targeted fixes but also left the root repo without the actual .hpp files until recently (they were untracked for a while).
+3. **Pattern Dispatch / Snapshot Semantics**
+   - **Phase 1:** `draw_current_pattern()` called inline implementations in `generated_patterns.h`, and every pattern invoked `PATTERN_AUDIO_START()` locally. Freshness tracking (`pattern_last_update`), age sampling, and `AUDIO_IS_AVAILABLE()` logic lived in the macros.
+   - **Phase 2:** `pattern_execution.cpp` constructs a `PatternRenderContext` and injects a single snapshot per frame. **Boundary rules:**
+     - Never call `get_audio_snapshot()` inside a pattern. You already have the frame’s snapshot; re-fetching risks torn reads and defeats the single-snapshot guarantee.
+     - If a pattern needs freshness, keep a static `last_update_counter` in the pattern (`context.audio_snapshot.payload.update_counter`) and skip only when that counter hasn’t changed.
+     - Do not store pointers into `context.audio_snapshot` beyond the frame or mutate the payload—each call invalidates previous references.
 
 ---
 
@@ -591,6 +594,7 @@ Bloom stops moving unless the mic clips, Bloom Mirror barely reacts, Spectrum/Oc
 - We instantiated `CochlearAGC` (`main.cpp:961–982`) but never call `g_cochlear_agc->process()` inside `calculate_magnitudes()` (`audio/goertzel.cpp:430–640`). Chromagram bins and VU never get the +40 dB multi-band lift that Sensory Bridge relied on, so Bloom/Bloom Mirror brightness collapses.
 - While porting to `PatternRenderContext`, we redefined `AUDIO_IS_FRESH()` in `spectrum_family.hpp` as `audio.payload.update_counter > 0` and removed the per-pattern `pattern_last_update`. Spectrum/Octave/Waveform interpret that as “no new data” and bail out every frame.
 - Heartbeat instrumentation counts audio frames only in the single-shot fallback (`run_audio_pipeline_once()`). When the dedicated `audio_task` is running, the logger never sees `heartbeat_logger_note_audio()`, so the diagnostics scream “audio dead” and waste everyone’s time.
+- Implicit but critical: any code now reading `context.audio_snapshot` bypasses `PATTERN_AUDIO_START()` entirely. That means the macros no longer maintain per-pattern `pattern_last_update` or age counters—**you must recreate those semantics manually** if the pattern relies on freshness.
 
 **Why This Breaks Things:**
 - Patterns do exactly what we told them: if `AUDIO_IS_AVAILABLE()` returns false, they go to idle (Bloom fills center with zero intensity, Mirror just scrolls the previous frame). With the AGC bypass, even the few that ignore `is_valid` see microscopic magnitudes and look inert.
@@ -602,6 +606,27 @@ Bloom stops moving unless the mic clips, Bloom Mirror barely reacts, Spectrum/Oc
 - Restore proper freshness tracking: either keep the static `pattern_last_update` inside each pattern or expose `audio_is_fresh` on `PatternRenderContext`. Never stub `AUDIO_IS_FRESH()` to a constant.
 - Move `heartbeat_logger_note_audio()` into `audio_task` so diagnostics reflect production behavior.
 - Most importantly: stop being inattentive, hubristic, and lazy. This failure happened because agents changed core systems without understanding them, didn’t verify end-to-end behavior, and “didn’t give a shit.” That is unacceptable. If you touch the audio or helper stack, you sign up to prove the full system still works.
+
+**Technical Guidance / Pitfalls to Avoid:**
+- **Snapshot contracts:** `AudioDataSnapshot.payload` is written exactly once per frame via `commit_audio_data()`. Do **not** mutate the snapshot inside a pattern, and do not memoize pointers into the snapshot beyond the frame scope—subsequent calls invalidate them.
+- **Freshness semantics:** The original macros tracked freshness per pattern via a static `pattern_last_update`. When you inject the snapshot via `PatternRenderContext`, you must replicate that guard manually:
+  ```cpp
+  static uint32_t last_update = 0;
+  bool fresh = (context.audio_snapshot.payload.update_counter != last_update);
+  if (fresh) { last_update = context.audio_snapshot.payload.update_counter; }
+  ```
+  Patterns that rely on delta computations (Spectrum/Octave) *must* skip work only when `fresh == false`, not because the counter is zero.
+- **Single-snapshot boundary:** Calling `get_audio_snapshot()` inside a pattern breaks the “one snapshot per frame” contract. The render loop already fetched the snapshot; re-fetching mid-frame risks torn reads and inconsistent data. Always use `context.audio_snapshot`.
+- **Magnitude scaling chain:** Order matters—Goertzel → noise suppression → spectrogram smoothing → **AGC** → tempo/chroma/VU → palette/color pipeline. If you inject multipliers elsewhere (e.g., manually scaling Bloom by `params.softness` to “fix brightness”), you’re violating the chain and will fight other effects downstream.
+- **Audio age window:** `AUDIO_AGE_MS()` is the gatekeeper for deterministic idle behavior. Hard-code fade windows (e.g., 250–500 ms) and stick to them. Do not leave patterns free-running with stale data; that’s how you get visual drift when the mic is unplugged.
+- **Shared buffers:** Bloom/Bloom Mirror/Snapwave/Beat Tunnel rely on shared sprite buffers (`shared_pattern_buffers.*`). Never `memset` those buffers and never reuse them without `acquire_dual_channel_buffer()`. Clearing them destroys persistence globally.
+- **AGC ordering:** Apply AGC to the smoothed spectrum **before** copying into `audio_back`. Do not try to “fix” Bloom by adding ad hoc multipliers after the fact—that just reintroduces the exact hand-tuned hacks Sensory Bridge spent months removing.
+- **Silence heuristics:** `audio_input_is_active()` is best-effort. Treat it as a UX hint, not a truth source. If you need guaranteed silence detection, examine `AUDIO_VU`/`AUDIO_AGE_MS()` within the pattern and act locally.
+- **Instrumentation:** Heartbeat, `LOG_DEBUG(TAG_TRACE, ...)`, and the serial menu toggles are only useful if they run in the same execution paths as production. If you move audio processing to a dedicated task, migrate the diagnostics at the same time. Never trust a tool you haven’t validated end-to-end.
+- **Palette controls:** `params.color` and `params.color_range` are palette positions; do not reinterpret them as HSV hue/width unless the pattern explicitly documents it. Keep parameter semantics consistent across families.
+- **Tempo arrays:** `audio_back.payload.tempo_magnitude[]`/`tempo_phase[]` must be populated every frame before `commit_audio_data()`. Do not zero them “for performance” or tempo-driven patterns (Tempiscope/Beat Tunnel) will read garbage.
+- **Dual-channel buffers:** When using shared sprite buffers (Bloom Mirror, Tunnel family), always respect `g_pattern_channel_index`. Hard-coding channel zero or skipping `acquire_dual_channel_buffer()` breaks dual-strip deployments.
+- **AGC toggle:** `audio_debug_enabled`/`tempo_debug_enabled` are global toggles. Patterns must treat them as volatile; do not cache or reinterpret them per-pattern.
 - When in doubt, test patterns both with and without the color pipeline to understand whether divergences are upstream (pattern) or downstream (post-process).
 
 ---
