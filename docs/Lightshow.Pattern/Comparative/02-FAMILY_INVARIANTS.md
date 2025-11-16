@@ -5,7 +5,7 @@ These guardrails prevent visual drift and runtime regressions. They apply to all
 ## Global
 - Single snapshot per frame: patterns consume `PatternRenderContext.audio_snapshot` only. No `get_audio_snapshot()` calls from patterns.
 - Freshness: per‑pattern static `last_update_counter`; skip work only when the counter is unchanged. Do not skip on “counter == 0”.
-- Pipeline order: AGC → autorange → derive VU/chroma/tempo → copy to snapshot. Never reorder.
+- Pipeline order: AGC → autorange → derive VU/chromagram/tempo → copy to snapshot. Never reorder.
 - Trail persistence: do not `memset` persistent buffers. Apply multiplicative decay only; scrolling is additive via sprite.
 - Center‑origin symmetry: equal distance from center must map to equal color. Always mirror correctly.
 - Interpolation: use `interpolate()` for spectrum/chromagram → LED mapping to avoid stepping.

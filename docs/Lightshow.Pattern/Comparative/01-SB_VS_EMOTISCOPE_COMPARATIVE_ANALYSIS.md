@@ -114,7 +114,7 @@ Tradeoffs
 
 ## Expert Notes & Long‑Term Considerations
 - Never hybridize algorithms inside a family. SB bloom rules (alpha=0.99, additive sprite, chroma‑sum shaping) must remain intact.
-- Treat pipeline ordering as a contract: AGC before autorange; derive VU/chroma/tempo from AGC‑processed values; snapshot once; patterns only consume the snapshot.
+- Treat pipeline ordering as a contract: AGC before autorange; derive VU/chromagram/tempo from AGC‑processed values; snapshot once; patterns only consume the snapshot.
 - Bake invariants into code (asserts/lints) and docs. Add a parity harness for Bloom/Tunnel with “golden frame” metrics.
 
 References (repo)
