@@ -1,79 +1,28 @@
-# K1.node1 Documentation
+# SpectraSynq / K1-Lightwave Documentation
 
-Central documentation hub for all K1.node1 project information, decisions, plans, and execution guides during Phase 2.
+## Overview
 
-## Start Here
+This documentation set describes the architecture and data-flow for SpectraSynq’s dual-MCU real-time audio→visual system, built initially on ESP32‑S3 and designed for scalability.
 
-- **Navigation Guide:** `K1N_INDEX_v1.0_20251108.md` - Master index of all documentation
-- **Governance Standards:** `08-governance/K1NGov_GOVERNANCE_v1.0_20251108.md` - Team responsibilities and filing rules
-- **Quick Reference:** `07-resources/K1NRes_REFERENCE_GOVERNANCE_QUICK_v1.0_20251108.md` - One-page cheat sheet
-- **Conductor Docs (moved):** `../Conductor/README.md` - Orchestration + MCP integration
+### Sections
+- [Mission Context](#mission-context)
+- [Architecture](architecture.md)
+- [SPI Protocol](spi_protocol.md)
+- [Audio Pipeline](audio_pipeline.md)
+- [Visual Pipeline](visual_pipeline.md)
+- [Real-Time & Scheduling](real_time.md)
+- [Resources & Throughput](resources_throughput.md)
+- [Error & Robustness](error_robustness.md)
+- [Maintainability](maintainability.md)
+- [Scalability & Integration](scalability.md)
+- [Telemetry & Ops](telemetry_ops.md)
+- [Deliverables Summary](deliverables.md)
+- [Research References](references.md)
+- [Appendix Examples](appendix_examples.md)
 
-### Firmware
+### Legacy
+- Archived consolidated documents are under `docs/legacy/`.
 
-- **Comprehensive API Index:** `09-implementation/api-index.md`
-- **API Reference (selected endpoints):** `06-reference/firmware-api.md`
-- **API Reference (complete):** `06-reference/K1NRef_FIRMWARE_API_COMPLETE_v1.0_20251111.md`
-- **OpenAPI Spec (YAML):** `06-reference/firmware_openapi.yaml`
-- **API Quick Tests:** `09-implementation/api-quick-tests.md`
-- **Realtime WebSocket Protocol:** `06-reference/realtime-websocket.md`
-- **Rate‑Limit Policy:** `06-reference/rate-limit-policy.md`
-- **Endpoint Specs (Top Routes):** `06-reference/endpoint-specs.md`
-- **HTTP Server Architecture:** `09-implementation/http-architecture.md`
+## Mission Context
 
-### Phase 2 Completion & Validation
-
-- **Phase 2 Completion Report:** `09-reports/K1NReport_PHASE2_COMPLETION_v1.0_20251111.md`
-- **Validation Script:** `tools/validate_phase2.sh <device-ip-or-url>`
-- **Key Endpoints:** `/api/select`, `/api/frame-metrics`, `/api/leds/frame`
-
-### Endpoint Expansions (Phase 2)
-- **Reference:** `06-reference/K1NRef_ENDPOINT_EXPANSIONS_PHASE2_v1.0_20251111.md`
-- Adds query params (`limit`, `step`, `fmt=hsv`) and monitoring
-- Introduces `/api/visual/config` and `/api/v1/*` aliases
-
-### Start Here: Graph System
-
-- **Schema Spec:** `06-reference/GRAPH_SCHEMA_SPEC.md`
-- **Authoring Guide:** `09-implementation/GRAPH_AUTHORING_GUIDE.md`
-- **Node Catalog:** `06-reference/NODE_CATALOG_REFERENCE.md`
-- **Troubleshooting:** `09-implementation/GRAPH_TROUBLESHOOTING.md`
-- **SB/Emotiscope Compatibility:** `06-reference/SENSORY_BRIDGE_COMPAT.md`
-
-## Documentation Folders
-
-| Folder | Purpose | Key Documents |
-|--------|---------|---|
-| **01-architecture/** | System design & feasibility | STATEFUL_NODE_* |
-| **02-adr/** | Decisions & architecture records | ADR-000*-*.md |
-| **03-guides/** | Procedural guides & how-tos | builderio.* |
-| **04-planning/** | Roadmaps & execution plans | PHASE_2D1_*, WEEK_1_* |
-| **05-analysis/** | Technical analysis & research | PATTERN_ANALYSIS_* |
-| **06-reference/** | Quick references & glossaries | (to be populated) |
-| **07-resources/** | Team resources & training | governance_quick_ref, TASKMASTER_CLI_* |
-| **08-governance/** | Policies & standards | K1NGov_GOVERNANCE_v1.0_20251108.md |
-| **09-implementation/** | Implementation specs | K1NImpl_PLAN_IMPLEMENTATION_v1.0_20251108.md |
-
-## Navigation Tips
-
-- Use numbered prefix (00-09) to browse folders logically
-- Check folder README.md for what's in that section
-- Use cross-links between related documents
-- Refer to K1N_INDEX_v1.0_20251108.md for searchable document list
-
-## Filing Your Documentation
-
-**Before creating a new document:**
-1. Check if it belongs in an existing folder (see table above)
-2. Follow naming conventions (snake_case, descriptive names)
-3. Add YAML metadata: title, author, date (UTC+8), status, intent
-4. Link to related documents
-5. Update relevant folder README when adding new files
-
-**Questions?** See `08-governance/K1NGov_GOVERNANCE_v1.0_20251108.md` for complete standards.
-
----
-
-**Last Updated:** 2025-11-05
-**Governance Status:** Active Phase 2 standards in effect
-**Questions or Feedback:** Escalate to team lead
+This system ingests live audio (PDM MEMS mic and/or digital/I²S), performs low-latency analysis, streams compact feature vectors over SPI to a renderer, and drives hundreds of addressable LEDs with bounded latency from sound to photon. It supports immediate prototyping on dual ESP32‑S3 and provides a long-term path to more complex multi-node and SoC-based systems.
