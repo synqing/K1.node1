@@ -25,16 +25,6 @@ TEST EXECUTABLES
    Duration: ~10 minutes
    Success: Init complete, ≥40 chunks, ≥3 peak bins, latency <20ms
 
-3. test_hw_graph_integration.cpp (337 lines)
-   Location: firmware/test/test_hw_graph_integration.cpp
-   Tests: 4
-   - test_graph_codegen_correctness()
-   - test_pattern_execution()
-   - test_parameter_mutation()
-   - test_long_duration_stability()
-   Duration: ~15 minutes (includes 5-min endurance)
-   Success: ≥80% patterns valid, 0 crashes, smooth transitions, FPS >100
-
 AUTOMATION TOOLS
 ================
 
@@ -113,9 +103,6 @@ Command Line Recipes:
 
   # Run audio tests only
   cd firmware && pio test -e esp32-s3-devkitc-1 -f test_hw_audio_input
-
-  # Run graph tests only (includes 5-min stability test)
-  cd firmware && pio test -e esp32-s3-devkitc-1 -f test_hw_graph_integration
 
   # View test results
   cat test_logs/*/test_hw_*.log | grep -E "\[PASS\]|\[FAIL\]"

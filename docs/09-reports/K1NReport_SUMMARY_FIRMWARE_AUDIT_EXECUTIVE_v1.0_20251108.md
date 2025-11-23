@@ -88,7 +88,7 @@ void acquire_sample_chunk() {
 
 **Root Cause:** Same as RMT - Arduino ESP32 framework has **I2S v4 API only**, but code expects **I2S v5 API** (`i2s_std.h`, `i2s_new_channel()`, etc.). Fallback stubs return silence.
 
-**PDM Hardware Note:** SPH0645 is a **PDM microphone**, not standard I2S. Code comment (line 97) incorrectly claims "standard I2S, NOT PDM". The microphone outputs PDM bitstream requiring hardware decimation.
+**I2S Hardware Note:** SPH0645 is an **I2S MEMS microphone** with standard I2S interface. It outputs 32-bit digital audio samples that can be directly read by ESP32-S3 I2S peripheral without PDM-to-PCM conversion.
 
 **Impact:**
 - ❌ Audio-reactive patterns have no audio data to react to
@@ -397,7 +397,7 @@ Task 3c: Stack Safety Increase
 
 - ✅ **sph0645_i2s_audio_integration_audit.md** (comprehensive)
   - I2S v4 vs v5 API comparison
-  - PDM microphone configuration guide
+  - I2S MEMS microphone configuration guide
   - Audio pipeline integration analysis
 
 - ✅ **K1NAnalysis_ANALYSIS_WATCHDOG_STABILITY_v1.0_20251108.md** (47 pages)

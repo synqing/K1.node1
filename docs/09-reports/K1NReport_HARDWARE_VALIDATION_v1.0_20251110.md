@@ -122,14 +122,14 @@ K1.node1 hardware validation testing has been completed successfully with **25/2
 #### Test 2.1: AUDIO_I2S_INIT
 - **Status:** ✅ PASS
 - **Duration:** 8ms
-- **Details:** SPH0645 microphone I2S PDM initialization
+- **Details:** SPH0645 microphone I2S initialization
 - **Configuration:**
   - Sample Rate: 48000 Hz (optimal for speech/music)
-  - Bit Width: 16 bits
-  - Channels: Mono (PDM mode)
+  - Bit Width: 32 bits
+  - Channels: Mono (I2S mode)
   - Clock: GPIO 42 (SCK)
   - Word Select: GPIO 41 (WS)
-  - Data Input: GPIO 40 (DIN)
+  - Data Input: GPIO 40 (SD)
 - **Status:** I2S_STD driver initialized successfully
 - **Reference:** audio/microphone.cpp lines 50-100
 
@@ -399,7 +399,7 @@ K1.node1 hardware validation testing has been completed successfully with **25/2
 |-----------|-------|--------|-------|
 | **Microcontroller** | ESP32-S3 DevKit-C-1 | ✅ Verified | Arduino 3.0.0, IDF 5.1.2 |
 | **LED Strip** | WS2812B (160 LEDs) | ✅ Verified | Dual channels, 5V supply |
-| **Microphone** | SPH0645 I2S PDM | ✅ Verified | 48kHz sample rate, clean signal |
+| **Microphone** | SPH0645 I2S MEMS | ✅ Verified | 48kHz sample rate, clean signal |
 | **WiFi** | OPTUS_738CC0N | ✅ Verified | Strong signal (-52 dBm), stable |
 | **WebServer** | AsyncWebServer | ✅ Verified | All endpoints responsive |
 | **Build Tools** | PlatformIO | ✅ Verified | espressif32@6.12.0 |

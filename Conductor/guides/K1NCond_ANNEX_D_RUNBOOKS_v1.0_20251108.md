@@ -188,7 +188,7 @@
 3. Investigate:
    - Search internal docs + GitHub issues
    - Review firmware audio path (SPH0645 → AUDIO_VU macro → pattern)
-   - Identify: I2S buffer, PDM-to-PCM, pattern execution
+   - Identify: I2S buffer, I2S audio processing, pattern execution
 4. Synthesize findings:
    - Document in research/findings.md
    - Create Notion page with links

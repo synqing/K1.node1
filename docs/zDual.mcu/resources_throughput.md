@@ -35,7 +35,7 @@
 
 | Interface | Data Rate | Notes |
 |-----------|-----------|--------|
-| PDM Audio | 16.4 Mbps | 1.024 MHz clock × 1 bit |
+| I2S Audio | 1.536 Mbps | 48 kHz × 32 bits |
 | PCM Audio | 256 kbps | 16 kHz × 16 bits |
 | SPI Features | 16 kbps | 32 bytes × 125 Hz |
 | LED Data | 432 kbps | 300 LEDs × 24 bits × 60 FPS |

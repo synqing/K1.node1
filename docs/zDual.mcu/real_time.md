@@ -20,7 +20,7 @@
 ```cpp
 // Priority 4: Audio capture (highest)
 Task_AudioCapture(void* pvParameters) {
-    // I2S PDM RX via DMA
+    // I2S RX via DMA
     // Double buffering
     // vTaskDelayUntil for precise timing
 }

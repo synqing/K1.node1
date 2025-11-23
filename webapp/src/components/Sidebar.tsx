@@ -56,7 +56,7 @@ function getNavigatorSerial() {
 
 interface SidebarProps {
   connectionState: ConnectionState;
-  onConnect: (ip: string, port: string) => Promise<boolean>;
+  onConnect: (ip: string, port: string) => Promise<void> | void;
   onDisconnect: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;

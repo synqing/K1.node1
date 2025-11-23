@@ -120,6 +120,20 @@ inline void draw_beat_tunnel(const PatternRenderContext& context) {
             }
         }
 
+        // If tempo bins carry no energy (e.g., tempo pipeline disabled), fall back to VU-driven blob
+        if (sum_mag < 0.001f) {
+            float vu = clip_float(audio.payload.vu_level);
+            for (int i = 0; i < NUM_LEDS; i++) {
+                float led_pos = LED_PROGRESS(i);
+                float distance = fabsf(led_pos - (position * 0.5f + 0.5f));
+                float brightness = vu * expf(-(distance * distance) / (2.0f * 0.06f * 0.06f));
+                CRGBF color = color_from_palette(params.palette_id, led_pos, brightness);
+                beat_tunnel_image[ch_idx][i].r += color.r * brightness;
+                beat_tunnel_image[ch_idx][i].g += color.g * brightness;
+                beat_tunnel_image[ch_idx][i].b += color.b * brightness;
+            }
+        }
+
         // Throttled debug: tempo energy snapshot
         static uint32_t last_log_ms_bt = 0; uint32_t now_ms_bt = millis();
         if ((audio_debug_enabled || tempo_debug_enabled) && (now_ms_bt - last_log_ms_bt) > 500) {
@@ -221,6 +235,20 @@ inline void draw_beat_tunnel_variant(const PatternRenderContext& context) {
                 beat_tunnel_variant_image[ch_idx][right_index].r += c.r * b;
                 beat_tunnel_variant_image[ch_idx][right_index].g += c.g * b;
                 beat_tunnel_variant_image[ch_idx][right_index].b += c.b * b;
+            }
+        }
+
+        // VU fallback if tempo bins are empty (prevents blank output when tempo is disabled)
+        if (sum_mag < 0.001f) {
+            float vu = clip_float(audio.payload.vu_level);
+            for (int i = 0; i < NUM_LEDS; i++) {
+                float led_pos = LED_PROGRESS(i);
+                float distance = fabsf(led_pos - position);
+                float brightness = vu * expf(-(distance * distance) / (2.0f * 0.06f * 0.06f));
+                CRGBF color = color_from_palette(params.palette_id, led_pos, brightness * 0.5f);
+                beat_tunnel_variant_image[ch_idx][i].r += color.r * brightness;
+                beat_tunnel_variant_image[ch_idx][i].g += color.g * brightness;
+                beat_tunnel_variant_image[ch_idx][i].b += color.b * brightness;
             }
         }
 

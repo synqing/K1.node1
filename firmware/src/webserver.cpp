@@ -29,7 +29,7 @@
 #include "audio/tempo.h"                   // Tempo telemetry
 #include "audio/validation/tempo_validation.h"  // PHASE 3: Tempo validation metrics
 #include "diagnostics/rmt_probe.h"        // RMT telemetry
-#include "led_driver.h"                    // Access LED raw frame buffer
+#include "led_driver.h"                    // Access LED frame buffer
 #include "frame_metrics.h"                // Frame-level profiling history
 // Debug telemetry defaults (compile-time overrides)
 #ifndef REALTIME_WS_ENABLED_DEFAULT
@@ -360,21 +360,17 @@ public:
             char hexbuf[7];
             hexbuf[6] = '\0';
             for (uint32_t i = 0; i < limit; ++i) {
-                uint8_t r = raw_led_data[i*3 + 0];
-                uint8_t g = raw_led_data[i*3 + 1];
-                uint8_t b = raw_led_data[i*3 + 2];
-                snprintf(hexbuf, sizeof(hexbuf), "%02X%02X%02X", r, g, b);
+                const CRGB& c = fastled_leds[i];
+                snprintf(hexbuf, sizeof(hexbuf), "%02X%02X%02X", c.r, c.g, c.b);
                 data.add(String(hexbuf));
             }
         } else {
             for (uint32_t i = 0; i < limit; ++i) {
-                uint8_t r = raw_led_data[i*3 + 0];
-                uint8_t g = raw_led_data[i*3 + 1];
-                uint8_t b = raw_led_data[i*3 + 2];
                 JsonArray rgb = data.createNestedArray();
-                rgb.add(r);
-                rgb.add(g);
-                rgb.add(b);
+                const CRGB& c = fastled_leds[i];
+                rgb.add(c.r);
+                rgb.add(c.g);
+                rgb.add(c.b);
             }
         }
 

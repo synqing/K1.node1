@@ -232,7 +232,7 @@ conductor create --name research-audio-latency \
 # Open PR (research only; no code changes)
 conductor pr research-audio-latency \
   --title "docs: Audio latency analysis and optimization roadmap" \
-  --body "Identifies I2S buffer, PDM-to-PCM, and pattern execution as key sources"
+  --body "Identifies I2S buffer, I2S audio processing, and pattern execution as key sources"
 
 # Merge to docs
 ```

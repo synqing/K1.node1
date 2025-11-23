@@ -49,12 +49,7 @@ Notes:
 ## Environments (PlatformIO)
 - `env:esp32-s3-devkitc-1` — default release build (pinned platform + Arduino framework).
 - `env:esp32-s3-devkitc-1-debug` — release flags + `DEBUG_TELEMETRY=1` and REST rate‑limits for diagnostics.
-- `env:esp32-s3-devkitc-1-metrics` — release build with `FRAME_METRICS_ENABLED=1`; required before running `tools/run_benchmark.sh`.
-- `env:esp32-s3-devkitc-1-metrics-ota` — OTA upload variant of the metrics build (used by `tools/run_benchmark.sh`).
 - `env:esp32-s3-devkitc-1-ota` — OTA upload configuration (ArduinoOTA).
-- `env:esp32-s3-devkitc-1-idf5` — Arduino+ESP‑IDF combo for split RMT v2 headers.
-- `env:esp32-s3-devkitc-1-codegen` — metrics build + generated Bloom/Spectrum enabled (`USE_GENERATED_*`), excludes baseline PoCs to avoid symbol clashes.
-- `env:esp32-s3-devkitc-1-codegen-ota` — OTA upload variant of the codegen build.
 
 ### LED Alignment & Mirror Controls
 

@@ -6,8 +6,9 @@ This document captures **every substantive evolution** of the light show system 
 
 - Purpose: Provide a complete historical, technical, and troubleshooting record for K1 light show patterns across Phase 1 (`K1.reinvented`) and Phase 2 (`K1.node1`).
 - Audience: Agents and engineers implementing, debugging, or modifying light show patterns.
+- Canonical reference: **SensoryBridge** is the primary behavioral baseline for visual feel and pattern dynamics. Emotiscope is treated as a secondary technical reference (for algorithms and audio details) when SensoryBridge does not define behavior.
 - Key constraints: No global ambient overlay in Phase 2; center-origin symmetry; color pipeline owns global brightness; tempo-driven modes must use tempo signals.
-- Outcomes: Faster diagnosis of pattern regressions, consistent implementation decisions, and clear parity with Emotiscope/SensoryBridge behavior.
+- Outcomes: Faster diagnosis of pattern regressions, consistent implementation decisions, and clear parity with the SensoryBridge product, with Emotiscope used only as a comparative reference where needed.
 
 ## Table of Contents
 

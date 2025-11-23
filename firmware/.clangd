@@ -9,7 +9,7 @@ CompileFlags:
     # Avoid pulling xtensa ../hal.h that isn’t present in some SDK layouts
     - -DXCHAL_HAVE_HAL=0
     # Common framework includes to improve header resolution
-    - -I.pio/libdeps/esp32-s3-devkitc-1-codegen/ArduinoJson/src
+    - -I.pio/libdeps/esp32-s3-devkitc-1/ArduinoJson/src
     - -I.pio/packages/framework-arduinoespressif32/cores/esp32
     - -I.pio/packages/framework-arduinoespressif32/libraries/WiFi/src
     - -I.pio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/include

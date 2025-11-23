@@ -7,13 +7,11 @@
 enum class FeaturePhase : uint8_t {
 	Baseline = 0,
 	GuardedHooks = 1,
-	EnhancedTempoRehab = 2,
-	VisualFeatures = 3,
-	FullIntegration = 4,
+	VisualFeatures = 2,
+	FullIntegration = 3,
 };
 
 struct FeatureFlags {
-	bool enhanced_tempo;          // Allow enhanced tempo detector to drive beats
 	bool background_overlay;      // Enable optional ambient background overlay
 	bool transitions;             // Enable visual transitions between patterns
 	bool auto_palette_cycle;      // Enable automatic palette cycling

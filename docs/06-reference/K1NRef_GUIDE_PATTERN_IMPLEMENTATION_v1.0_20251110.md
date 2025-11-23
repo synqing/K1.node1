@@ -1,7 +1,7 @@
 # Pattern Implementation Quick Reference
 
 **Purpose:** Copy-paste templates for creating professional audio-reactive LED patterns
-**Based on:** Emotiscope 2.0 & SensoryBridge 4.1.1 analysis
+**Based on:** SensoryBridge 4.1.1 as the canonical behavioral reference, with Emotiscope 2.0 used only as a secondary technical reference where SensoryBridge does not define specific behavior.
 **Status:** Ready to use
 
 ---
@@ -536,4 +536,3 @@ When implementing a new pattern:
 - Audio Interface: Check `pattern_audio_interface.h` for available APIs
 - Palette System: Check `palettes.h` for palette definitions
 - Helper Functions: Check `emotiscope_helpers.h` for utility functions
-

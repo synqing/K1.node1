@@ -1,12 +1,12 @@
 # Research References & Citations
 
-## Microphone (Infineon IM69D130)
-- Product page: https://www.infineon.com/part/IM69D130
-- Datasheet: https://www.infineon.com/dgdl/Infineon-IM69D130-DataSheet-v01_00-EN.pdf
-- Product brief: https://www.infineon.cn/assets/row/public/documents/24/45/infineon-im69d130-pb--productbrief-en.pdf
+## Microphone (Adafruit SPH0645 I2S MEMS)
+- Product page: https://www.adafruit.com/product/3421
+- Datasheet: https://www.knowles.com/docs/default-source/default-document-library/sph0645lm4h-datasheet-rev-c.pdf
+- Technical specifications: I2S interface, 65 dB SNR, -26 dBFS sensitivity
 
-## ESP32‑S3 I2S PDM RX (PDM→PCM)
-- ESP‑IDF I2S (PDM RX/TX, PCM conversion): https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/peripherals/i2s.html
+## ESP32‑S3 I2S RX (I2S Audio Interface)
+- ESP‑IDF I2S (I2S RX/TX configuration): https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/peripherals/i2s.html
 - ESP32 TRM references (I2S/APLL clocking): http://www.ee.ic.ac.uk/pcheung/teaching/DE1_EE/Labs/esp32_technical_reference_manual_en.pdf
 - ESP32‑S3 TRM (overview): https://files.waveshare.com/upload/1/11/Esp32-s3_technical_reference_manual_en.pdf
 

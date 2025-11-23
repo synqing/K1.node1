@@ -9,7 +9,7 @@
 This document presents the foundational architecture for SpectraSynq's core product line (K1-Lightwave): a real-time audio-reactive visual system built initially on dual ESP32-S3 MCUs and designed for scalability to more powerful SoCs (P4, i.MX8, etc.).
 
 ### System Requirements
-- **Real-time audio capture**: Live audio via PDM MEMS microphone (Infineon IM69D130) and/or digital/I²S sources
+- **Real-time audio capture**: Live audio via I2S MEMS microphone (Adafruit SPH0645) and/or digital/I²S sources
 - **Low-latency processing**: Robust audio analysis with bounded latency from sound to photon
 - **Inter-MCU communication**: Stream compact feature vectors over SPI between audio and render MCUs
 - **High-performance rendering**: Drive >300 addressable LEDs at 60-120 FPS with predictable latency
@@ -33,7 +33,7 @@ This architecture supports both immediate prototyping on dual ESP32-S3 and provi
 │  │   (ESP32-S3) │◄────────►│ (ESP32-S3)   │                   │
 │  │              │   SPI    │              │                   │
 │  │  ┌────────┐ │          │  ┌────────┐ │                   │
-│  │  │  PDM   │ │          │  │  LED   │ │                   │
+│  │  │  I2S   │ │          │  │  LED   │ │                   │
 │  │  │  Mic   │ │          │  │ Driver │ │                   │
 │  │  └────────┘ │          │  └────────┘ │                   │
 │  │              │          │              │                   │
@@ -61,8 +61,8 @@ This architecture supports both immediate prototyping on dual ESP32-S3 and provi
 ### Component Responsibilities
 
 #### Audio MCU (MCU-A)
-- **Audio Capture**: PDM microphone interface, I²S digital audio inputs
-- **Real-time DSP**: PDM→PCM conversion, filtering, spectral analysis
+- **Audio Capture**: I2S MEMS microphone interface, I²S digital audio inputs
+- **Real-time DSP**: I2S audio processing, filtering, spectral analysis
 - **Feature Extraction**: Energy, spectral, beat detection, mood analysis
 - **SPI Interface**: Slave mode, versioned feature packet transmission
 - **Error Handling**: Mic failure detection, signal quality monitoring
@@ -87,15 +87,15 @@ This architecture supports both immediate prototyping on dual ESP32-S3 and provi
 ### 2.1 Capture & DSP Front-End
 
 #### Microphone Configuration
-- **Primary Mic**: Infineon IM69D130 PDM MEMS
-- **Sample Rate**: 16 kHz PCM (initial), 32 kHz (future)
-- **PDM Clock**: 1.024 MHz (16 kHz × 64 oversample)
-- **SNR**: 69 dB(A), AOP: 130 dB SPL
-- **Power Domain**: 1.8V with level shifting to 3.3V MCU
+- **Primary Mic**: Adafruit SPH0645 I2S MEMS Microphone
+- **Sample Rate**: 16-48 kHz PCM (configurable)
+- **I2S Interface**: Standard I2S protocol, 32-bit samples
+- **SNR**: 65 dB, Sensitivity: -26 dBFS
+- **Power Domain**: 3.3V direct connection to ESP32-S3
 
 #### Signal Processing Chain
 ```
-PDM Input → Level Shift → ESP32 I2S PDM RX → PCM Buffer → DC Removal → Windowing → FFT/Goertzel → Feature Extraction → SPI Output
+I2S Input → ESP32 I2S RX → PCM Buffer → DC Removal → Windowing → FFT/Goertzel → Feature Extraction → SPI Output
 ```
 
 #### Buffer Management
@@ -106,13 +106,13 @@ PDM Input → Level Shift → ESP32 I2S PDM RX → PCM Buffer → DC Removal →
 
 #### Real-time Budget (8ms window @ 16 kHz)
 - **Total Budget**: 8ms per window
-- **PDM→PCM**: 0.5ms (hardware DMA)
+- **I2S→PCM**: 0.2ms (hardware DMA)
 - **DC Removal**: 0.2ms (simple high-pass)
 - **Windowing**: 0.1ms (Hanning window)
 - **FFT Processing**: 1.5ms (64-point FFT)
 - **Feature Extraction**: 2.0ms (energy, spectral, beat)
 - **SPI Transfer**: 0.5ms (feature packet)
-- **Headroom**: 3.2ms (40% safety margin)
+- **Headroom**: 3.5ms (44% safety margin)
 
 ### 2.2 Feature Extraction
 
@@ -334,7 +334,7 @@ class RenderPipeline {
 ```cpp
 // Priority 4: Audio capture (highest)
 Task_AudioCapture(void* pvParameters) {
-    // I2S PDM RX via DMA
+    // I2S RX via DMA
     // Double buffering
     // vTaskDelayUntil for precise timing
 }
@@ -431,7 +431,7 @@ Task_UIControl(void* pvParameters) {
 
 | Interface | Data Rate | Notes |
 |-----------|-----------|--------|
-| **PDM Audio** | 16.4 Mbps | 1.024 MHz clock × 1 bit |
+| **I2S Audio** | 1.536 Mbps | 48 kHz × 32 bits |
 | **PCM Audio** | 256 kbps | 16 kHz × 16 bits |
 | **SPI Features** | 16 kbps | 32 bytes × 125 Hz |
 | **LED Data** | 432 kbps | 300 LEDs × 24 bits × 60 FPS |
@@ -740,7 +740,7 @@ class HostInterface {
 - **ESP-DSP**: Optimized signal processing for ESP32
 - **FastLED**: LED control library (adapt for RMT)
 - **ArduinoFFT**: Lightweight FFT implementation
-- **ESP32-audioI2S**: I2S/PDM audio capture
+- **ESP32-audioI2S**: I2S audio capture
 - **ESPAsyncWebServer**: Web-based configuration
 
 #### Development Tools
@@ -943,13 +943,13 @@ This architecture provides the foundation for a successful product line that can
 
 ## 11. Research References & Citations
 
-### Microphone (Infineon IM69D130)
-- Product page: https://www.infineon.com/part/IM69D130
-- Datasheet (SNR 69 dB(A), AOP 130 dB SPL, PDM interface): https://www.infineon.com/dgdl/Infineon-IM69D130-DataSheet-v01_00-EN.pdf
-- Product brief: https://www.infineon.cn/assets/row/public/documents/24/45/infineon-im69d130-pb--productbrief-en.pdf
+### Microphone (Adafruit SPH0645 I2S MEMS)
+- Product page: https://www.adafruit.com/product/3421
+- Datasheet (SNR 65 dB, -26 dBFS sensitivity, I2S interface): https://www.knowles.com/docs/default-source/default-document-library/sph0645lm4h-datasheet-rev-c.pdf
 
-### ESP32‑S3 I2S PDM RX (PDM→PCM)
-- ESP‑IDF I2S (PDM RX/TX, PCM conversion): https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/peripherals/i2s.html
+
+### ESP32‑S3 I2S RX
+- ESP‑IDF I2S driver: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/peripherals/i2s.html
 - ESP32 TRM references (I2S/APLL clocking): http://www.ee.ic.ac.uk/pcheung/teaching/DE1_EE/Labs/esp32_technical_reference_manual_en.pdf
 - ESP32‑S3 TRM (overview): https://files.waveshare.com/upload/1/11/Esp32-s3_technical_reference_manual_en.pdf
 

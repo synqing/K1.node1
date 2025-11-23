@@ -24,6 +24,8 @@
 #include "audio/goertzel.h"
 #include "pattern_helpers.h"
 #include "led_driver.h"
+#include "logging/logger.h"
+#include "logging/log_config.h"
 // Debug toggles (defined in main.cpp)
 extern bool audio_debug_enabled;
 extern bool tempo_debug_enabled;

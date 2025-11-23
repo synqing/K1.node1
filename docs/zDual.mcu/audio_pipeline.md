@@ -3,15 +3,15 @@
 ## Capture & DSP Front-End
 
 ### Microphone Configuration
-- Primary Mic: Infineon IM69D130 PDM MEMS
-- Sample Rate: 16 kHz PCM (initial), 32 kHz (future)
-- PDM Clock: 1.024 MHz (16 kHz × 64 oversample)
-- SNR: 69 dB(A), AOP: 130 dB SPL
-- Power Domain: 1.8V with level shifting to 3.3V MCU
+- Primary Mic: Adafruit SPH0645 I2S MEMS Microphone
+- Sample Rate: 16-48 kHz PCM (configurable)
+- I2S Interface: Standard I2S protocol, 32-bit samples
+- SNR: 65 dB, Sensitivity: -26 dBFS
+- Power Domain: 3.3V direct connection to ESP32-S3
 
 ### Signal Processing Chain
 ```
-PDM Input → Level Shift → ESP32 I2S PDM RX → PCM Buffer → DC Removal → Windowing → FFT/Goertzel → Feature Extraction → SPI Output
+I2S Input → ESP32 I2S RX → PCM Buffer → DC Removal → Windowing → FFT/Goertzel → Feature Extraction → SPI Output
 ```
 
 ### Buffer Management
@@ -22,13 +22,13 @@ PDM Input → Level Shift → ESP32 I2S PDM RX → PCM Buffer → DC Removal →
 
 ### Real-time Budget (8ms window @ 16 kHz)
 - Total Budget: 8ms per window
-- PDM→PCM: 0.5ms (hardware DMA)
+- I2S→PCM: 0.2ms (hardware DMA)
 - DC Removal: 0.2ms (simple high-pass)
 - Windowing: 0.1ms (Hanning window)
 - FFT Processing: 1.5ms (64-point FFT)
 - Feature Extraction: 2.0ms (energy, spectral, beat)
 - SPI Transfer: 0.5ms (feature packet)
-- Headroom: 3.2ms (40% safety margin)
+- Headroom: 3.5ms (44% safety margin)
 
 ## Feature Extraction
 

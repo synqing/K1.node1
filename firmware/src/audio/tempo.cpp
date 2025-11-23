@@ -9,7 +9,6 @@
 #include "validation/tempo_validation.h"
 #include "logging/logger.h"
 #include "../dsps_helpers.h"
-#include "tempo_enhanced.h"
 
 static const char* TAG = "TEMPO";
 
@@ -232,17 +231,9 @@ static void calculate_tempi_magnitudes(int16_t single_bin = -1) {
                 scaled_magnitude = 1.0f;
             }
 
-            // ====================================================================
-            // PHASE 0 FIX: Linear scaling instead of cubic
-            // ====================================================================
-            // Cubic scaling (x³) was crushing competing peaks
-            // Linear scaling preserves relative differences better
-            // Example: If bin 83 = 0.2 and bin 120 = 1.0:
-            //   - Cubic: 0.008 vs 1.0 (125x difference) - CRUSHING
-            //   - Linear: 0.2 vs 1.0 (5x difference) - PRESERVES RATIO
-            
-            // EMOTISCOPE VERBATIM: Cubic scaling (x³) crushes competing peaks
-            tempi[i].magnitude = scaled_magnitude * scaled_magnitude * scaled_magnitude;  // Direct linear assignment
+            // Parity fix: keep magnitudes linear to avoid crushing secondary peaks.
+            // Earlier cubic scaling (x^3) yielded very low power_sum and confidence.
+            tempi[i].magnitude = scaled_magnitude;
         }
     }, __func__);
 }

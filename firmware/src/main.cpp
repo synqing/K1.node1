@@ -8,10 +8,6 @@
 #include "led_driver.h"  // declares init_rmt_driver(), transmit_leds(), NUM_LEDS
 #include "frame_metrics.h"
 #include "color_pipeline.h"
-#ifdef DYNAMIC_LED_CHANNELS
-#include "render_channel.h"
-extern "C" void visual_scheduler(void* param);
-#endif
 // Forward declaration to satisfy IDE/indexer in case of header parsing issues
 void init_rmt_driver();
 // Prefer real ESP-IDF UART header; fall back to editor-only stubs if unavailable
@@ -46,7 +42,6 @@ void init_rmt_driver();
 #include "profiler.h"
 #include "audio/goertzel.h"  // Audio system globals, struct definitions, initialization, DFT computation
 #include "audio/tempo.h"     // Beat detection and tempo tracking pipeline
-#include "audio/tempo_enhanced.h"
 #include "audio/microphone.h"  // REAL SPH0645 I2S MICROPHONE INPUT
 #include "audio/vu.h"
 #include "audio/cochlear_agc.h"  // Cochlear AGC v2.1 - Multi-band adaptive gain control
@@ -56,7 +51,6 @@ void init_rmt_driver();
 #include "pattern_registry.h"
 #include "pattern_execution.h"
 #include "pattern_render_context.h"
-#include "pattern_codegen_bridge.h"
 #include "pattern_helpers.h"
 #include "shared_pattern_buffers.h"
 // #include "pattern_optimizations.h"  // Disabled: legacy optimization header with mismatched signatures
@@ -88,9 +82,6 @@ void init_rmt_driver();
 #define UART_RX_PIN 37  // GPIO 37 <- Secondary TX (GPIO 43)
 #define UART_BAUD 115200
 
-// Global LED buffer
-CRGBF leds[NUM_LEDS];
-
 // Global beat event rate limiter (shared across audio paths)
 static uint32_t g_last_beat_event_ms = 0;
 
@@ -104,19 +95,6 @@ static inline void run_audio_pipeline_once();
 
 static bool network_services_started = false;
 static bool s_audio_task_running = false;
-static bool s_enhanced_tempo_active = false;  // DISABLED: Use classic Emotiscope tempo only
-static EnhancedTempoDetector* s_etd = nullptr;
-static TempoResult s_last_enhanced_result{};
-static bool s_last_enhanced_valid = false;
-
-static inline bool enhanced_locked_trustworthy() {
-    return g_feature_flags.enhanced_tempo &&
-           s_enhanced_tempo_active &&
-           s_etd &&
-           s_etd->is_locked() &&
-           s_last_enhanced_valid &&
-           (s_last_enhanced_result.confidence >= 0.4f);
-}
 
 static inline void reset_classic_tempo_bins() {
     extern tempo tempi[NUM_TEMPI];
@@ -337,15 +315,9 @@ void audio_task(void* param) {
         if (silence_frame) {
             tempo_confidence = 0.0f;
             reset_classic_tempo_bins();
-            if (s_enhanced_tempo_active && s_etd) {
-                s_etd->handle_silence_frame();
-            }
         } else if (resumed_from_silence) {
             tempo_confidence = 0.0f;
             reset_classic_tempo_bins();
-            if (s_enhanced_tempo_active && s_etd) {
-                s_etd->reset();
-            }
         }
 
         // Update tempo (enhanced preferred) and advance phases
@@ -354,31 +326,7 @@ void audio_task(void* param) {
         if (!silence_frame) {
             beat_events_probe_start();
             probe_started = true;
-            if (s_enhanced_tempo_active && s_etd) {
-                TempoResult tr = s_etd->process_spectrum(spectrogram_smooth, NUM_FREQS);
-                s_last_enhanced_result = tr;
-                s_last_enhanced_valid = true;
-
-                // Prefer locked, smoothed BPM for mapping to reduce jitter
-                float map_bpm = s_etd->is_locked() ? s_etd->current_bpm() : tr.bpm;
-                uint16_t best_bin = find_closest_tempo_bin(map_bpm);
-
-                for (uint16_t i = 0; i < NUM_TEMPI; ++i) {
-                    tempi[i].magnitude *= 0.90f;
-                    tempi_smooth[i] *= 0.92f;
-                }
-                float conf = s_etd->current_confidence();
-                if (!s_etd->is_locked()) conf *= 0.5f; // down-weight pre-lock to avoid whiplash
-                tempi[best_bin].magnitude = fmaxf(tempi[best_bin].magnitude, conf);
-                tempi_smooth[best_bin] = fmaxf(tempi_smooth[best_bin], conf);
-                tempo_confidence = conf;
-
-                // Also update classic distribution to populate all bins for visuals
-                // This provides a full-band magnitude profile for patterns (legacy parity)
-                update_tempo();
-            } else {
-                update_tempo();
-            }
+            update_tempo();
 
             if (last_phase_us == 0) last_phase_us = t_now_us;
             uint32_t dt_us = t_now_us - last_phase_us;
@@ -429,24 +377,11 @@ void audio_task(void* param) {
             
             float bpm_now = tempi_bpm_values_hz[dom] * 60.0f;
             const char* lock_state = get_tempo_lock_state_string(tempo_lock_tracker.state);
-            float enh_bpm = s_last_enhanced_valid ? s_last_enhanced_result.bpm : 0.0f;
-            float enh_conf = s_last_enhanced_valid ? s_last_enhanced_result.confidence : 0.0f;
-            bool enh_locked = enhanced_locked_trustworthy();
-            
-            // Validate enhanced tempo detector state before logging
-            if (s_etd && s_enhanced_tempo_active) {
-                LOG_INFO(TAG_TEMPO, "tempo classic bpm=%.1f conf=%.2f lock=%s power_sum=%.3f dom_bin=%u | enh bpm=%.1f conf=%.2f lock=%d",
-                         bpm_now, tempo_confidence, lock_state, tempi_power_sum, (unsigned)dom,
-                         enh_bpm, enh_conf, (int)enh_locked);
-            } else {
-                LOG_INFO(TAG_TEMPO, "tempo classic bpm=%.1f conf=%.2f lock=%s power_sum=%.3f dom_bin=%u | enh DISABLED",
-                         bpm_now, tempo_confidence, lock_state, tempi_power_sum, (unsigned)dom);
-            }
+            LOG_INFO(TAG_TEMPO, "tempo classic bpm=%.1f conf=%.2f lock=%s power_sum=%.3f dom_bin=%u",
+                     bpm_now, tempo_confidence, lock_state, tempi_power_sum, (unsigned)dom);
         }
 
-        // Beat event emission (enhanced preferred):
-        // - If enhanced locked: emit on phase zero-crossing with period guard
-        // - Else: fallback to confidence + refractory gating
+        // Beat event emission: confidence + refractory gating
         if (!silence_frame) {
             // Safety check: ensure tempo arrays are initialized
             extern float tempi_smooth[NUM_TEMPI];
@@ -466,61 +401,7 @@ void audio_task(void* param) {
             // Hard VU gate: do not emit beats under low energy (tempo.h constant)
             // audio_level is updated by run_vu(); use it directly for gating
             bool vu_ok = (audio_level >= VU_LOCK_GATE);
-            bool emitted = false;
-            bool enh_locked = enhanced_locked_trustworthy();
-            if (vu_ok && enh_locked) {
-                // Phase-based beat: detect negative→positive zero-crossing
-                static float prev_phase = 0.0f;
-                float phase = s_etd->current_phase();
-                // Expected period from locked BPM
-                float bpm_for_period = fmaxf(30.0f, fminf(200.0f, s_etd->current_bpm()));
-                uint32_t expected_period_ms = (uint32_t)(60000.0f / bpm_for_period);
-                
-                // Smart refractory calculation - check for octave ambiguity
-                extern OctaveRelationship get_current_octave_relationship();
-                OctaveRelationship octave_rel = get_current_octave_relationship();
-                float refractory_multiplier = 0.6f;
-                
-                // If we detected 2x octave ambiguity (half-tempo bias), use shorter refractory
-                if (octave_rel.relationship >= 1.8f && octave_rel.relationship <= 2.2f) {
-                    refractory_multiplier = 0.3f; // Use faster tempo for refractory
-                    LOG_DEBUG(TAG_AUDIO, "Octave ambiguity detected (%.1fx), using faster tempo for refractory", octave_rel.relationship);
-                }
-                
-                uint32_t refractory_ms = (uint32_t)(expected_period_ms * refractory_multiplier);
-                if (refractory_ms < 200) refractory_ms = 200;
-                bool zero_cross = (prev_phase < 0.0f && phase >= 0.0f);
-                if (zero_cross && input_active && (now_ms - g_last_beat_event_ms) >= refractory_ms && tempo_confidence > adaptive) {
-                    uint32_t ts_us = (uint32_t)esp_timer_get_time();
-                    // Validate timestamp to prevent zero values
-                    if (ts_us == 0) {
-                        LOG_WARN(TAG_AUDIO, "Invalid timestamp from esp_timer_get_time() in phase detection");
-                        ts_us = 1; // Use minimum valid timestamp
-                    }
-                    uint16_t conf_u16 = (uint16_t)(fminf(tempo_confidence, 1.0f) * 65535.0f);
-                    // Ensure confidence is not zero to prevent invalid events
-                    if (conf_u16 == 0) conf_u16 = 1;
-                    bool ok = beat_events_push(ts_us, conf_u16);
-                    if (ok) {
-                        g_last_beat_event_ms = now_ms;
-                    } else {
-                        LOG_WARN(TAG_AUDIO, "Beat event buffer overwrite (capacity reached) - suppressing beat");
-                    }
-                    float best_bpm = get_best_bpm();
-                    // Rate limit beat detection logging to prevent flooding (thread-safe)
-                    static std::atomic<uint32_t> last_beat_log_ms{0};
-                    uint32_t now_log_ms = millis();
-                    uint32_t last_ms = last_beat_log_ms.load(std::memory_order_acquire);
-                    if (now_log_ms - last_ms >= 1000) {  // Max 1 log per second
-                        LOG_INFO(TAG_BEAT, "BEAT detected @ %.1f BPM", best_bpm);
-                        last_beat_log_ms.store(now_log_ms, std::memory_order_release);
-                    }
-                    emitted = true;
-                }
-                prev_phase = phase;
-            }
-            if (vu_ok && !emitted) {
-                // Fallback: confidence + refractory gating
+            if (vu_ok) {
                 float bpm_for_period = get_best_bpm();
                 bpm_for_period = fmaxf(30.0f, fminf(200.0f, bpm_for_period));
                 uint32_t expected_period_ms = (uint32_t)(60000.0f / bpm_for_period);
@@ -709,7 +590,7 @@ static inline void run_audio_pipeline_once() {
     extern tempo tempi[NUM_TEMPI];  // From tempo.cpp (96 tempo hypotheses)
     portENTER_CRITICAL(&audio_spinlock);
     for (uint16_t i = 0; i < NUM_TEMPI; i++) {
-        audio_back.payload.tempo_magnitude[i] = tempi[i].magnitude;
+        audio_back.payload.tempo_magnitude[i] = tempi_smooth[i];
         audio_back.payload.tempo_phase[i] = tempi[i].phase;
     }
     portEXIT_CRITICAL(&audio_spinlock);
@@ -728,9 +609,6 @@ static inline void run_audio_pipeline_once() {
         const float base_threshold = get_params().beat_threshold;
         float adaptive = base_threshold + (0.20f * (1.0f - silence_level)) + (0.10f * fminf(novelty_recent, 1.0f));
         float bpm_for_period = get_best_bpm();
-        if (s_enhanced_tempo_active && s_etd && s_etd->is_locked()) {
-            bpm_for_period = s_etd->current_bpm();
-        }
         bpm_for_period = fmaxf(30.0f, fminf(200.0f, bpm_for_period));
         uint32_t expected_period_ms = (uint32_t)(60000.0f / bpm_for_period);
         
@@ -965,6 +843,9 @@ void setup() {
     if (g_cochlear_agc && g_cochlear_agc->initialize(NUM_FREQS, 100.0f)) {
         LOG_INFO(TAG_AUDIO, "Cochlear AGC v2.1.1: 64 bins, 100Hz, +40dB max");
         LOG_INFO(TAG_AUDIO, "  RMS envelope: 100ms/150ms | Leveling: 3s/8s");
+        // Disable AGC for now to avoid spectrum distortion until retuned
+        g_cochlear_agc->enable(false);
+        LOG_WARN(TAG_AUDIO, "AGC disabled (pass-through) pending retune");
     } else {
         LOG_WARN(TAG_AUDIO, "Cochlear AGC initialization failed - continuing without AGC");
         delete g_cochlear_agc;
@@ -977,15 +858,6 @@ void setup() {
     // Initialize tempo detection (beat detection pipeline)
     LOG_INFO(TAG_TEMPO, "Initializing tempo detection...");
     init_tempo_goertzel_constants();
-    // Enhanced detector DISABLED - using pure Emotiscope tempo only
-    // s_etd = new EnhancedTempoDetector();
-    // if (s_etd && s_etd->init()) {
-    //     LOG_INFO(TAG_TEMPO, "Enhanced tempo detector ENABLED (%d bins)", ENHANCED_NUM_TEMPI);
-    //     s_enhanced_tempo_active = true;
-    // } else {
-    //     LOG_WARN(TAG_TEMPO, "Enhanced tempo detector unavailable; falling back to classic Goertzel");
-    //     s_enhanced_tempo_active = false;
-    // }
     LOG_INFO(TAG_TEMPO, "Using classic Emotiscope tempo detector only (96 bins)");
 
     // Initialize beat event ring buffer and latency probes
@@ -1019,9 +891,6 @@ void setup() {
     // apply_pattern_optimizations();
     // LOG_INFO(TAG_CORE0, "Applied pattern optimizations");
 
-    // If codegen flags are enabled, override selected patterns to use generated implementations
-    apply_codegen_overrides();
-
     LOG_INFO(TAG_CORE0, "Starting pattern: %s", get_current_pattern().name);
 
     // ========================================================================
@@ -1038,26 +907,6 @@ void setup() {
     TaskHandle_t audio_task_handle = NULL;
 
     // Create GPU/Visual task on Core 1
-#ifdef DYNAMIC_LED_CHANNELS
-    // VisualScheduler dual-channel mode (A/B mapping to primary/secondary RMT)
-    static RenderChannel g_channel_a;
-    static RenderChannel g_channel_b;
-    static RenderChannel* g_channels[2] = { &g_channel_a, &g_channel_b };
-    // Bind per-channel RMT handles and encoders
-    g_channel_a.tx_handle = tx_chan;
-    g_channel_b.tx_handle = tx_chan_2 ? tx_chan_2 : tx_chan; // fallback to primary if secondary missing
-    g_channel_a.encoder   = led_encoder;
-    g_channel_b.encoder   = led_encoder_2 ? led_encoder_2 : led_encoder;
-    BaseType_t gpu_result = xTaskCreatePinnedToCore(
-        visual_scheduler,   // Task function
-        "visual_sched",     // Task name
-        16384,              // Stack size (16KB for LED rendering + pattern complexity)
-        (void*)g_channels,  // Parameters (channel set)
-        1,                  // Priority (same as audio - no preemption preference)
-        &gpu_task_handle,   // Task handle for monitoring
-        1                   // Pin to Core 1 (keeps GPU away from Wi-Fi stack)
-    );
-#else
     // Legacy single-channel GPU loop
     BaseType_t gpu_result = xTaskCreatePinnedToCore(
         loop_gpu,           // Task function
@@ -1068,7 +917,6 @@ void setup() {
         &gpu_task_handle,   // Task handle for monitoring
         1                   // Pin to Core 1 (keeps GPU away from Wi-Fi stack)
     );
-#endif
 
     // Create audio processing task on Core 0
     // INCREASED STACK: 8KB -> 12KB (1,692 bytes margin was dangerously low)

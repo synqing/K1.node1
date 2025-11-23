@@ -25,4 +25,4 @@ This documentation set describes the architecture and data-flow for SpectraSynq�
 
 ## Mission Context
 
-This system ingests live audio (PDM MEMS mic and/or digital/I²S), performs low-latency analysis, streams compact feature vectors over SPI to a renderer, and drives hundreds of addressable LEDs with bounded latency from sound to photon. It supports immediate prototyping on dual ESP32‑S3 and provides a long-term path to more complex multi-node and SoC-based systems.
+This system ingests live audio (I2S MEMS mic and/or digital/I²S), performs low-latency analysis, streams compact feature vectors over SPI to a renderer, and drives hundreds of addressable LEDs with bounded latency from sound to photon. It supports immediate prototyping on dual ESP32‑S3 and provides a long-term path to more complex multi-node and SoC-based systems.

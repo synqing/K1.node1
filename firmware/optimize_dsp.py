@@ -8,8 +8,6 @@ Import("env")
 dsp_files = [
     "src/audio/goertzel.cpp",
     "src/audio/tempo.cpp", 
-    "src/audio/tempo_enhanced.cpp",
-    "src/audio/tempo_enhanced_components.cpp",
     "src/audio/multi_scale_tempogram.cpp",
     "src/audio/microphone.cpp",
     "src/audio/vu.cpp",

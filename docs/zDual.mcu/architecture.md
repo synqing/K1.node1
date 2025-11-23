@@ -11,7 +11,7 @@
 │  │   (ESP32-S3) │◄────────►│ (ESP32-S3)   │                   │
 │  │              │   SPI    │              │                   │
 │  │  ┌────────┐ │          │  ┌────────┐ │                   │
-│  │  │  PDM   │ │          │  │  LED   │ │                   │
+│  │  │  I2S   │ │          │  │  LED   │ │                   │
 │  │  │  Mic   │ │          │  │ Driver │ │                   │
 │  │  └────────┘ │          │  └────────┘ │                   │
 │  │              │          │              │                   │
@@ -39,8 +39,8 @@
 ## Component Responsibilities
 
 ### Audio MCU (MCU-A)
-- Audio Capture: PDM microphone interface, I²S digital audio inputs
-- Real-time DSP: PDM→PCM conversion, filtering, spectral analysis
+- Audio Capture: I2S MEMS microphone interface, I²S digital audio inputs
+- Real-time DSP: I2S audio processing, filtering, spectral analysis
 - Feature Extraction: Energy, spectral, beat detection, mood analysis
 - SPI Interface: Slave mode, versioned feature packet transmission
 - Error Handling: Mic failure detection, signal quality monitoring

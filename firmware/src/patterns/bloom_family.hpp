@@ -439,13 +439,18 @@ inline void draw_snapwave(const PatternRenderContext& context) {
     }
 
     static float last_confidence = 0.0f;
-    const float BEAT_THRESHOLD = 0.05f;
+    const float BEAT_THRESHOLD = 0.02f;   // lower threshold to fire on modest confidence rises
+    const float MIN_CONF = 0.08f;         // minimum absolute confidence to avoid noise
+    const float MIN_VU = 0.06f;           // guard against silence/noise triggering beats
 
     if (audio_fresh) {
         // --- Phase 3: Beat Detection & Center Flash (inject at center only) ---
         float beat_strength = AUDIO_TEMPO_CONFIDENCE - last_confidence;
-        bool beat_detected = (beat_strength > BEAT_THRESHOLD) && (AUDIO_TEMPO_CONFIDENCE > 0.15f);
-        last_confidence = AUDIO_TEMPO_CONFIDENCE * 0.95f;
+        bool beat_detected = (beat_strength > BEAT_THRESHOLD) &&
+                             (AUDIO_TEMPO_CONFIDENCE > MIN_CONF) &&
+                             (audio.payload.vu_level > MIN_VU);
+        // Decay confidence memory slightly to keep sensitivity without runaway
+        last_confidence = AUDIO_TEMPO_CONFIDENCE * 0.9f;
 
         if (beat_detected) {
             float beat_brightness = fminf(1.0f, beat_strength * 5.0f);
