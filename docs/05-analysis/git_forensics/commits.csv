@@ -1,0 +1,220 @@
+41962611,2025-11-23 15:49:16 +0800,SpectraSynq,spectrasynq@example.com,Prune legacy drivers/codegen and stabilize audio pipeline
+441533ea,2025-11-17 11:49:54 +0800,SpectraSynq,spectrasynq@example.com,docs, firmware: sync changes via Codex
+23c18d67,2025-11-16 16:48:43 +0800,SpectraSynq,spectrasynq@example.com,docs: redo SB vs Emotiscope analysis strictly from zref (no AGC), focus on legacy pipelines
+1c8b3471,2025-11-16 16:41:54 +0800,SpectraSynq,spectrasynq@example.com,docs: number Comparative docs in read order (00..04) and update index
+64a168b6,2025-11-16 16:37:27 +0800,SpectraSynq,spectrasynq@example.com,docs: add Comparative folder with SB vs Emotiscope analysis, family invariants, parity harness plan, and pattern change checklist
+02fd4b45,2025-11-16 16:19:12 +0800,SpectraSynq,spectrasynq@example.com,Add SB Bloom parity pattern, heartbeat console deltas, and targeted debug in Beat Tunnel/Variant + Waveform Spectrum.
+51a5df7e,2025-11-16 16:04:12 +0800,SpectraSynq,spectrasynq@example.com,Parity + runtime fixes: Bloom/Mirror persistence, Octave freshness, I2S logging
+406c4de6,2025-11-16 15:32:06 +0800,SpectraSynq,spectrasynq@example.com,audio/patterns: fix snapshot validity and AGC wiring
+330924a5,2025-11-16 15:19:03 +0800,SpectraSynq,spectrasynq@example.com,docs: capture snapshot/AGC failure boundaries
+a738de73,2025-11-16 14:39:32 +0800,SpectraSynq,spectrasynq@example.com,docs: record audio snapshot + AGC failure
+7c733c18,2025-11-16 00:51:29 +0800,SpectraSynq,spectrasynq@example.com,feat: Complete Emotiscope/SensoryBridge baseline parity + comprehensive system fixes
+41825f32,2025-11-15 11:23:37 +0800,SpectraSynq,spectrasynq@example.com,fix: Re-enable all diagnostic trace logging
+3377b13f,2025-11-15 11:18:25 +0800,SpectraSynq,spectrasynq@example.com,fix: Actually disable trace logging (microphone.cpp missed)
+d4ffb579,2025-11-15 11:03:03 +0800,SpectraSynq,spectrasynq@example.com,docs: Baseline parity complete
+cc733f8e,2025-11-15 10:57:58 +0800,SpectraSynq,spectrasynq@example.com,fix(tempo): Restore Emotiscope tempo (block size + cubic + interlacing)
+24f6bf93,2025-11-15 10:40:38 +0800,SpectraSynq,spectrasynq@example.com,cleanup: Comment out diagnostic trace logging
+bf221830,2025-11-15 10:35:01 +0800,SpectraSynq,spectrasynq@example.com,cleanup: Gate VU boost behind compile flag
+7da172de,2025-11-15 10:30:36 +0800,SpectraSynq,spectrasynq@example.com,feat(baseline): Restore complete Emotiscope baseline parity
+e85e5cbf,2025-11-15 10:29:55 +0800,SpectraSynq,spectrasynq@example.com,fix(ux): VU boost + pattern highlighting
+46be436b,2025-11-14 23:46:15 +0800,SpectraSynq,spectrasynq@example.com,fix(audio): Remove AGC - restore pure Emotiscope auto-ranger
+494c4dd0,2025-11-14 23:33:26 +0800,SpectraSynq,spectrasynq@example.com,fix(visual): Restore Emotiscope gamma correction
+823ca0bf,2025-11-14 23:31:00 +0800,SpectraSynq,spectrasynq@example.com,fix(audio): Restore Emotiscope sample rate and timing
+ef774193,2025-11-14 23:27:35 +0800,SpectraSynq,spectrasynq@example.com,fix(goertzel): Restore complete Emotiscope Goertzel architecture
+526eaf6f,2025-11-14 23:21:10 +0800,SpectraSynq,spectrasynq@example.com,fix(goertzel): Restore BOTTOM_NOTE=12 (Emotiscope verbatim)
+9272c920,2025-11-14 21:13:37 +0800,SpectraSynq,spectrasynq@example.com,checkpoint: AGC v2.1.1 integrated, pre-architectural refactor
+6faa1d6f,2025-11-14 14:54:48 +0800,SpectraSynq,spectrasynq@example.com,PHASE 1: Enable entropy confidence layer
+111cc6ee,2025-11-14 14:51:10 +0800,SpectraSynq,spectrasynq@example.com,CHECKPOINT: Phase 0 - Emotiscope baseline validated
+f87b61f1,2025-11-14 14:45:45 +0800,SpectraSynq,spectrasynq@example.com,fix(tempo): Restore verbatim Emotiscope tempo detection after failed migration
+c7d069b8,2025-11-14 06:20:06 +0800,SpectraSynq,spectrasynq@example.com,Webapp + Firmware stability fixes; dev ergonomics and config cleanup
+4e488402,2025-11-14 05:04:13 +0800,SpectraSynq,spectrasynq@example.com,revert: Revert to Phase 3 validation logic
+733344f3,2025-11-14 05:03:06 +0800,SpectraSynq,spectrasynq@example.com,revert: completely remove Phase 3 validation layer, restore original Emotiscope tempo detection
+4465fd86,2025-11-14 03:56:22 +0800,SpectraSynq,spectrasynq@example.com,fix(audio): Reduce max retry limit in snapshot from 1000 to 50
+1ec48a4b,2025-11-14 03:54:42 +0800,SpectraSynq,spectrasynq@example.com,Revert "fix(audio): Implement three critical responsiveness fixes for audio pipeline"
+56bec2b3,2025-11-14 03:51:17 +0800,SpectraSynq,spectrasynq@example.com,fix(audio): Implement three critical responsiveness fixes for audio pipeline
+7e1543a1,2025-11-14 03:07:42 +0800,SpectraSynq,spectrasynq@example.com,revert: Revert brightness multiplication "fixes" to restore working color output
+0035f5b7,2025-11-14 02:33:32 +0800,SpectraSynq,spectrasynq@example.com,fix(codegen): Update codegen wrapper functions to match PatternFunction signature
+3e4e9bd9,2025-11-14 01:07:41 +0800,SpectraSynq,spectrasynq@example.com,fix(api): Critical fix - tempo API endpoint now reads from synchronized snapshot instead of raw global arrays
+6a68bb23,2025-11-14 01:05:34 +0800,SpectraSynq,spectrasynq@example.com,fix(firmware): Fix double brightness multiplication in Spectrum, Bloom, and Prism patterns
+997980cb,2025-11-14 01:03:04 +0800,SpectraSynq,spectrasynq@example.com,fix(firmware): Add AUDIO_IS_AVAILABLE guard to Perlin pattern with fallback mode
+1af9c2f9,2025-11-14 01:00:29 +0800,SpectraSynq,spectrasynq@example.com,fix(firmware): CRITICAL - Restore tempo data synchronization (fixes 4 failed attempts)
+b003be01,2025-11-14 00:15:43 +0800,SpectraSynq,spectrasynq@example.com,fix(firmware): Add critical audio validity guards to Snapwave and Waveform_spectrum patterns
+74ac4bdb,2025-11-14 00:04:54 +0800,SpectraSynq,spectrasynq@example.com,fix(firmware): Revert broken Emotiscope exact pattern implementations
+176804b7,2025-11-13 23:47:48 +0800,SpectraSynq,spectrasynq@example.com,feat(integration): Complete Emotiscope pattern integration with full compilation success
+06e182d6,2025-11-13 21:26:27 +0800,SpectraSynq,spectrasynq@example.com,feat(phase-3): Add pattern infrastructure layer and Emotiscope exact pattern ports
+b23d764b,2025-11-13 12:56:55 +0000,Claude,noreply@anthropic.com,revert: completely remove Phase 3 validation layer, restore original Emotiscope tempo detection
+87759e15,2025-11-13 14:08:33 +0800,SpectraSynq,spectrasynq@example.com,Firmware: enable mDNS & HTTP service advertisement; fix LOG_INFO variadic call; add .clangd for ESP32 IntelliSense
+0374ec39,2025-11-11 17:53:21 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #45 from synqing/feature/tempo-detection-stability
+82b73eb9,2025-11-11 17:52:09 +0800,SpectraSynq,spectrasynq@example.com,feat: Remove PSRAM and stabilize tempo detection
+a29332d3,2025-11-11 15:35:51 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #44 from synqing/claude/harden-tempo-detection-011CV1Vcq1RRaQVeiDQ3Rkcq
+c689404b,2025-11-11 07:05:08 +0000,Claude,noreply@anthropic.com,feat(phase-3): implement complete tempo validation system with all Priority 1 improvements
+630f817b,2025-11-11 14:30:22 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #43 from synqing/claude/harden-tempo-detection-011CV1Vcq1RRaQVeiDQ3Rkcq
+3d4d906d,2025-11-11 05:10:07 +0000,Claude,noreply@anthropic.com,refactor(docs): conform to K1N naming convention for Phase 3 research artifacts
+ee327aab,2025-11-11 05:06:52 +0000,Claude,noreply@anthropic.com,docs(phase-3): comprehensive tempo detection hardening research and recommendations
+361f5130,2025-11-11 12:38:13 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #42 from synqing/docs/firmware-openapi-spec
+bb7ed776,2025-11-11 12:32:57 +0800,SpectraSynq,spectrasynq@example.com,docs(firmware): add comprehensive API reference and OpenAPI 3.0 spec; link in docs/README for discoverability
+02c1e87b,2025-11-11 06:35:15 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #40 from synqing/feature-firmware-refactor-initial-step
+06767002,2025-11-11 06:35:03 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge branch 'main' into feature-firmware-refactor-initial-step
+49bc066c,2025-11-11 06:34:16 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #41 from synqing/claude/design-dual-channel-buffers-011CUzv7kJkLwRNYUmcama7S
+4f63a73d,2025-11-10 22:33:36 +0000,google-labs-jules[bot],161369871+google-labs-jules[bot]@users.noreply.github.com,refactor(firmware): Consolidate HSV helpers and correct doc standards
+90e47ac0,2025-11-10 21:34:02 +0000,Claude,noreply@anthropic.com,fix(adr): Correct ADR-0021 for actual hardware (160 LEDs/PCB, 320 total)
+08560268,2025-11-10 21:31:19 +0000,Claude,noreply@anthropic.com,docs(adr): Add ADR-0021 dual-channel buffer architecture decision
+84f46232,2025-11-10 21:28:48 +0000,google-labs-jules[bot],161369871+google-labs-jules[bot]@users.noreply.github.com,docs(firmware): Finalize refactoring documentation and cleanup
+fd66b7b1,2025-11-11 05:21:25 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #39 from synqing/feature-firmware-refactor-initial-step
+e6a7cb9e,2025-11-11 05:20:09 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge branch 'main' into feature-firmware-refactor-initial-step
+216c7aec,2025-11-10 21:18:03 +0000,google-labs-jules[bot],161369871+google-labs-jules[bot]@users.noreply.github.com,refactor(firmware): Introduce PatternRenderContext and refactor all patterns
+271f7f57,2025-11-11 04:58:32 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #37 from synqing/feature-firmware-refactor-initial-step
+0ef79708,2025-11-11 04:58:15 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge branch 'main' into feature-firmware-refactor-initial-step
+ccd76547,2025-11-11 04:52:00 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #38 from synqing/docs/geneva-v2
+bdb10cd0,2025-11-10 03:21:22 +0800,SpectraSynq,spectrasynq@example.com,docs(task21): Complete task 21 with strategic assessment
+cfa8488d,2025-11-10 03:22:47 +0800,SpectraSynq,spectrasynq@example.com,docs: Session closure summary - Task 21 and Project Complete
+404e8f54,2025-11-10 03:22:11 +0800,SpectraSynq,spectrasynq@example.com,docs: Final project completion report - K1.node1 PRODUCTION READY
+4fa846c4,2025-11-10 20:51:17 +0000,google-labs-jules[bot],161369871+google-labs-jules[bot]@users.noreply.github.com,feat(firmware): Relocate HSV helpers and address feedback
+7dd7b6b2,2025-11-11 04:47:39 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #35 from synqing/integration/merge-20251110-005854
+a44cd48a,2025-11-11 04:42:40 +0800,google-labs-jules[bot],161369871+google-labs-jules[bot]@users.noreply.github.com,feat(firmware): Initial refactoring of pattern helpers (#34)
+c82f9c9b,2025-11-11 04:40:33 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #33 from synqing/chore/ci-soften-and-ignore-piocore-v2
+a3f3dbfc,2025-11-11 00:35:05 +0800,SpectraSynq,spectrasynq@example.com,fix(firmware): correct spectrum pattern center-origin visualization
+d297562b,2025-11-11 04:10:28 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #31 from synqing/chore/adr-k1n-alignment-v3
+65d2e52f,2025-11-11 04:07:49 +0800,SpectraSynq,spectrasynq@example.com,docs(governance): harmonize ADR-0006 textual references to K1NADR canonical filename
+dde42414,2025-11-11 04:03:20 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #30 from synqing/chore/adr-k1n-alignment-v2
+202e920b,2025-11-11 03:56:28 +0800,SpectraSynq,spectrasynq@example.com,docs: governance/archive sweep for K1NADR references; fix ADR template refs; update ADR-0006 link
+14225632,2025-11-11 03:48:19 +0800,SpectraSynq,spectrasynq@example.com,docs: update cross-references to K1NADR filenames; adjust template refs; update pre-commit exemption
+75624e92,2025-11-11 03:37:31 +0800,SpectraSynq,spectrasynq@example.com,docs/adr: align filenames to K1NADR_* and update README index; rename ADR-template; preserve duplicates (0011, 0013) per consolidation map
+edb83417,2025-11-11 03:29:27 +0800,synqing,32584196+synqing@users.noreply.github.com,Chore/restore original app and remove workflow demo (#28)
+110eb37a,2025-11-11 02:59:17 +0800,synqing,32584196+synqing@users.noreply.github.com,Restore original webapp entrypoint; remove Workflow Demo; deprecate graph authoring (#27)
+e0677207,2025-11-11 01:01:24 +0800,SpectraSynq,spectrasynq@example.com,docs(reports): Add pattern fixes completion report
+a4b4731b,2025-11-11 00:57:41 +0800,SpectraSynq,spectrasynq@example.com,fix(firmware): Reimplement Prism using Emotiscope design principles
+993c9c60,2025-11-11 00:56:01 +0800,SpectraSynq,spectrasynq@example.com,Revert "feat: Add Prism hero demo pattern - frequency + beat-synchronized energy"
+d54e84cf,2025-11-11 00:44:28 +0800,SpectraSynq,spectrasynq@example.com,feat: Add Prism hero demo pattern - frequency + beat-synchronized energy
+e3219577,2025-11-11 00:35:05 +0800,SpectraSynq,spectrasynq@example.com,fix(firmware): correct spectrum pattern center-origin visualization
+6943c356,2025-11-10 23:24:12 +0800,synqing,32584196+synqing@users.noreply.github.com,feat: Consolidate all integration branches with conductor-api and documentation (#26)
+daaf5f6b,2025-11-10 23:10:03 +0800,synqing,32584196+synqing@users.noreply.github.com,Clean up repository and fix agent issues (#25)
+0f820d6a,2025-11-10 22:53:38 +0800,synqing,32584196+synqing@users.noreply.github.com,CI: relax checks (continue-on-error), and ignore firmware/.pio-core build cache (#24)
+b01a27ee,2025-11-10 22:41:47 +0800,SpectraSynq,spectrasynq@example.com,Merge branch 'pr/firmware-codegen'
+9af4958a,2025-11-10 22:41:03 +0800,SpectraSynq,spectrasynq@example.com,merge(pr/docs-webapp-tools): keep firmware from main; bring docs+webapp changes
+ccadc5b0,2025-11-10 22:38:16 +0800,synqing,32584196+synqing@users.noreply.github.com,docs(webapp+tools): API quick tests, dev-only ApiIndex, expand endpoint docs; enforce K1N naming (#23)
+09d9f9c3,2025-11-10 22:18:21 +0800,SpectraSynq,spectrasynq@example.com,chore(pr/docs-webapp-tools): remove unintended firmware/tools additions from docs PR scope
+3afff476,2025-11-10 22:18:01 +0800,SpectraSynq,spectrasynq@example.com,chore(docs): enforce K1N naming on new docs (v1.0_20251110)
+ee326bf6,2025-11-10 21:46:19 +0800,synqing,32584196+synqing@users.noreply.github.com,chore(firmware): update graph codegen README and add generated patterns (#22)
+58d725da,2025-11-10 21:33:39 +0800,SpectraSynq,spectrasynq@example.com,chore(firmware): update graph codegen README and add generated patterns
+00332447,2025-11-10 21:44:04 +0800,synqing,32584196+synqing@users.noreply.github.com,chore(docs+webapp+tools): add API quick tests harness, dev-only ApiIndex, expand endpoint docs (#21)
+476a0536,2025-11-10 21:31:15 +0800,SpectraSynq,spectrasynq@example.com,chore(docs+webapp+tools): add API quick tests harness, dev-only ApiIndex, expand endpoint docs
+fc068daa,2025-11-10 21:33:39 +0800,SpectraSynq,spectrasynq@example.com,chore(firmware): update graph codegen README and add generated patterns
+a2c6e49f,2025-11-10 21:31:15 +0800,SpectraSynq,spectrasynq@example.com,chore(docs+webapp+tools): add API quick tests harness, dev-only ApiIndex, expand endpoint docs
+9bddfb79,2025-11-10 21:23:45 +0800,SpectraSynq,spectrasynq@example.com,fix: Resolve critical build and test infrastructure failures (Tasks 10-12)
+d95a2be9,2025-11-10 20:51:41 +0800,SpectraSynq,spectrasynq@example.com,feat(task12): Implement stress testing suite with 5 production tests
+221c30d5,2025-11-10 06:02:50 +0800,SpectraSynq,spectrasynq@example.com,feat(phase5.3-5.4): Complete all 21 tasks - Production ready K1.node1 system
+3e07f94c,2025-11-10 02:43:01 +0800,SpectraSynq,spectrasynq@example.com,feat(task9): Implement 8 core stateful node types for K1.node1
+b057cc71,2025-11-10 02:26:45 +0800,SpectraSynq,spectrasynq@example.com,feat(phase-5.3): Implement plugin architecture with hybrid orchestration
+5286dab9,2025-11-10 02:18:09 +0800,SpectraSynq,spectrasynq@example.com,feat(task2): Fix I2S Audio Timeout Protection
+ab7eeebc,2025-11-10 02:17:28 +0800,SpectraSynq,spectrasynq@example.com,feat(task1): Remove hardcoded WiFi credentials from firmware
+43de68a6,2025-11-10 01:02:07 +0800,synqing,32584196+synqing@users.noreply.github.com,merge: integrate branches into main
+48867a5c,2025-11-10 00:58:18 +0800,SpectraSynq,spectrasynq@example.com,feat(T6): Dead letter queue with filtering and resubmission
+f5afcdb6,2025-11-10 00:58:00 +0800,SpectraSynq,spectrasynq@example.com,feat(T5): Circuit breaker with state machine and transitions
+ef055061,2025-11-10 00:54:50 +0800,SpectraSynq,spectrasynq@example.com,feat(T2): Error recovery service interfaces and Zod schemas
+2e2c9f91,2025-11-10 00:51:39 +0800,SpectraSynq,spectrasynq@example.com,feat(T1): PostgreSQL schema for error recovery & scheduling
+b361fee1,2025-11-10 00:47:33 +0800,SpectraSynq,spectrasynq@example.com,build: Remove task dispatcher framework from git tracking
+d20b6d2d,2025-11-10 00:46:58 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #19 from synqing/synqing/sync-main
+54904632,2025-11-10 00:46:33 +0800,SpectraSynq,spectrasynq@example.com,docs: Add task dispatcher completion summary
+41b14f8e,2025-11-10 00:45:49 +0800,SpectraSynq,spectrasynq@example.com,feat(phase5.3): Implement automated task dispatcher framework
+d26d7bb6,2025-11-10 00:45:19 +0800,SpectraSynq,spectrasynq@example.com,build: Update gitignore to track task dispatcher framework
+16138410,2025-11-10 00:45:15 +0800,SpectraSynq,spectrasynq@example.com,docs(naming): normalize Phase 5.3/5.4/analysis/planning filenames to K1N standard (v1.0 + date)
+1e79bf17,2025-11-10 00:38:56 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #18 from synqing/claude/review-comprehensive-documentation-011CUwuSjWXQqu5RcHy4WBJK
+0f40f196,2025-11-10 00:36:33 +0800,SpectraSynq,spectrasynq@example.com,chore(sync): Phase 4.4 exec report, CONDUCTOR_TIER override, Phase 5.3/5.4 docs+tests, webapp analytics components
+f8573e56,2025-11-09 23:57:08 +0800,SpectraSynq,spectrasynq@example.com,feat(phase-5.4): Add comprehensive integration testing framework (1,650 E2E + 1,950 Load + 1,850 Resilience + 1,700 Security tests)
+7d372f05,2025-11-09 21:32:06 +0800,SpectraSynq,spectrasynq@example.com,docs(phase5.3): Add comprehensive parallel execution plan
+046d7c12,2025-11-09 20:39:11 +0800,SpectraSynq,spectrasynq@example.com,docs(phase5.3): Add comprehensive progress report (50% complete)
+eb757ac5,2025-11-09 20:38:27 +0800,SpectraSynq,spectrasynq@example.com,docs(phase5.3.2): Add comprehensive dynamic scheduling implementation guide
+5b5526e3,2025-11-09 20:37:46 +0800,SpectraSynq,spectrasynq@example.com,feat(phase5.3.2): Implement Dynamic Task Scheduler
+5cf10fb2,2025-11-09 20:23:10 +0800,SpectraSynq,spectrasynq@example.com,docs(phase5.3.1): Add comprehensive error recovery implementation guide
+d10157b0,2025-11-09 20:22:22 +0800,SpectraSynq,spectrasynq@example.com,feat(phase5.3): Implement Error Recovery Feature (5.3.1)
+2c15022f,2025-11-09 20:16:16 +0800,SpectraSynq,spectrasynq@example.com,feat(phase5.3): Plan advanced features with parallelization assessment
+c55f265a,2025-11-09 20:14:56 +0800,SpectraSynq,spectrasynq@example.com,feat(phase5.2): Production deployment runbook and parallelization pattern
+14bf6ba0,2025-11-09 20:10:15 +0800,SpectraSynq,spectrasynq@example.com,docs(phase5.1): Final code review - APPROVED FOR PRODUCTION
+7e33ddab,2025-11-09 20:06:56 +0800,SpectraSynq,spectrasynq@example.com,feat(phase5.1): Complete Days 4-5 workflow integration and final report
+21d1999d,2025-11-09 20:04:32 +0800,SpectraSynq,spectrasynq@example.com,feat(phase5.1): Complete Days 2-3 Task 8 optimization implementation
+819ed18b,2025-11-09 11:53:07 +0000,Claude,noreply@anthropic.com,docs(phase5.1): Day 1 review + Days 2-3 optimization blueprint
+2117ce98,2025-11-09 19:49:08 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #17 from synqing/claude/review-comprehensive-documentation-011CUwuSjWXQqu5RcHy4WBJK
+000d4988,2025-11-09 19:41:09 +0800,SpectraSynq,spectrasynq@example.com,feat(phase5.1): Complete Day 1 baseline profiling - all 22 tasks profiled
+68e1e60f,2025-11-09 09:35:55 +0000,Claude,noreply@anthropic.com,docs(review): Complete Team A Phase 4.4 code review - APPROVED
+e23627fb,2025-11-09 17:29:45 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #16 from synqing/claude/review-comprehensive-documentation-011CUwuSjWXQqu5RcHy4WBJK
+110a6b84,2025-11-09 17:27:10 +0800,SpectraSynq,spectrasynq@example.com,chore(phase4-5): Fix validation script + create Phase 5.1 execution readiness
+3412c310,2025-11-09 16:44:28 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #15 from synqing/claude/review-comprehensive-documentation-011CUwuSjWXQqu5RcHy4WBJK
+83994eeb,2025-11-09 16:44:06 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #14 from synqing/feat/track-tools-design-and-config
+93f031db,2025-11-09 08:04:30 +0000,Claude,noreply@anthropic.com,docs(collaboration): Establish Team A/B division of labor + Phase 5.1 spec
+c1be03f3,2025-11-09 07:50:32 +0000,Claude,noreply@anthropic.com,docs(phase4.4): Add comprehensive blocker resolution strategy
+fecfee92,2025-11-09 15:47:48 +0800,SpectraSynq,spectrasynq@example.com,docs(phase-5): Create comprehensive production roadmap (4-week strategic plan)
+c853c73e,2025-11-09 07:43:50 +0000,Claude,noreply@anthropic.com,docs(phase4.4): Add validation report for resilience architecture
+6713b6c1,2025-11-09 15:39:14 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #13 from synqing/claude/review-comprehensive-documentation-011CUwuSjWXQqu5RcHy4WBJK
+39708262,2025-11-09 15:28:44 +0800,SpectraSynq,spectrasynq@example.com,docs(phase-4.5): Complete infrastructure validation and MCP integration testing readiness
+85ae8a7e,2025-11-09 07:28:24 +0000,Claude,noreply@anthropic.com,feat(conductor): Resolve 3 critical architectural risks with resilient deployment
+9f06475d,2025-11-09 15:17:24 +0800,SpectraSynq,spectrasynq@example.com,docs(phase-4): Complete Phase 4.4 infrastructure validation and Phase 4 completion report
+a24f2ea4,2025-11-09 15:13:18 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #12 from synqing/feat/track-tools-design-and-config
+3bfa6b35,2025-11-09 15:12:28 +0800,SpectraSynq,spectrasynq@example.com,feat(phase-4.3): Complete MCP workflow templates and example patterns
+7ca32961,2025-11-08 23:53:00 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #11 from synqing/feat/track-tools-design-and-config
+c795a887,2025-11-08 23:03:26 +0800,SpectraSynq,spectrasynq@example.com,feat(conductor): Track Conductor MCP implementation and operational guides
+a5443f83,2025-11-08 20:31:28 +0800,SpectraSynq,spectrasynq@example.com,Merge feat/track-tools-design-and-config into main: K1N docs migration, validator, README/CLAUDE alignment
+790a8ea3,2025-11-08 20:23:56 +0800,SpectraSynq,spectrasynq@example.com,docs: align root README and CLAUDE.md to K1N index/navigation and correct tab5 index paths
+8fb9f00c,2025-11-08 20:17:01 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #10 from synqing/feat/track-tools-design-and-config
+6665eada,2025-11-08 20:14:56 +0800,SpectraSynq,spectrasynq@example.com,chore: add PR description draft for K1N docs migration
+0e44a744,2025-11-08 20:12:57 +0800,SpectraSynq,spectrasynq@example.com,chore(docs): normalize release notes filename to K1N standard
+255ec4f4,2025-11-08 17:12:37 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #9 from synqing/feat/track-tools-design-and-config
+5c96c1cb,2025-11-08 17:08:32 +0800,SpectraSynq,spectrasynq@example.com,feat: Track tools, design, and project configuration files
+e806d0bf,2025-11-08 17:01:55 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #8 from synqing/synqing/orkes-cloud-integration
+a2781599,2025-11-08 17:00:25 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #7 from synqing/chore/enable-claude-git-tracking
+8efb8d73,2025-11-08 16:59:40 +0800,SpectraSynq,spectrasynq@example.com,chore: Track .claude/ development tools and remove .mem0_local from ignore
+939bf305,2025-11-08 16:57:24 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #6 from synqing/create-script
+c0c3d9fa,2025-11-08 16:56:23 +0800,SpectraSynq,spectrasynq@example.com,docs: Simplify README by removing outdated negativity section
+514939f7,2025-11-08 16:49:05 +0800,SpectraSynq,spectrasynq@example.com,refactor(orkes): move documentation into orkes-service
+d98616f2,2025-11-08 16:47:54 +0800,SpectraSynq,spectrasynq@example.com,feat(orkes): integrate pattern compiler worker into service startup
+c0e02191,2025-11-08 16:43:18 +0800,SpectraSynq,spectrasynq@example.com,refactor: move ORKES_INTEGRATION_SUMMARY to docs/09-implementation
+c3164181,2025-11-08 16:46:19 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #5 from synqing/create-script
+e4a6faf9,2025-11-08 16:46:01 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #4 from synqing/docs/conductor-naming-standard-migration
+bbf54313,2025-11-08 16:43:52 +0800,SpectraSynq,spectrasynq@example.com,docs: move documentation indices to docs/04-planning/ (organization refactor)
+8a5b8d0b,2025-11-08 16:42:18 +0800,SpectraSynq,spectrasynq@example.com,docs: Complete documentation migration to K1N standard
+6bd795f6,2025-11-08 16:39:00 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #3 from synqing/synqing/orkes-cloud-integration
+2eb83eda,2025-11-08 16:36:29 +0800,SpectraSynq,spectrasynq@example.com,docs: add pattern compilation workflow implementation guide
+1d71a209,2025-11-08 16:35:44 +0800,SpectraSynq,spectrasynq@example.com,feat(orkes): implement pattern compilation workflow with TDD
+41e71cd7,2025-11-08 15:01:33 +0800,SpectraSynq,spectrasynq@example.com,docs(orkes): add comprehensive deep-dive guide
+bb7429f7,2025-11-08 14:06:34 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #2 from synqing/synqing/orkes-cloud-integration
+34365a49,2025-11-08 14:05:45 +0800,synqing,32584196+synqing@users.noreply.github.com,Merge pull request #1 from synqing/create-script
+b2009faf,2025-11-08 13:58:47 +0800,SpectraSynq,spectrasynq@example.com,feat(orkes): add Orkes Cloud workflow orchestration integration
+5602b084,2025-11-08 14:05:03 +0800,SpectraSynq,spectrasynq@example.com,ci: add GitHub Actions workflows and Conductor documentation
+d2093b1e,2025-11-08 02:52:55 +0800,SpectraSynq,spectrasynq@example.com,docs: Move scattered documentation into organized folders - keep only README.md, CLAUDE.md, conductor.json, CHANGELOG.md, TASKS.md in root
+2dddc3bc,2025-11-08 02:36:59 +0800,SpectraSynq,spectrasynq@example.com,Conductor defaults for M4 Pro: maxConcurrentWorkspaces=16, nonconcurrent run; add firmware build queue (<=4 concurrent compiles); set LED FPS min=120, target=150 in tests/docs; add targets to firmware README
+d2527a17,2025-11-08 02:24:33 +0800,SpectraSynq,spectrasynq@example.com,Conductor docs: replace Linear/Jira references with Taskmaster (.taskmaster/tasks/tasks.json); add project-specific override banner; update security, runbooks, scalability, deployment, and implementation guide accordingly
+014098c4,2025-11-08 02:13:50 +0800,SpectraSynq,spectrasynq@example.com,docs: Reorganize Conductor documentation into dedicated docs/Conductor folder
+1add983e,2025-11-08 02:08:10 +0800,SpectraSynq,spectrasynq@example.com,docs: Customize Conductor.build MCP integration for K1.node1
+456b491a,2025-11-08 01:49:10 +0800,SpectraSynq,spectrasynq@example.com,docs: Complete Conductor + Orkes Cloud integration research for K1.node1
+096a4a5c,2025-11-07 23:32:30 +0800,SpectraSynq,spectrasynq@example.com,Track .taskmaster for Conductor MCP: include configs, state, docs/tasks for onward planning
+2c656a5c,2025-11-07 20:04:48 +0800,SpectraSynq,spectrasynq@example.com,Add .gitattributes for hot files and setup script: keep ours on merges; enable rerere via tools/git_setup_merge_drivers.sh
+006ea4e7,2025-11-07 19:44:21 +0800,SpectraSynq,spectrasynq@example.com,Add tools/git_sync.sh: one-command helper to set origin, stash WIP, rebase main, push
+fc5ab2d0,2025-11-07 19:42:41 +0800,SpectraSynq,spectrasynq@example.com,WIP
+ec776768,2025-11-07 15:18:54 +0800,SpectraSynq,spectrasynq@example.com,Prevent large pushes: ignore firmware/.platformio and .DS_Store; add non-blocking Git Size Guard to CI
+1812f75a,2025-11-07 14:34:38 +0800,SpectraSynq,spectrasynq@example.com,Stop tracking heavy PlatformIO caches and OS cruft: ignore firmware/.platformio and *.DS_Store; untrack previously committed blobs
+5d76a492,2025-11-07 14:20:56 +0800,SpectraSynq,spectrasynq@example.com,Merge commit 'a7eea26'
+a7eea26d,2025-11-07 14:02:20 +0800,SpectraSynq,spectrasynq@example.com,Ignore .mem0_local entirely: remove whitelist entries and untrack any previously committed files
+f518cb07,2025-11-07 14:01:36 +0800,SpectraSynq,spectrasynq@example.com,Align Phase A paths/tests to firmware/ layout: update CI + hooks, add three Phase A Unity tests under firmware/test/
+1a5d1d14,2025-11-07 13:59:02 +0800,SpectraSynq,spectrasynq@example.com,Track .github and .githooks by default: whitelist in .gitignore for seamless workflow/hook updates
+7733e4a1,2025-11-07 13:57:47 +0800,SpectraSynq,spectrasynq@example.com,Track tools directory by default: whitelist tools/ in .gitignore for ongoing script updates
+803ade2f,2025-11-07 13:57:16 +0800,SpectraSynq,spectrasynq@example.com,Phase A Execution: Security Readiness Playbook, Fixes Reference, Validation, Tools, CI, and Guards
+315a5ef7,2025-11-07 13:07:52 +0800,SpectraSynq,spectrasynq@example.com,Create Tunnel Glow pattern: resurrect original Beat Tunnel audio-reactive behavior
+c7aba918,2025-11-07 12:43:15 +0800,SpectraSynq,spectrasynq@example.com,Improve startup_intro animation: full oscillation completion at center
+5b7e7536,2025-11-07 12:30:12 +0800,SpectraSynq,spectrasynq@example.com,Add execution status report: project ready for implementation with clear next steps and success criteria
+0fa154d0,2025-11-07 12:29:22 +0800,SpectraSynq,spectrasynq@example.com,Add immediate action plan for Days 1-3: security fixes, Phase 0 implementation, baseline capture
+d865ca30,2025-11-07 12:28:19 +0800,SpectraSynq,spectrasynq@example.com,Add master synthesis and decision framework consolidating all specialist findings
+4a6d95dd,2025-11-07 12:28:02 +0800,SpectraSynq,spectrasynq@example.com,Add startup_intro pattern with real-time parameter tuning
+baaaaee8,2025-11-07 12:22:58 +0800,SpectraSynq,spectrasynq@example.com,docs: Research and analysis on real-time audio feature extraction for ESP32-S3
+c3c35212,2025-11-07 12:12:19 +0800,SpectraSynq,spectrasynq@example.com,Phase 0: Audio Feature Enhancement Analysis & Planning Complete
+0af183ec,2025-11-07 12:06:02 +0800,SpectraSynq,spectrasynq@example.com,Firmware consolidation: Migrate firmware_copy → firmware with tempo detection disabled
+7eec1fd1,2025-11-07 11:55:27 +0800,SpectraSynq,spectrasynq@example.com,Disable tempo detection due to reliability issues
+8dac31ad,2025-11-07 08:30:10 +0800,SpectraSynq,spectrasynq@example.com,Implement SPI-based secondary LED channel on GPIO 4
+21d5db44,2025-11-07 08:10:15 +0800,SpectraSynq,spectrasynq@example.com,FIX: Add secondary LED channel support for RMT v1 API
+f279590c,2025-11-07 07:46:08 +0800,SpectraSynq,spectrasynq@example.com,Debug secondary LED channel issue - add comprehensive logging
+dcd36492,2025-11-07 07:36:31 +0800,SpectraSynq,spectrasynq@example.com,Fix secondary LED output: separate encoder function to eliminate state collision
+fbb6b3f1,2025-11-07 07:24:32 +0800,SpectraSynq,spectrasynq@example.com,Fix palette API: Implement complete build_palettes_json() function
+953ccc89,2025-11-05 20:54:31 +0800,SpectraSynq,spectrasynq@example.com,fix(firmware): add API compatibility layer for dual-channel RMT
+8b7d28ad,2025-11-05 14:09:09 +0800,SpectraSynq,spectrasynq@example.com,docs(tab5): append comprehensive implementation process (toolchain, net, UI, security, OTA, testing)
+57760634,2025-11-05 13:53:01 +0800,SpectraSynq,spectrasynq@example.com,chore(release): v0.1.2\n\n- Optimize CLAUDE.md (54k→9.2k)\n- Split specialty guides (CLI, testing, animations, Task Master)\n- Add governance tools reference and update index\n- Add webapp testing quickstart and root README testing pointers\n- Add release notes for 0.1.2
+dd4c8ebb,2025-11-05 09:30:41 +0800,SpectraSynq,spectrasynq@example.com,Mem0 integration: add memory-proxy backend (/memory/search), webapp memoryClient, and README setup; track Mem0 local tools (.mem0_local)
+481edf12,2025-11-05 08:05:56 +0800,SpectraSynq,spectrasynq@example.com,Initialize lean core repo: track only firmware+webapp sources via .gitignore; add firmware/ and webapp/ trees for standalone build (PlatformIO + Vite)

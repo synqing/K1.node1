@@ -94,7 +94,11 @@
       "Bash(__NEW_LINE__ fi)",
       "Bash(for i in {1..15})",
       "Bash(screen:*)",
-      "Bash(log show:*)"
+      "Bash(log show:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(du:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [],
     "ask": []
