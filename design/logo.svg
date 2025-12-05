@@ -1,0 +1,22 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 600">
+  <g stroke="white" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M250 50 L423.2 350 H76.8 Z" />
+    
+    <path d="M250 170 L320 290 H180 Z" />
+    
+    <path d="M250 50 L250 170" />
+    <path d="M423.2 350 L320 290" />
+    <path d="M76.8 350 L180 290" />
+  </g>
+
+  <text x="250" y="430" 
+        font-family="Impact, Oswald, sans-serif-condensed, sans-serif" 
+        font-size="72" 
+        fill="white" 
+        text-anchor="middle" 
+        letter-spacing="2"
+        transform="scale(0.8, 1.2)" 
+        transform-origin="250 430">SPECTRASYNQ</text>
+
+  <line x1="130" y1="535" x2="370" y2="535" stroke="#FFD700" stroke-width="8" />
+</svg>
