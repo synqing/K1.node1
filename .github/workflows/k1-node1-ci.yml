@@ -160,6 +160,9 @@ jobs:
       - name: Preflight (firmware scope)
         run: bash ops/scripts/preflight.sh --scope firmware
 
+      - name: Tempo sync contract guard
+        run: bash ops/scripts/guard_tempo_sync.sh
+
       - name: Build (release env if present)
         working-directory: firmware
         run: |

@@ -123,6 +123,10 @@
       "Bash(./01-architecture/K1NArch_DOCUMENTATION_COMPREHENSIVE_TECHNICAL_v1.0_20251109.md )",
       "Bash(./07-resources/README.md )",
       "Bash(./07-resources/K1NRef_PHASE3_VALIDATION_TESTING_QUICK_GUIDE_v1.0_20251108.md)"
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(du:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [],
     "ask": []
