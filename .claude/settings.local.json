@@ -5,7 +5,6 @@
       "Bash(DOCS_NAMING_ENFORCE=0 git commit:*)",
       "WebSearch",
       "WebFetch(domain:littlehorse.io)",
-      "WebFetch(domain:conductor-oss.github.io)",
       "WebFetch(domain:github.com)",
       "Bash(xargs cat:*)",
       "Bash(cat:*)",
@@ -94,14 +93,41 @@
       "Bash(__NEW_LINE__ fi)",
       "Bash(for i in {1..15})",
       "Bash(screen:*)",
-      "Bash(log show:*)"
+      "Bash(log show:*)",
+      "Bash(./07-resources/K1NRes_PATTERN_TASK_PARALLELIZATION_v1.0_20251109.md )",
+      "Bash(./09-implementation/K1NImpl_WORKFLOW_PATTERN_COMPILATION_v1.0_20251108.md )",
+      "Bash(./09-implementation/K1NImpl_PHASE5_1_PRODUCTION_DEPLOYMENT_v1.0_20251109.md )",
+      "Bash(./09-implementation/K1NImpl_PHASE5_1_PERFORMANCE_OPTIMIZATION_v1.0_20251109.md )",
+      "Bash(./09-implementation/K1NImpl_PHASE4_BLOCKER_RESOLUTION_STRATEGY_v1.0_20251109.md )",
+      "Bash(./06-reference/K1NRef_WORKFLOW_TEMPLATE_03_PARALLEL_EXECUTION_v1.0_20251109.md )",
+      "Bash(./06-reference/K1NRef_WORKFLOW_TEMPLATE_02_DEPENDENCY_CHAIN_v1.0_20251109.md )",
+      "Bash(./06-reference/K1NRef_WORKFLOW_TEMPLATE_01_SINGLE_TASK_v1.0_20251109.md )",
+      "Bash(./06-reference/K1NRef_WORKFLOW_TEMPLATE_04_FULL_22TASK_v1.0_20251109.md )",
+      "Bash(./08-governance/K1NGov_COLLABORATION_WORKFLOW_v1.0_20251109.md )",
+      "Bash(./08-governance/K1NGov_HANDOFF_TO_TEAM_A_v1.0_20251109.md)",
+      "Bash(./09-reports/K1NReport_PHASE4_VALIDATION_STATUS_v1.0_20251109.md )",
+      "Bash(./09-reports/K1NReport_PHASE4_4_EXECUTION_v1.1_20251109.md )",
+      "Bash(./09-reports/K1NReport_PHASE4_COMPLETION_v1.0_20251109.md )",
+      "Bash(./09-reports/K1NReport_PHASE4_VALIDATION_STATUS_v2.0_20251109.md )",
+      "Bash(./09-reports/K1NReport_PHASE5_1_COMPLETION_v1.0_20251109.md )",
+      "Bash(./09-reports/K1NReport_PHASE5_1_DAYS2_3_COMPLETION_v1.0_20251109.md )",
+      "Bash(./09-reports/K1NReport_PHASE5_1_FINAL_CODE_REVIEW_v1.0_20251109.md )",
+      "Bash(./09-reports/K1NReport_PHASE5_1_DAY1_REVIEW_v1.0_20251109.md )",
+      "Bash(./09-reports/K1NReport_TEAM_A_CODE_REVIEW_PHASE4_4_v1.0_20251109.md )",
+      "Bash(./09-reports/K1NPlan_PHASE3_VALIDATION_TESTING_COMPLETION_v1.0_20251108.md )",
+      "Bash(./09-reports/K1NReport_PHASE4_4_EXECUTION_v1.0_20251109.md )",
+      "Bash(./04-planning/K1NPlan_PHASE5_1_EXECUTION_READINESS_v1.0_20251109.md )",
+      "Bash(./04-planning/K1NPlan_AUDIT_ONWARDS_TASK_20251105_v1.0_20251108.md)",
+      "Bash(./03-guides/DEVELOPER_ONBOARDING.md )",
+      "Bash(./03-guides/K1N_GUIDE_DEVELOPER_ONBOARDING_v1.0_20251110.md )",
+      "Bash(./01-architecture/K1NArch_DOCUMENTATION_COMPREHENSIVE_TECHNICAL_v1.0_20251109.md )",
+      "Bash(./07-resources/README.md )",
+      "Bash(./07-resources/K1NRef_PHASE3_VALIDATION_TESTING_QUICK_GUIDE_v1.0_20251108.md)"
     ],
     "deny": [],
     "ask": []
   },
   "disabledMcpjsonServers": [
-    "taskmaster-ai",
-    "figma",
-    "task-master-ai"
+    "figma"
   ]
 }

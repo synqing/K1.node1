@@ -8,8 +8,6 @@ firmware/.cache/
 firmware/.venv/
 firmware/measurements/
 firmware/data/
-conductor-api/node_modules/
-conductor-api/dist/
 node_modules/
 dist/
 .git/
