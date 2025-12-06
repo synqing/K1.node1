@@ -142,9 +142,6 @@ inline void draw_hype(const PatternRenderContext& context) {
     const AudioDataSnapshot& audio = context.audio_snapshot;
     #define AUDIO_IS_AVAILABLE() (audio.payload.is_valid)
     #define AUDIO_IS_STALE() (((uint32_t)((esp_timer_get_time() - audio.payload.timestamp_us) / 1000)) > 50)
-    #define AUDIO_KICK() get_audio_band_energy(audio, KICK_START, KICK_END)
-    #define AUDIO_SNARE() get_audio_band_energy(audio, SNARE_START, SNARE_END)
-    #define AUDIO_HATS() get_audio_band_energy(audio, HATS_START, HATS_END)
     
     // Clear LED buffer
     for (int i = 0; i < NUM_LEDS; i++) {
@@ -165,35 +162,52 @@ inline void draw_hype(const PatternRenderContext& context) {
         return;
     }
     
-    // Calculate energy using instrument bands
-    float kick = clip_float(powf(AUDIO_KICK(), 0.6f));
-    float snare = clip_float(powf(AUDIO_SNARE(), 0.6f));
-    float hats = clip_float(powf(AUDIO_HATS(), 0.6f));
-    float freshness_factor = AUDIO_IS_STALE() ? 0.6f : 1.0f;
-    kick *= freshness_factor;
-    snare *= freshness_factor;
-    hats *= freshness_factor;
+    // Calculate beat sums for odd/even tempo bins (RESTORED: tempo-driven)
+    // Legacy: Uses tempo magnitude bins for proper beat-synchronized motion
+    float beat_sum_odd = 0.0f;
+    float beat_sum_even = 0.0f;
+    int count_odd = 0, count_even = 0;
 
-    float beat_sum_odd = kick;
-    float beat_sum_even = clip_float((snare * 0.7f) + (hats * 0.3f));
-    float strength = clip_float((kick + snare + hats) / 3.0f);
+    // Sum magnitudes from tempo bins
+    for (int i = 0; i < NUM_TEMPI; i++) {
+        float magnitude = audio.payload.tempo_magnitude[i];
+        if (i % 2 == 0) {
+            beat_sum_even += magnitude;
+            count_even++;
+        } else {
+            beat_sum_odd += magnitude;
+            count_odd++;
+        }
+    }
 
-    // Color mapping (Emotiscope style)
-    float beat_color_odd = clip_float(0.2f + beat_sum_odd * 0.6f);
-    float beat_color_even = clip_float(0.6f + beat_sum_even * 0.4f);
+    // Average the sums
+    if (count_odd > 0) beat_sum_odd /= count_odd;
+    if (count_even > 0) beat_sum_even /= count_even;
+
+    // Apply freshness factor
+    float freshness_factor = AUDIO_IS_STALE() ? 0.5f : 1.0f;
+    beat_sum_odd *= freshness_factor;
+    beat_sum_even *= freshness_factor;
+
+    // Calculate overall strength for energy visualization
+    float strength = (beat_sum_odd + beat_sum_even) * 0.5f;
+    strength = clip_float(strength);
+
+    // Color mapping (Emotiscope style - RESTORED: tempo-based hue)
+    float beat_color_odd = beat_sum_odd * 0.5f;
+    float beat_color_even = beat_sum_even * 0.5f + 0.5f; // Offset for different hue
 
     CRGBF dot_color_odd = color_from_palette(params.palette_id, clip_float(beat_color_odd), 1.0f);
     CRGBF dot_color_even = color_from_palette(params.palette_id, clip_float(beat_color_even), 1.0f);
-    
-    // Draw energy dots
+
+    // Draw energy dots (RESTORED: legacy positions)
     float opacity = 0.1f + 0.8f * strength;
-    draw_dot(leds, NUM_RESERVED_DOTS + 0, dot_color_odd, 0.5f - (beat_sum_odd * 0.5f), opacity);
-    draw_dot(leds, NUM_RESERVED_DOTS + 1, dot_color_even, 0.5f + (beat_sum_even * 0.5f), opacity);
-    
+    draw_dot(leds, NUM_RESERVED_DOTS + 0, dot_color_odd, 1.0f - beat_sum_odd, opacity);
+    draw_dot(leds, NUM_RESERVED_DOTS + 1, dot_color_even, 1.0f - beat_sum_even, opacity);
+
     // Mirror mode: additional dots
-    // Always mirror about center for geometry consistency
-    draw_dot(leds, NUM_RESERVED_DOTS + 2, dot_color_odd, 0.5f + (beat_sum_odd * 0.5f), opacity);
-    draw_dot(leds, NUM_RESERVED_DOTS + 3, dot_color_even, 0.5f - (beat_sum_even * 0.5f), opacity);
+    draw_dot(leds, NUM_RESERVED_DOTS + 2, dot_color_odd, beat_sum_odd, opacity);
+    draw_dot(leds, NUM_RESERVED_DOTS + 3, dot_color_even, beat_sum_even, opacity);
     
     // Apply global brightness
 	for (int i = 0; i < NUM_LEDS; i++) {
@@ -203,7 +217,4 @@ inline void draw_hype(const PatternRenderContext& context) {
     apply_background_overlay(context);
     #undef AUDIO_IS_AVAILABLE
     #undef AUDIO_IS_STALE
-    #undef AUDIO_KICK
-    #undef AUDIO_SNARE
-    #undef AUDIO_HATS
 }

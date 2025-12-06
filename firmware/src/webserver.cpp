@@ -31,6 +31,8 @@
 #include "diagnostics/rmt_probe.h"        // RMT telemetry
 #include "led_driver.h"                    // Access LED frame buffer
 #include "frame_metrics.h"                // Frame-level profiling history
+#include "transitions/transition_adapter.hpp"  // Transition control
+
 // Debug telemetry defaults (compile-time overrides)
 #ifndef REALTIME_WS_ENABLED_DEFAULT
 #define REALTIME_WS_ENABLED_DEFAULT 1
@@ -47,6 +49,84 @@ static AsyncWebServer server(80);
 
 // Global WebSocket server at /ws endpoint
 static AsyncWebSocket ws("/ws");
+
+// ============================================================================
+// Transition Type String Conversion Utilities
+// ============================================================================
+
+static const char* transitionTypeToString(TransitionType type) {
+    switch (type) {
+        case TRANSITION_FADE: return "fade";
+        case TRANSITION_WIPE_OUT: return "wipe_out";
+        case TRANSITION_WIPE_IN: return "wipe_in";
+        case TRANSITION_DISSOLVE: return "dissolve";
+        case TRANSITION_PHASE_SHIFT: return "phase_shift";
+        case TRANSITION_PULSEWAVE: return "pulsewave";
+        case TRANSITION_IMPLOSION: return "implosion";
+        case TRANSITION_IRIS: return "iris";
+        case TRANSITION_NUCLEAR: return "nuclear";
+        case TRANSITION_STARGATE: return "stargate";
+        case TRANSITION_KALEIDOSCOPE: return "kaleidoscope";
+        case TRANSITION_MANDALA: return "mandala";
+        default: return "unknown";
+    }
+}
+
+static TransitionType stringToTransitionType(const char* str) {
+    if (strcmp(str, "fade") == 0) return TRANSITION_FADE;
+    if (strcmp(str, "wipe_out") == 0) return TRANSITION_WIPE_OUT;
+    if (strcmp(str, "wipe_in") == 0) return TRANSITION_WIPE_IN;
+    if (strcmp(str, "dissolve") == 0) return TRANSITION_DISSOLVE;
+    if (strcmp(str, "phase_shift") == 0) return TRANSITION_PHASE_SHIFT;
+    if (strcmp(str, "pulsewave") == 0) return TRANSITION_PULSEWAVE;
+    if (strcmp(str, "implosion") == 0) return TRANSITION_IMPLOSION;
+    if (strcmp(str, "iris") == 0) return TRANSITION_IRIS;
+    if (strcmp(str, "nuclear") == 0) return TRANSITION_NUCLEAR;
+    if (strcmp(str, "stargate") == 0) return TRANSITION_STARGATE;
+    if (strcmp(str, "kaleidoscope") == 0) return TRANSITION_KALEIDOSCOPE;
+    if (strcmp(str, "mandala") == 0) return TRANSITION_MANDALA;
+    return TRANSITION_COUNT;  // Invalid
+}
+
+static const char* easingCurveToString(EasingCurve curve) {
+    switch (curve) {
+        case EASE_LINEAR: return "linear";
+        case EASE_IN_QUAD: return "ease_in_quad";
+        case EASE_OUT_QUAD: return "ease_out_quad";
+        case EASE_IN_OUT_QUAD: return "ease_in_out_quad";
+        case EASE_IN_CUBIC: return "ease_in_cubic";
+        case EASE_OUT_CUBIC: return "ease_out_cubic";
+        case EASE_IN_OUT_CUBIC: return "ease_in_out_cubic";
+        case EASE_IN_ELASTIC: return "ease_in_elastic";
+        case EASE_OUT_ELASTIC: return "ease_out_elastic";
+        case EASE_IN_OUT_ELASTIC: return "ease_in_out_elastic";
+        case EASE_IN_BOUNCE: return "ease_in_bounce";
+        case EASE_OUT_BOUNCE: return "ease_out_bounce";
+        case EASE_IN_BACK: return "ease_in_back";
+        case EASE_OUT_BACK: return "ease_out_back";
+        case EASE_IN_OUT_BACK: return "ease_in_out_back";
+        default: return "linear";
+    }
+}
+
+static EasingCurve stringToEasingCurve(const char* str) {
+    if (strcmp(str, "linear") == 0) return EASE_LINEAR;
+    if (strcmp(str, "ease_in_quad") == 0) return EASE_IN_QUAD;
+    if (strcmp(str, "ease_out_quad") == 0) return EASE_OUT_QUAD;
+    if (strcmp(str, "ease_in_out_quad") == 0) return EASE_IN_OUT_QUAD;
+    if (strcmp(str, "ease_in_cubic") == 0) return EASE_IN_CUBIC;
+    if (strcmp(str, "ease_out_cubic") == 0) return EASE_OUT_CUBIC;
+    if (strcmp(str, "ease_in_out_cubic") == 0) return EASE_IN_OUT_CUBIC;
+    if (strcmp(str, "ease_in_elastic") == 0) return EASE_IN_ELASTIC;
+    if (strcmp(str, "ease_out_elastic") == 0) return EASE_OUT_ELASTIC;
+    if (strcmp(str, "ease_in_out_elastic") == 0) return EASE_IN_OUT_ELASTIC;
+    if (strcmp(str, "ease_in_bounce") == 0) return EASE_IN_BOUNCE;
+    if (strcmp(str, "ease_out_bounce") == 0) return EASE_OUT_BOUNCE;
+    if (strcmp(str, "ease_in_back") == 0) return EASE_IN_BACK;
+    if (strcmp(str, "ease_out_back") == 0) return EASE_OUT_BACK;
+    if (strcmp(str, "ease_in_out_back") == 0) return EASE_IN_OUT_BACK;
+    return EASE_LINEAR;  // Default fallback
+}
 
 // ============================================================================
 // REQUEST HANDLERS - Phase 2B Refactoring
@@ -411,15 +491,38 @@ public:
         bool success = false;
         JsonObjectConst json = ctx.getJson();
 
+        uint8_t target_index = 255;
+
         if (json.containsKey("index")) {
-            uint8_t pattern_index = json["index"].as<uint8_t>();
-            success = select_pattern(pattern_index);
+            target_index = json["index"].as<uint8_t>();
         } else if (json.containsKey("id")) {
             const char* pattern_id = json["id"].as<const char*>();
-            success = select_pattern_by_id(pattern_id);
+            extern const PatternInfo g_pattern_registry[];
+            extern const uint8_t g_num_patterns;
+            for (uint8_t i = 0; i < g_num_patterns; i++) {
+                if (strcmp(g_pattern_registry[i].id, pattern_id) == 0) {
+                    target_index = i;
+                    break;
+                }
+            }
         } else {
             ctx.sendError(400, "missing_field", "Missing index or id");
             return;
+        }
+
+        if (target_index >= g_num_patterns) {
+            ctx.sendError(404, "pattern_not_found", "Pattern not found");
+            return;
+        }
+
+        // Check for transition request
+        extern K1TransitionAdapter g_transition_adapter;
+        bool use_transition = json.containsKey("transition") && json["transition"].as<bool>();
+
+        if (use_transition) {
+            success = g_transition_adapter.beginTransition(target_index);
+        } else {
+            success = select_pattern(target_index);
         }
 
         if (success) {
@@ -1924,6 +2027,105 @@ public:
 };
 
 // ============================================================================
+// Transition Control Handlers
+// ============================================================================
+
+class GetTransitionsConfigHandler : public K1RequestHandler {
+public:
+    GetTransitionsConfigHandler() : K1RequestHandler(ROUTE_TRANSITIONS_CONFIG, ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        extern K1TransitionAdapter g_transition_adapter;
+
+        StaticJsonDocument<256> resp;
+        resp["enabled"] = g_transition_adapter.transitions_enabled;
+        resp["default_type"] = transitionTypeToString(g_transition_adapter.default_type);
+        resp["default_duration_ms"] = g_transition_adapter.default_duration_ms;
+        resp["default_easing"] = easingCurveToString(g_transition_adapter.default_curve);
+
+        String output;
+        serializeJson(resp, output);
+        ctx.sendJson(200, output);
+    }
+};
+
+class PostTransitionsConfigHandler : public K1RequestHandler {
+public:
+    PostTransitionsConfigHandler() : K1RequestHandler(ROUTE_TRANSITIONS_CONFIG, ROUTE_POST) {}
+    void handle(RequestContext& ctx) override {
+        extern K1TransitionAdapter g_transition_adapter;
+        const JsonDocument& json = *ctx.json_doc;
+
+        if (json.containsKey("enabled")) {
+            g_transition_adapter.transitions_enabled = json["enabled"].as<bool>();
+        }
+
+        if (json.containsKey("default_type")) {
+            const char* type_str = json["default_type"].as<const char*>();
+            TransitionType type = stringToTransitionType(type_str);
+            if (type != TRANSITION_COUNT) {
+                g_transition_adapter.default_type = type;
+            }
+        }
+
+        if (json.containsKey("default_duration_ms")) {
+            uint32_t duration = json["default_duration_ms"].as<uint32_t>();
+            if (duration >= 100 && duration <= 10000) {
+                g_transition_adapter.default_duration_ms = duration;
+            }
+        }
+
+        if (json.containsKey("default_easing")) {
+            const char* easing_str = json["default_easing"].as<const char*>();
+            EasingCurve curve = stringToEasingCurve(easing_str);
+            if (curve != EASE_LINEAR) {  // Validate (any valid curve)
+                g_transition_adapter.default_curve = curve;
+            }
+        }
+
+        // Return updated configuration
+        StaticJsonDocument<256> resp;
+        resp["enabled"] = g_transition_adapter.transitions_enabled;
+        resp["default_type"] = transitionTypeToString(g_transition_adapter.default_type);
+        resp["default_duration_ms"] = g_transition_adapter.default_duration_ms;
+        resp["default_easing"] = easingCurveToString(g_transition_adapter.default_curve);
+
+        String output;
+        serializeJson(resp, output);
+        ctx.sendJson(200, output);
+    }
+};
+
+class GetTransitionsStatusHandler : public K1RequestHandler {
+public:
+    GetTransitionsStatusHandler() : K1RequestHandler(ROUTE_TRANSITIONS_STATUS, ROUTE_GET) {}
+    void handle(RequestContext& ctx) override {
+        extern K1TransitionAdapter g_transition_adapter;
+        extern const PatternInfo g_pattern_registry[];
+
+        StaticJsonDocument<512> resp;
+        resp["active"] = g_transition_adapter.isActive();
+
+        if (g_transition_adapter.isActive()) {
+            resp["progress"] = g_transition_adapter.getProgress();
+            resp["from_pattern_index"] = g_transition_adapter.from_pattern_index;
+            resp["to_pattern_index"] = g_transition_adapter.to_pattern_index;
+            resp["from_pattern_id"] = g_pattern_registry[g_transition_adapter.from_pattern_index].id;
+            resp["to_pattern_id"] = g_pattern_registry[g_transition_adapter.to_pattern_index].id;
+            resp["type"] = transitionTypeToString(g_transition_adapter.getCurrentType());
+            resp["duration_ms"] = g_transition_adapter.getCurrentDuration();
+
+            // Calculate elapsed time from progress
+            uint32_t elapsed = (uint32_t)(g_transition_adapter.getProgress() * g_transition_adapter.getCurrentDuration());
+            resp["elapsed_ms"] = elapsed;
+        }
+
+        String output;
+        serializeJson(resp, output);
+        ctx.sendJson(200, output);
+    }
+};
+
+// ============================================================================
 // Handler Memory Management Note
 //
 // All handlers (14 instances) are allocated with `new` and intentionally never freed.
@@ -2003,6 +2205,11 @@ void init_webserver() {
     registerGetHandler(server, ROUTE_REALTIME_CONFIG, new GetRealtimeConfigHandler());
     registerPostHandler(server, ROUTE_REALTIME_CONFIG, new PostRealtimeConfigHandler());
     registerPostHandler(server, ROUTE_RMT_RESET, new PostRmtResetHandler());
+
+    // Register transition control handlers
+    registerGetHandler(server, ROUTE_TRANSITIONS_CONFIG, new GetTransitionsConfigHandler());
+    registerPostHandler(server, ROUTE_TRANSITIONS_CONFIG, new PostTransitionsConfigHandler());
+    registerGetHandler(server, ROUTE_TRANSITIONS_STATUS, new GetTransitionsStatusHandler());
 
     // Register remaining GET handlers
     registerGetHandler(server, ROUTE_AUDIO_CONFIG, new GetAudioConfigHandler());

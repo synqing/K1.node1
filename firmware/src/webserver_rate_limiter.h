@@ -70,6 +70,8 @@ static const char* ROUTE_WIFI_POWER_SAVE = "/api/wifi/power-save";
 static const char* ROUTE_WIFI_METRICS = "/api/wifi/metrics";
 static const char* ROUTE_WIFI_CHANNEL = "/api/wifi/channel";
 static const char* ROUTE_WIFI_BAND_STEERING = "/api/wifi/band-steering";
+static const char* ROUTE_TRANSITIONS_CONFIG = "/api/transitions/config";
+static const char* ROUTE_TRANSITIONS_STATUS = "/api/transitions/status";
 
 // Aliases and additional route keys
 static const char* ROUTE_DEVICE_INFO_ALIAS = "/api/device-info";
@@ -104,6 +106,9 @@ static RouteWindow control_windows[] = {
     {ROUTE_FRAME_METRICS, ROUTE_GET, 500, 0},
     {ROUTE_CONFIG_BACKUP, ROUTE_GET, 2000, 0},
     {ROUTE_CONFIG_RESTORE, ROUTE_POST, 2000, 0},
+    {ROUTE_TRANSITIONS_CONFIG, ROUTE_POST, 300, 0},
+    {ROUTE_TRANSITIONS_CONFIG, ROUTE_GET, 500, 0},
+    {ROUTE_TRANSITIONS_STATUS, ROUTE_GET, 200, 0},
 {ROUTE_BEAT_EVENTS_INFO, ROUTE_GET, 200, 0},
 {ROUTE_LATENCY_PROBE, ROUTE_GET, 200, 0},
 {ROUTE_BEAT_EVENTS_RECENT, ROUTE_GET, 300, 0},

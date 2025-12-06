@@ -80,11 +80,13 @@ inline void draw_pulse(const PatternRenderContext& context) {
 	// Diagnostic logging (once per second)
 	static uint32_t last_diagnostic = 0;
 	uint32_t now = millis();
+	#define AUDIO_TEMPO_CONFIDENCE (audio.payload.tempo_confidence)
 	if (now - last_diagnostic > 1000) {
 		last_diagnostic = now;
-		LOG_DEBUG(TAG_GPU, "[PULSE] audio_available=%d, brightness=%.2f, speed=%.2f",
-			(int)AUDIO_IS_AVAILABLE(), params.brightness, params.speed);
+		LOG_DEBUG(TAG_GPU, "[PULSE] audio_available=%d, tempo_confidence=%.2f, brightness=%.2f, speed=%.2f",
+			(int)AUDIO_IS_AVAILABLE(), AUDIO_TEMPO_CONFIDENCE, params.brightness, params.speed);
 	}
+	#undef AUDIO_TEMPO_CONFIDENCE
 
 	// Fallback to ambient if no audio
 	if (!AUDIO_IS_AVAILABLE()) {
@@ -109,15 +111,11 @@ inline void draw_pulse(const PatternRenderContext& context) {
 		return;
 	}
 
-	// Energy-driven wave spawning using raw audio features
-	const float energy_gate = fminf(
-		1.0f,
-		(AUDIO_VU * 0.8f) +
-		(AUDIO_KICK() * 0.6f) +
-		(AUDIO_NOVELTY * 0.4f)
-	);
-	const float spawn_threshold = 0.18f;
-    if (energy_gate > spawn_threshold) {
+	// Beat detection and wave spawning (RESTORED: tempo-confidence based)
+	// Legacy: Uses AUDIO_TEMPO_CONFIDENCE for proper beat-synchronized waves
+	const float beat_threshold = 0.3f;
+	#define AUDIO_TEMPO_CONFIDENCE (audio.payload.tempo_confidence)
+    if (AUDIO_TEMPO_CONFIDENCE > beat_threshold) {
 		// Spawn new wave on beat
 		for (uint16_t i = 0; i < MAX_PULSE_WAVES; i++) {
 			if (!pulse_waves[i].active) {
@@ -125,7 +123,7 @@ inline void draw_pulse(const PatternRenderContext& context) {
                 // Speed expressed as normalized units per second (formerly per frame)
                 pulse_waves[i].speed = (0.25f + params.speed * 0.75f);
 				pulse_waves[i].hue = get_dominant_chroma_hue(audio);
-				pulse_waves[i].brightness = fmaxf(energy_gate, 0.25f);
+				pulse_waves[i].brightness = sqrtf(AUDIO_TEMPO_CONFIDENCE);
 				pulse_waves[i].age = 0;
 				pulse_waves[i].active = true;
 				break; // Only spawn one wave per frame
@@ -194,6 +192,7 @@ inline void draw_pulse(const PatternRenderContext& context) {
     #undef AUDIO_VU
     #undef AUDIO_NOVELTY
     #undef AUDIO_KICK
+    #undef AUDIO_TEMPO_CONFIDENCE
 }
 
 // Static buffers for Perlin noise generation

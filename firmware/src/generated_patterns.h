@@ -11,3 +11,6 @@
 #include "patterns/tempiscope.hpp"
 #include "patterns/tunnel_family.hpp"
 #include "patterns/dot_family.hpp"
+#include "patterns/lgp_physics_family.hpp"
+#include "patterns/lgp_geometric_family.hpp"
+#include "patterns/lgp_interference_family.hpp"

@@ -24,3 +24,34 @@ void draw_metronome(const PatternRenderContext& context);
 void draw_hype(const PatternRenderContext& context);
 void draw_prism(const PatternRenderContext& context);
 void draw_pitch(float time, const PatternParameters& params);
+
+// Light Guide Plate (LGP) Physics Patterns (from K1.Ambience)
+void draw_lgp_gravitational_lensing(const PatternRenderContext& context);
+void draw_lgp_sierpinski(const PatternRenderContext& context);
+void draw_lgp_beam_collision(const PatternRenderContext& context);
+void draw_lgp_quantum_tunneling(const PatternRenderContext& context);
+void draw_lgp_time_crystal(const PatternRenderContext& context);
+void draw_lgp_soliton_waves(const PatternRenderContext& context);
+void draw_lgp_metamaterial_cloaking(const PatternRenderContext& context);
+void draw_lgp_laser_duel(const PatternRenderContext& context);
+void draw_lgp_sonic_boom(const PatternRenderContext& context);
+
+// Light Guide Plate (LGP) Geometric Patterns (from K1.Ambience)
+void draw_lgp_diamond_lattice(const PatternRenderContext& context);
+void draw_lgp_hexagonal_grid(const PatternRenderContext& context);
+void draw_lgp_spiral_vortex(const PatternRenderContext& context);
+void draw_lgp_chevron_waves(const PatternRenderContext& context);
+void draw_lgp_concentric_rings(const PatternRenderContext& context);
+void draw_lgp_star_burst(const PatternRenderContext& context);
+void draw_lgp_mesh_network(const PatternRenderContext& context);
+void draw_lgp_moire_patterns(const PatternRenderContext& context);
+
+// Light Guide Plate (LGP) Interference Patterns (from K1.Ambience)
+void draw_lgp_box_wave(const PatternRenderContext& context);
+void draw_lgp_holographic(const PatternRenderContext& context);
+void draw_lgp_modal_resonance(const PatternRenderContext& context);
+void draw_lgp_interference_scanner(const PatternRenderContext& context);
+void draw_lgp_wave_collision(const PatternRenderContext& context);
+void draw_lgp_soliton_explorer(const PatternRenderContext& context);
+void draw_lgp_turing_patterns(const PatternRenderContext& context);
+void draw_lgp_kelvin_helmholtz(const PatternRenderContext& context);
