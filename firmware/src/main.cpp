@@ -53,6 +53,7 @@ void init_rmt_driver();
 #include "pattern_render_context.h"
 #include "pattern_helpers.h"
 #include "shared_pattern_buffers.h"
+#include "transitions/transition_adapter.hpp"
 // #include "pattern_optimizations.h"  // Disabled: legacy optimization header with mismatched signatures
 #include "webserver.h"
 #include "cpu_monitor.h"
@@ -684,7 +685,15 @@ void loop_gpu(void* param) {
         get_audio_snapshot(&audio_snapshot);
         PatternRenderContext context(leds, NUM_LEDS, time, params, audio_snapshot);
 
-        draw_current_pattern(context);
+        // Check if transition is active
+        extern K1TransitionAdapter g_transition_adapter;
+        if (g_transition_adapter.isActive()) {
+            // Update transition (renders target pattern internally)
+            g_transition_adapter.update(context);
+        } else {
+            // Normal pattern rendering
+            draw_current_pattern(context);
+        }
 
         // Apply legacy color post-processing (warmth, white balance, gamma)
         apply_color_pipeline(params);
