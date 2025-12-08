@@ -14,16 +14,12 @@
 // Frequency domain analysis via constant-Q Goertzel filter
 
 #include "goertzel.h"
-#include "cochlear_agc.h"
 #include <cmath>
 #include <cstring>
 #include <atomic>
 #include <Arduino.h>
 #include "../logging/logger.h"
 #include "../parameters.h"
-
-// Global AGC instance
-CochlearAGC* g_cochlear_agc = nullptr;
 
 // ============================================================================
 // GLOBAL DATA DEFINITIONS
@@ -488,10 +484,6 @@ void calculate_magnitudes() {
 
 			// Store averaged value
 			magnitudes_smooth[i] = magnitudes_avg_result;
-		}
-
-		if (g_cochlear_agc && g_cochlear_agc->is_enabled()) {
-			g_cochlear_agc->process(magnitudes_smooth);
 		}
 
 		// EMOTISCOPE VERBATIM: Find max magnitude for auto-ranging

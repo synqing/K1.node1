@@ -44,7 +44,6 @@ void init_rmt_driver();
 #include "audio/tempo.h"     // Beat detection and tempo tracking pipeline
 #include "audio/microphone.h"  // REAL SPH0645 I2S MICROPHONE INPUT
 #include "audio/vu.h"
-#include "audio/cochlear_agc.h"  // Cochlear AGC v2.1 - Multi-band adaptive gain control
 #include "palettes.h"
 #include "easing_functions.h"
 #include "parameters.h"
@@ -505,17 +504,6 @@ void audio_task(void* param) {
                     LOG_INFO(TAG_AUDIO, "NOVELTY: recent_avg=%.4f silence=%.2f", novelty_recent, silence_level);
                     LOG_INFO(TAG_AUDIO, "TEMPO: conf=%.3f power_sum=%.3f", tempo_confidence, tempi_power_sum);
 
-                    // AGC Internal State (v2.1.1: envelope follower shows smoothed energy)
-                    extern CochlearAGC* g_cochlear_agc;
-                    if (g_cochlear_agc) {
-                        LOG_INFO(TAG_AUDIO, "AGC: gain=%.2fx | E_inst=%.6f E_smooth=%.6f | bands[0]=%.2fx [2]=%.2fx",
-                                 g_cochlear_agc->get_global_gain(),
-                                 g_cochlear_agc->get_current_energy(),
-                                 g_cochlear_agc->get_smoothed_energy(),
-                                 g_cochlear_agc->get_band_gain(0),
-                                 g_cochlear_agc->get_band_gain(2));
-                    }
-
                     LOG_INFO(TAG_AUDIO, "═══════════════════════");
                 }
 
@@ -768,7 +756,6 @@ void setup() {
     // Print keyboard controls help (menu-driven to minimize unique keys)
     LOG_INFO(TAG_CORE1, "========== KEYBOARD CONTROLS ==========");
     LOG_INFO(TAG_CORE1, "  SPACEBAR  - Cycle to next pattern");
-    LOG_INFO(TAG_CORE1, "  a         - Toggle AGC (Cochlear +40dB boost)");
     LOG_INFO(TAG_CORE1, "  d         - Toggle audio diagnostics panel");
     LOG_INFO(TAG_CORE1, "  t         - Toggle tempo debug (spectrum dump)");
     LOG_INFO(TAG_CORE1, "  m         - Open/close Debug Menu");
@@ -844,22 +831,6 @@ void setup() {
     LOG_INFO(TAG_AUDIO, "Initializing Goertzel DFT...");
     init_window_lookup();
     init_goertzel_constants_musical();
-
-    // Initialize Cochlear AGC (multi-band adaptive gain control)
-    LOG_INFO(TAG_AUDIO, "Initializing Cochlear AGC v2.1...");
-    extern CochlearAGC* g_cochlear_agc;
-    g_cochlear_agc = new CochlearAGC();
-    if (g_cochlear_agc && g_cochlear_agc->initialize(NUM_FREQS, 100.0f)) {
-        LOG_INFO(TAG_AUDIO, "Cochlear AGC v2.1.1: 64 bins, 100Hz, +40dB max");
-        LOG_INFO(TAG_AUDIO, "  RMS envelope: 100ms/150ms | Leveling: 3s/8s");
-        // Disable AGC for now to avoid spectrum distortion until retuned
-        g_cochlear_agc->enable(false);
-        LOG_WARN(TAG_AUDIO, "AGC disabled (pass-through) pending retune");
-    } else {
-        LOG_WARN(TAG_AUDIO, "Cochlear AGC initialization failed - continuing without AGC");
-        delete g_cochlear_agc;
-        g_cochlear_agc = nullptr;
-    }
 
     LOG_INFO(TAG_AUDIO, "Initializing VU meter...");
     init_vu();
@@ -1030,16 +1001,6 @@ void loop() {
             extern bool audio_trace_enabled;
             audio_trace_enabled = !audio_trace_enabled;
             LOG_INFO(TAG_TRACE, "Audio trace: %s", audio_trace_enabled ? "ON" : "OFF");
-        } else if (ch == 'a') { // Toggle AGC (direct toggle, no menu)
-            extern CochlearAGC* g_cochlear_agc;
-            if (g_cochlear_agc) {
-                static bool agc_enabled = true;
-                agc_enabled = !agc_enabled;
-                g_cochlear_agc->enable(agc_enabled);
-                LOG_INFO(TAG_AUDIO, "Cochlear AGC: %s", agc_enabled ? "ENABLED (+40dB boost)" : "DISABLED (bypassed)");
-            } else {
-                LOG_WARN(TAG_AUDIO, "AGC not initialized - cannot toggle");
-            }
         } else if (ch == 'm') { // Toggle menu (lowercase only)
             if (dbg_menu_state == MENU_OFF) { dbg_menu_state = MENU_MAIN; print_menu_main(); }
             else { dbg_menu_state = MENU_OFF; LOG_DEBUG(TAG_CORE1, "Menu closed"); }
