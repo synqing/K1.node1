@@ -14,8 +14,8 @@
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
 
-// Track whether network services have been initialized
-static bool network_services_started = false;
+// Reference to global network services flag (defined in main.cpp)
+extern bool network_services_started;
 
 void handle_wifi_connected() {
     connection_logf("INFO", "WiFi connected callback fired");

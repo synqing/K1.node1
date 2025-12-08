@@ -93,7 +93,7 @@ bool audio_trace_enabled = false;  // Non-static for visibility to audio TAG_TRA
 // Forward declaration for single-core audio pipeline helper
 static inline void run_audio_pipeline_once();
 
-static bool network_services_started = false;
+bool network_services_started = false;  // Global: shared across compilation units
 static bool s_audio_task_running = false;
 
 static inline void reset_classic_tempo_bins() {

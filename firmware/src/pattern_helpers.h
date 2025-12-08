@@ -62,32 +62,50 @@ inline float get_hue_from_position(float position) {
  */
 inline void apply_background_overlay(const PatternRenderContext& /*context*/) {}
 
-#define HSV_HUE_ENTRIES 256
-extern CRGBF hue_wheel[HSV_HUE_ENTRIES];
-void init_hue_wheel_lut();
-
 inline float hsv_clip(float val) {
     return fmax(0.0f, fmin(1.0f, val));
 }
 
+/**
+ * Convert HSV color to RGB.
+ *
+ * Direct math implementation (no LUT). Replaces experimental hue_wheel LUT.
+ *
+ * @param h Hue (0.0-1.0)
+ * @param s Saturation (0.0-1.0)
+ * @param v Value/brightness (0.0-1.0)
+ * @return RGB color
+ */
 inline CRGBF hsv(float h, float s, float v) {
     h = hsv_clip(h);
     s = hsv_clip(s);
     v = hsv_clip(v);
 
-    int hue_idx = (int)(h * (HSV_HUE_ENTRIES - 1));
-    CRGBF base = hue_wheel[hue_idx];
+    float r = 0.0f, g = 0.0f, b = 0.0f;
 
-    float desat = 1.0f - s;
-    base.r = base.r * s + desat;
-    base.g = base.g * s + desat;
-    base.b = base.b * s + desat;
+    if (s <= 0.0f) {
+        // Achromatic (gray)
+        r = g = b = v;
+    } else {
+        // Chromatic
+        float hh = h * 6.0f;
+        int i = (int)hh;
+        float ff = hh - i;
+        float p = v * (1.0f - s);
+        float q = v * (1.0f - (s * ff));
+        float t = v * (1.0f - (s * (1.0f - ff)));
 
-    base.r *= v;
-    base.g *= v;
-    base.b *= v;
+        switch (i % 6) {
+            case 0: r = v; g = t; b = p; break;
+            case 1: r = q; g = v; b = p; break;
+            case 2: r = p; g = v; b = t; break;
+            case 3: r = p; g = q; b = v; break;
+            case 4: r = t; g = p; b = v; break;
+            case 5: r = v; g = p; b = q; break;
+        }
+    }
 
-    return base;
+    return CRGBF(r, g, b);
 }
 
 struct HSVF {
