@@ -283,6 +283,95 @@ See: `.claude-plugin/K1-marketplace.json` for registry; `.claude-plugin/plugins/
 
 ---
 
+## Vendor Agent Plugins (Phase 5.4+)
+
+**Deployed:** 2026-01-08
+**Source:** claude-infra v1.2.0
+**Total Plugins:** 66
+**Total Agents:** 147+
+**Total Skills:** 59+
+
+**Purpose:** Comprehensive specialist agent coverage across all development domains. While most plugins target web/cloud/data engineering, 8 plugins directly support ESP32-S3 firmware development.
+
+**Location:**
+- **Vendor Plugins:** `.claude/agents/vendors/`
+- **Discovery Index:** `docs/06-reference/K1NRef_VENDOR_AGENTS_INDEX_v1.0_20260108.md`
+- **Registry:** `.claude-plugin/K1-marketplace.json` (vendor_plugins section)
+
+### Firmware-Relevant Specialists (8 plugins, 18+ agents)
+
+High-priority agents for K1.node1 embedded development:
+
+| Agent | Plugin | Use Case |
+|-------|--------|----------|
+| **@arm-cortex-expert** | arm-cortex-microcontrollers | ARM Cortex-M patterns, memory barriers, DMA/cache |
+| **@cpp-pro** | systems-programming | Modern C++17 firmware, memory safety, optimization |
+| **@c-pro** | systems-programming | Low-level C firmware, RTOS integration, embedded |
+| **@debugger** | debugging-toolkit | GDB workflows, hardfault analysis, systematic troubleshooting |
+| **@dx-optimizer** | debugging-toolkit | Developer experience, tooling improvements, automation |
+| **@performance-engineer** | performance-testing-review | Profiling, FPS optimization, bottleneck analysis |
+| **@test-automator** | performance-testing-review | Test infrastructure, stress testing, automation |
+| **@error-detective** | error-debugging/diagnostics | Error pattern analysis, log forensics, correlation |
+| **@incident-responder** | incident-response | Production troubleshooting, rapid diagnosis, mitigation |
+
+### When to Use Vendor Agents
+
+- **ESP32 architecture questions** → `@arm-cortex-expert` (patterns transfer from ARM Cortex-M)
+- **Firmware refactoring/optimization** → `@cpp-pro` (modern C++17 patterns)
+- **Crash debugging, GDB sessions** → `@debugger` (systematic troubleshooting)
+- **Performance analysis, FPS issues** → `@performance-engineer` (profiling, optimization)
+- **Test suite expansion** → `@test-automator` (test harness setup, stress testing)
+- **Production incidents** → `@incident-responder` (rapid diagnosis and mitigation)
+- **Error pattern analysis** → `@error-detective` (log forensics, correlation)
+- **Developer workflow improvements** → `@dx-optimizer` (tooling, automation)
+
+### All Vendor Plugins Available
+
+Complete catalog: `docs/06-reference/K1NRef_VENDOR_AGENTS_INDEX_v1.0_20260108.md`
+
+**Categories:** Development (5), Debugging (3), AI/ML (5), Operations (9), Performance (4), Security (4), Database (3), API (3), Modernization (4), Documentation (1), SEO/Marketing (4), Business (3), Finance (3), Specialized (2), Languages (9), Essentials (1)
+
+### Token Efficiency
+
+- **Progressive disclosure:** Only metadata loads in base context (~80 tokens/plugin)
+- **Per-agent activation:** ~200-500 tokens (only when used)
+- **Baseline overhead:** ~5,000 tokens for 66 plugin metadata
+- **Efficiency gain:** 60% reduction vs loading all agent content upfront
+
+### Invocation Patterns
+
+```bash
+# Direct agent call
+@cpp-pro review this RMT synchronization code for modern C++17 patterns
+
+# Vendor commands (already deployed)
+/tools:error-analysis analyze firmware crash logs
+/workflows:incident-response handle LED synchronization regression
+
+# Skill activation (automatic)
+# Triggers when editing relevant files (C++ code → cpp-pro patterns activate)
+```
+
+### Integration with K1 Workflows
+
+**Example:** RMT stability regression
+```
+1. K1 Plugin: rmt-led-control → Loads RMT synchronization expertise
+2. Vendor Agent: @debugger → Systematic troubleshooting protocol
+3. Vendor Agent: @performance-engineer → Profile refill timing
+4. K1 Skill: hot-path-telemetry → Zero-cost instrumentation
+5. Outcome: Root cause identified, fix validated
+```
+
+### Maintenance
+
+- **Version tracking:** K1-marketplace.json vendor_plugins section
+- **Sync protocol:** Quarterly review of claude-infra updates (April 2026)
+- **Update strategy:** Selective updates for firmware-relevant changes only
+- **Documentation:** `docs/08-governance/CHANGELOG.md` tracks all changes
+
+---
+
 ## Firmware/ESP‑IDF Guardrails & Playbook (MANDATORY)
 
 Mindset
