@@ -1,5 +1,26 @@
 #pragma once
 
+/**
+ * @brief Feature flag for gradual global state migration
+ *
+ * Controls whether code uses unified state structures (g_audio, g_leds, g_profiler)
+ * or legacy scattered globals. Enables A/B testing during migration.
+ *
+ * USE_UNIFIED_STATE = 1: All code uses unified state (new path)
+ * USE_UNIFIED_STATE = 0: All code uses legacy globals (old path)
+ *
+ * Both paths must compile and produce identical results.
+ * After validation in production, legacy path will be removed.
+ *
+ * Migration Progress:
+ *  - Profiler state: Ready for migration
+ *  - Audio state: Ready for migration
+ *  - Pattern state: Ready for migration
+ */
+#ifndef USE_UNIFIED_STATE
+#  define USE_UNIFIED_STATE 0  // Toggle for testing: 0 = legacy, 1 = unified (default legacy)
+#endif
+
 #include "audio/audio_system_state.h"
 #include "led/led_system_state.h"
 #include "profiler/profile_metrics.h"
