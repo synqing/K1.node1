@@ -361,6 +361,7 @@ These 4 documents contain 80% of the actionable information.
 **Related documents in K1 project:**
 - `/docs/01-architecture/` - System architecture
 - `/docs/06-reference/` - API documentation
+- `/docs/06-reference/K1NRef_VENDOR_AGENTS_INDEX_v1.0_20260108.md` - Vendor agent plugin catalog (66 plugins, 147+ agents)
 - `/firmware/` - K1 source code
 - `/webapp/` - Web UI source code
 
